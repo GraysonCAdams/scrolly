@@ -1,0 +1,1 @@
+ALTER TABLE `clips` ADD `file_size_bytes` integer;

@@ -1,0 +1,1 @@
+ALTER TABLE `groups` ADD `accent_color` text DEFAULT 'coral' NOT NULL;

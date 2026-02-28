@@ -1,0 +1,97 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1772210909012,
+      "tag": "0000_daily_hydra",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1772233273935,
+      "tag": "0001_goofy_black_bolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1772233670065,
+      "tag": "0002_silky_spitfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1772234690582,
+      "tag": "0003_yummy_phil_sheldon",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1772249870939,
+      "tag": "0004_fine_mephistopheles",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1772250507461,
+      "tag": "0005_supreme_fixer",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772250968685,
+      "tag": "0006_gray_overlord",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1772251544769,
+      "tag": "0007_bumpy_pete_wisdom",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1772252841934,
+      "tag": "0008_black_shiver_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1772254392835,
+      "tag": "0009_married_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1772257141507,
+      "tag": "0010_demonic_warbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1772257426528,
+      "tag": "0011_foamy_ma_gnuci",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1772257888621,
+      "tag": "0012_cultured_fabian_cortez",
+      "breakpoints": true
+    }
+  ]
+}
