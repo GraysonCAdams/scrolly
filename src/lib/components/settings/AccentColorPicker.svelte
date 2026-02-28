@@ -76,5 +76,17 @@
 		width: 16px;
 		height: 16px;
 		color: #000000;
+		animation: check-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes check-in {
+		from {
+			transform: scale(0);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
 	}
 </style>

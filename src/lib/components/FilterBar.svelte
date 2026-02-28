@@ -8,22 +8,20 @@
 		filter: FeedFilter;
 		onfilter: (f: FeedFilter) => void;
 	} = $props();
+
+	const filters: FeedFilter[] = ['unwatched', 'all', 'watched', 'favorites'];
+	const labels = ['New', 'All', 'Watched', 'Faves'];
+	const activeIndex = $derived(filters.indexOf(filter));
 </script>
 
 <div class="filter-bar">
 	<div class="filter-tabs">
-		<button class:active={filter === 'unwatched'} onclick={() => onfilter('unwatched')}>
-			<span class="tab-label">New</span>
-		</button>
-		<button class:active={filter === 'all'} onclick={() => onfilter('all')}>
-			<span class="tab-label">All</span>
-		</button>
-		<button class:active={filter === 'watched'} onclick={() => onfilter('watched')}>
-			<span class="tab-label">Watched</span>
-		</button>
-		<button class:active={filter === 'favorites'} onclick={() => onfilter('favorites')}>
-			<span class="tab-label">Faves</span>
-		</button>
+		<div class="indicator" style="transform: translateX({activeIndex * 100}%)"></div>
+		{#each filters as f, i (f)}
+			<button class:active={filter === f} onclick={() => onfilter(f)}>
+				<span class="tab-label">{labels[i]}</span>
+			</button>
+		{/each}
 	</div>
 </div>
 
@@ -50,6 +48,26 @@
 		display: flex;
 		gap: 0;
 		pointer-events: auto;
+		position: relative;
+	}
+
+	.indicator {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: 25%;
+		display: flex;
+		justify-content: center;
+		transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+		pointer-events: none;
+	}
+
+	.indicator::after {
+		content: '';
+		width: 20px;
+		height: 3px;
+		background: var(--text-primary);
+		border-radius: var(--radius-full);
 	}
 
 	.filter-tabs button {
@@ -74,17 +92,5 @@
 	.tab-label {
 		position: relative;
 		display: inline-block;
-	}
-
-	.filter-tabs button.active .tab-label::after {
-		content: '';
-		position: absolute;
-		bottom: -6px;
-		left: 50%;
-		transform: translateX(-50%);
-		width: 20px;
-		height: 3px;
-		background: var(--text-primary);
-		border-radius: var(--radius-full);
 	}
 </style>

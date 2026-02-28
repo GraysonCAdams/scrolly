@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import ReelItem from '$lib/components/ReelItem.svelte';
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
@@ -582,6 +583,17 @@
 		justify-content: center;
 		gap: var(--space-sm);
 		background: var(--bg-primary);
+		animation: empty-in 400ms cubic-bezier(0.32, 0.72, 0, 1);
+	}
+	@keyframes empty-in {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 	.empty-icon {
 		width: 56px;

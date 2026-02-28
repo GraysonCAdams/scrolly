@@ -447,6 +447,18 @@
 		font-size: 0.8125rem;
 		cursor: pointer;
 		transition: all 0.2s ease;
+		animation: pill-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes pill-in {
+		from {
+			opacity: 0;
+			transform: scale(0.8);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
 	}
 
 	.reaction-pill.reacted {

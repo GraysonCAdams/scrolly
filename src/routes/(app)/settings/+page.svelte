@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import {
@@ -41,6 +42,11 @@
 	let autoScroll = $state(user?.autoScroll ?? false);
 	let mutedByDefault = $state(user?.mutedByDefault ?? true);
 	let currentAccent = $state<AccentColorKey>((group?.accentColor as AccentColorKey) ?? 'coral');
+	const themeIndex = $derived.by(() => {
+		if (theme === 'system') return 0;
+		if (theme === 'light') return 1;
+		return 2;
+	});
 
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
@@ -114,6 +120,7 @@
 <div class="settings-page">
 	{#if isHost}
 		<div class="tab-bar">
+			<div class="tab-bg" style="transform: translateX({activeTab === 'me' ? '0%' : '100%'})"></div>
 			<button class="tab" class:active={activeTab === 'me'} onclick={() => (activeTab = 'me')}
 				>Me</button
 			>
@@ -140,6 +147,7 @@
 				<h3 class="section-title">Appearance</h3>
 				<div class="card">
 					<div class="theme-toggle">
+						<div class="theme-bg" style="transform: translateX({themeIndex * 100}%)"></div>
 						<button
 							class="theme-option"
 							class:active={theme === 'system'}
@@ -279,6 +287,19 @@
 		border-radius: var(--radius-full);
 		padding: 3px;
 		margin-bottom: var(--space-xl);
+		position: relative;
+	}
+
+	.tab-bg {
+		position: absolute;
+		top: 3px;
+		bottom: 3px;
+		left: 3px;
+		width: calc(50% - 3px);
+		background: var(--text-primary);
+		border-radius: var(--radius-full);
+		transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+		z-index: 0;
 	}
 
 	.tab {
@@ -292,11 +313,12 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: color 0.2s ease;
+		position: relative;
+		z-index: 1;
 	}
 
 	.tab.active {
-		background: var(--text-primary);
 		color: var(--bg-primary);
 	}
 
@@ -380,6 +402,19 @@
 		background: var(--bg-surface);
 		border-radius: var(--radius-full);
 		padding: 3px;
+		position: relative;
+	}
+
+	.theme-bg {
+		position: absolute;
+		top: 3px;
+		bottom: 3px;
+		left: 3px;
+		width: calc(33.333% - 2px);
+		background: var(--text-primary);
+		border-radius: var(--radius-full);
+		transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+		z-index: 0;
 	}
 
 	.theme-option {
@@ -392,11 +427,12 @@
 		font-size: 0.8125rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: color 0.2s ease;
+		position: relative;
+		z-index: 1;
 	}
 
 	.theme-option.active {
-		background: var(--text-primary);
 		color: var(--bg-primary);
 	}
 
@@ -465,7 +501,7 @@
 		height: 22px;
 		border-radius: 50%;
 		background: #fff;
-		transition: transform 0.2s;
+		transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}
 

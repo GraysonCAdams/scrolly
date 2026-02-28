@@ -63,13 +63,18 @@
 		}
 		loading = false;
 
-		// Mark all as read
+		// Mark all as read on server
 		await fetch('/api/notifications/mark-read', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ all: true })
 		});
 		fetchUnreadCount();
+
+		// Fade out unread backgrounds after a short delay
+		setTimeout(() => {
+			items = items.map((n) => ({ ...n, read: true }));
+		}, 1000);
 	});
 
 	function description(n: Notification): string {
@@ -108,12 +113,18 @@
 			<p class="empty-sub">Reactions and comments on your clips will show up here</p>
 		</div>
 	{:else}
-		{#each grouped as section}
+		{#each grouped as section (section.label)}
 			<div class="section">
 				<h2 class="section-header">{section.label}</h2>
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- query param navigation -->
 				<div class="notification-list">
-					{#each section.items as n (n.id)}
-						<a href="/?clip={n.clipId}" class="notification-item" class:unread={!n.read}>
+					{#each section.items as n, i (n.id)}
+						<a
+							href="/?clip={n.clipId}"
+							class="notification-item"
+							class:unread={!n.read}
+							style="animation-delay: {Math.min(i, 15) * 30}ms"
+						>
 							<div class="actor-avatar">
 								{#if n.actorAvatar}
 									<img src="/api/profile/avatar/{n.actorAvatar}" alt="" class="avatar-img" />
@@ -173,6 +184,18 @@
 		justify-content: center;
 		padding: var(--space-3xl) var(--space-lg);
 		gap: var(--space-sm);
+		animation: empty-in 400ms cubic-bezier(0.32, 0.72, 0, 1);
+	}
+
+	@keyframes empty-in {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.empty-icon {
@@ -189,6 +212,17 @@
 		width: 48px;
 		height: 48px;
 		opacity: 0.4;
+		animation: gentle-float 3s ease-in-out infinite;
+	}
+
+	@keyframes gentle-float {
+		0%,
+		100% {
+			transform: translateY(0);
+		}
+		50% {
+			transform: translateY(-4px);
+		}
 	}
 
 	.empty-title {
@@ -221,7 +255,8 @@
 		text-decoration: none;
 		color: inherit;
 		border-radius: var(--radius-sm);
-		transition: background 0.15s ease;
+		transition: background 0.4s ease-out;
+		animation: notif-in 250ms cubic-bezier(0.32, 0.72, 0, 1) both;
 	}
 
 	.notification-item:active {
@@ -230,6 +265,17 @@
 
 	.notification-item.unread {
 		background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+	}
+
+	@keyframes notif-in {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.actor-avatar {

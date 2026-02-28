@@ -123,28 +123,62 @@
 	<nav class="bottom-tabs" class:overlay-mode={isFeed}>
 		{#if isFeed}
 			<button class="tab active" onclick={() => homeTapSignal.update((n) => n + 1)}>
-				<!-- Filled home icon (active) -->
-				<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-					<path
-						d="M12.71 2.29a1 1 0 0 0-1.42 0l-9 9a1 1 0 0 0 1.42 1.42L4 12.41V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.59l.29.3a1 1 0 0 0 1.42-1.42l-9-9zM10 20v-6h4v6h-4z"
-					/>
-				</svg>
+				<span class="icon-wrap">
+					<svg
+						class="icon-filled"
+						class:hidden={!isFeed}
+						viewBox="0 0 24 24"
+						fill="currentColor"
+						stroke="none"
+					>
+						<path
+							d="M12.71 2.29a1 1 0 0 0-1.42 0l-9 9a1 1 0 0 0 1.42 1.42L4 12.41V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.59l.29.3a1 1 0 0 0 1.42-1.42l-9-9zM10 20v-6h4v6h-4z"
+						/>
+					</svg>
+					<svg
+						class="icon-outlined"
+						class:hidden={isFeed}
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+						<path d="M9 21V12h6v9" />
+					</svg>
+				</span>
 				<span>Home</span>
 			</button>
 		{:else}
 			<a href="/" class="tab">
-				<!-- Outlined home icon (inactive) -->
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-					<path d="M9 21V12h6v9" />
-				</svg>
+				<span class="icon-wrap">
+					<svg
+						class="icon-filled"
+						class:hidden={!isFeed}
+						viewBox="0 0 24 24"
+						fill="currentColor"
+						stroke="none"
+					>
+						<path
+							d="M12.71 2.29a1 1 0 0 0-1.42 0l-9 9a1 1 0 0 0 1.42 1.42L4 12.41V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.59l.29.3a1 1 0 0 0 1.42-1.42l-9-9zM10 20v-6h4v6h-4z"
+						/>
+					</svg>
+					<svg
+						class="icon-outlined"
+						class:hidden={isFeed}
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+						<path d="M9 21V12h6v9" />
+					</svg>
+				</span>
 				<span>Home</span>
 			</a>
 		{/if}
@@ -170,16 +204,21 @@
 			<span>Add</span>
 		</button>
 		<a href="/settings" class="tab" class:active={isSettings}>
-			{#if isSettings}
-				<!-- Filled gear icon (active) -->
-				<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+			<span class="icon-wrap">
+				<svg
+					class="icon-filled"
+					class:hidden={!isSettings}
+					viewBox="0 0 24 24"
+					fill="currentColor"
+					stroke="none"
+				>
 					<path
 						d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.26.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"
 					/>
 				</svg>
-			{:else}
-				<!-- Outlined gear icon (inactive) -->
 				<svg
+					class="icon-outlined"
+					class:hidden={isSettings}
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"
@@ -192,7 +231,7 @@
 						d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
 					/>
 				</svg>
-			{/if}
+			</span>
 			<span>Settings</span>
 		</a>
 	</nav>
@@ -359,7 +398,28 @@
 		height: 24px;
 	}
 
+	.icon-wrap {
+		position: relative;
+		width: 24px;
+		height: 24px;
+	}
+
+	.icon-wrap svg {
+		position: absolute;
+		inset: 0;
+		transition: opacity 150ms ease;
+	}
+
+	.icon-wrap svg.hidden {
+		opacity: 0;
+	}
+
+	.add-tab:active .add-icon {
+		transform: scale(0.93);
+	}
+
 	.add-icon {
+		transition: transform 100ms ease;
 		width: 36px;
 		height: 24px;
 		display: flex;

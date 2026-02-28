@@ -58,8 +58,22 @@
 		border-top: 1px solid var(--border);
 		font-size: 0.75rem;
 		color: var(--text-secondary);
+		animation: reply-slide 200ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
-	.reply-indicator strong { color: var(--text-primary); }
+
+	@keyframes reply-slide {
+		from {
+			opacity: 0;
+			transform: translateY(100%);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	.reply-indicator strong {
+		color: var(--text-primary);
+	}
 
 	.cancel-reply {
 		background: none;
@@ -90,8 +104,12 @@
 		outline: none;
 		transition: border-color 0.2s ease;
 	}
-	.input-bar input:focus { border-color: var(--accent-primary); }
-	.input-bar input::placeholder { color: var(--text-muted); }
+	.input-bar input:focus {
+		border-color: var(--accent-primary);
+	}
+	.input-bar input::placeholder {
+		color: var(--text-muted);
+	}
 
 	.input-bar button {
 		padding: var(--space-sm) var(--space-lg);
@@ -104,6 +122,11 @@
 		cursor: pointer;
 		transition: transform 0.1s ease;
 	}
-	.input-bar button:active { transform: scale(0.97); }
-	.input-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
+	.input-bar button:active {
+		transform: scale(0.97);
+	}
+	.input-bar button:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
 </style>

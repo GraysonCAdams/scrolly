@@ -9,7 +9,9 @@
 	} from '$lib/stores/toasts';
 	import { onDestroy } from 'svelte';
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive tracking maps, cleaned up in onDestroy
 	const pollIntervals = new Map<string, ReturnType<typeof setInterval>>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive tracking maps, cleaned up in onDestroy
 	const dismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 	$effect(() => {
@@ -26,7 +28,7 @@
 			if (toast.autoDismiss && toast.autoDismiss > 0 && !dismissTimeouts.has(toast.id)) {
 				const timeout = setTimeout(() => {
 					dismissTimeouts.delete(toast.id);
-					removeToast(toast.id);
+					handleDismiss(toast.id);
 				}, toast.autoDismiss);
 				dismissTimeouts.set(toast.id, timeout);
 			}
@@ -60,11 +62,10 @@
 				if (interval) clearInterval(interval);
 				pollIntervals.delete(toast.id);
 
+				const contentLabel = toast.contentType === 'music' ? 'song' : 'video';
 				replaceToast(toast.id, {
 					type: 'success',
-					message: data.title
-						? `"${data.title}" is ready`
-						: `Your ${toast.contentType === 'music' ? 'song' : 'video'} is ready`
+					message: data.title ? `"${data.title}" is ready` : `Your ${contentLabel} is ready`
 				});
 
 				const timeout = setTimeout(() => removeToast(toast.id), 6000);
@@ -93,14 +94,22 @@
 		handleDismiss(toast.id);
 	}
 
+	let dismissingIds = $state(new Set<string>());
+
 	function handleDismiss(id: string) {
+		if (dismissingIds.has(id)) return;
 		const interval = pollIntervals.get(id);
 		if (interval) clearInterval(interval);
 		pollIntervals.delete(id);
 		const timeout = dismissTimeouts.get(id);
 		if (timeout) clearTimeout(timeout);
 		dismissTimeouts.delete(id);
-		removeToast(id);
+
+		dismissingIds = new Set([...dismissingIds, id]);
+		setTimeout(() => {
+			dismissingIds = new Set([...dismissingIds].filter((d) => d !== id));
+			removeToast(id);
+		}, 200);
 	}
 
 	onDestroy(() => {
@@ -112,7 +121,11 @@
 {#if $toasts.length > 0}
 	<div class="toast-stack">
 		{#each $toasts as toast (toast.id)}
-			<div class="toast toast-{toast.type}" role="alert">
+			<div
+				class="toast toast-{toast.type}"
+				class:dismissing={dismissingIds.has(toast.id)}
+				role="alert"
+			>
 				<div class="toast-icon">
 					{#if toast.type === 'processing'}
 						<div class="spinner-ring"></div>
@@ -350,6 +363,17 @@
 		to {
 			opacity: 1;
 			transform: translateY(0) scale(1);
+		}
+	}
+
+	.toast.dismissing {
+		animation: toast-out 200ms ease-out forwards;
+	}
+
+	@keyframes toast-out {
+		to {
+			opacity: 0;
+			transform: translateY(12px) scale(0.97);
 		}
 	}
 </style>
