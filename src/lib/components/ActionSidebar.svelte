@@ -109,6 +109,7 @@
 			stop(e);
 			onfavorite();
 		}}
+		aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
 	>
 		<span class="icon-circle">
 			<svg
@@ -158,6 +159,7 @@
 		bind:this={reactionBtnEl}
 		onpointerdown={handleReactionDown}
 		onpointerup={handleReactionUp}
+		aria-label="React"
 	>
 		<span class="icon-circle">
 			<svg
@@ -176,8 +178,15 @@
 		</span>
 	</button>
 
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<a href={originalUrl} target="_blank" rel="noopener" class="sidebar-btn" onclick={stop}>
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
+	<a
+		href={originalUrl}
+		target="_blank"
+		rel="noopener"
+		class="sidebar-btn"
+		onclick={stop}
+		aria-label="Open original"
+	>
 		<span class="icon-circle">
 			<svg
 				viewBox="0 0 24 24"

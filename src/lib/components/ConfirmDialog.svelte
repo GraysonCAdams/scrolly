@@ -32,10 +32,25 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if $confirmState.open}
-	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-	<div class="overlay" class:visible onclick={dismiss}>
-		<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-		<div class="dialog" class:visible onclick={(e) => e.stopPropagation()}>
+	<div
+		class="overlay"
+		class:visible
+		onclick={dismiss}
+		onkeydown={(e) => {
+			if (e.key === 'Enter') dismiss();
+		}}
+		role="button"
+		tabindex="-1"
+		aria-label="Close dialog"
+	>
+		<div
+			class="dialog"
+			class:visible
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog"
+			tabindex="-1"
+		>
 			<h3>{$confirmState.options.title}</h3>
 			<p>{$confirmState.options.message}</p>
 			<div class="actions">

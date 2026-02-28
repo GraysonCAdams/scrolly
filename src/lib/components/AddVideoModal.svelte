@@ -162,7 +162,15 @@
 
 <div class="sheet" class:visible class:fullscreen={phase !== 'form'}>
 	{#if phase === 'form'}
-		<div class="handle-bar" onclick={dismiss} role="button" tabindex="-1">
+		<div
+			class="handle-bar"
+			onclick={dismiss}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') dismiss();
+			}}
+			role="button"
+			tabindex="-1"
+		>
 			<div class="handle"></div>
 		</div>
 		<div class="header">

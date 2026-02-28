@@ -18,7 +18,8 @@
 	let pickerEl: HTMLDivElement | null = $state(null);
 	let visible = $state(false);
 	let hoveredIndex = $state(-1);
-	let isDragging = $state(dragMode);
+	let exitedDragMode = $state(false);
+	const isDragging = $derived(dragMode && !exitedDragMode);
 	const btnEls: HTMLButtonElement[] = $state([]);
 
 	// Animate in
@@ -87,7 +88,7 @@
 				onpick(EMOJI[idx]);
 			} else {
 				// Released outside emoji — switch to tap mode
-				isDragging = false;
+				exitedDragMode = true;
 				hoveredIndex = -1;
 			}
 		}
@@ -116,7 +117,7 @@
 </script>
 
 <div class="picker" class:visible style={getStyle()} bind:this={pickerEl}>
-	{#each EMOJI as emoji, i}
+	{#each EMOJI as emoji, i (emoji)}
 		<button
 			class="emoji-btn"
 			class:hovered={hoveredIndex === i}

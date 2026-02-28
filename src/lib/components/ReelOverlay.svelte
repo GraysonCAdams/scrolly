@@ -42,12 +42,7 @@
 	const reactionEntries = $derived(Object.entries(reactions).filter(([, v]) => v.count > 0));
 
 	// Get initials from username for avatar fallback
-	const initials = $derived(
-		username
-			.replace('@', '')
-			.slice(0, 2)
-			.toUpperCase()
-	);
+	const initials = $derived(username.replace('@', '').slice(0, 2).toUpperCase());
 
 	function startEdit() {
 		if (!canModify) return;
@@ -119,11 +114,7 @@
 <div class="reel-overlay">
 	<div class="overlay-user">
 		{#if avatarPath}
-			<img
-				src="/api/profile/avatar/{avatarPath}"
-				alt=""
-				class="overlay-avatar"
-			/>
+			<img src="/api/profile/avatar/{avatarPath}" alt="" class="overlay-avatar" />
 		{:else}
 			<span class="overlay-avatar overlay-avatar-fallback">{initials}</span>
 		{/if}
@@ -132,8 +123,12 @@
 	</div>
 
 	{#if editing}
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="caption-edit" onclick={(e) => e.stopPropagation()}>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="caption-edit"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+		>
 			<input
 				bind:this={inputEl}
 				type="text"
@@ -148,10 +143,10 @@
 			</div>
 		</div>
 	{:else if caption || canModify}
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="caption-area">
 			{#if caption}
-				<p
+				<button
+					type="button"
 					class="overlay-caption"
 					class:expanded
 					onclick={(e) => {
@@ -164,9 +159,10 @@
 					}}
 				>
 					{caption}
-				</p>
+				</button>
 			{:else}
-				<p
+				<button
+					type="button"
 					class="overlay-caption placeholder"
 					onclick={(e) => {
 						e.stopPropagation();
@@ -174,7 +170,7 @@
 					}}
 				>
 					Add a caption...
-				</p>
+				</button>
 			{/if}
 			{#if saved}
 				<span class="saved-badge">Saved</span>
@@ -184,8 +180,13 @@
 
 	<!-- Host actions: Edit / Delete (only when clip hasn't been seen by others) -->
 	{#if canModify && !editing}
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="host-actions" onclick={(e) => e.stopPropagation()}>
+		<div
+			class="host-actions"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="toolbar"
+			tabindex="-1"
+		>
 			{#if confirmingDelete}
 				<span class="confirm-label">Delete this clip?</span>
 				<button class="host-action-btn confirm-yes" onclick={handleDelete} disabled={deleting}>
@@ -205,7 +206,7 @@
 
 	{#if reactionEntries.length > 0}
 		<div class="overlay-reactions">
-			{#each reactionEntries as [emoji, data]}
+			{#each reactionEntries as [emoji, data] (emoji)}
 				<button
 					class="reaction-pill"
 					class:reacted={data.reacted}
@@ -288,6 +289,11 @@
 
 	.overlay-caption {
 		margin: 0;
+		padding: 0;
+		background: none;
+		border: none;
+		font: inherit;
+		text-align: left;
 		font-size: 0.875rem;
 		color: rgba(255, 255, 255, 0.9);
 		text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
