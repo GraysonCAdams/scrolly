@@ -31,6 +31,10 @@ Share video clips and music links with your close friends through private groups
 - **Themes** — Dark, light, and system-based theme switching
 - **PWA** — Installable on mobile and desktop
 
+## Important: Legal Responsibilities
+
+Scrolly uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download media from third-party platforms. **You are responsible for ensuring your use complies with applicable laws and platform terms of service.** This software is intended for personal, private use among small friend groups. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -41,6 +45,7 @@ Share video clips and music links with your close friends through private groups
 | Messaging | Twilio SMS |
 | Notifications | Web Push (VAPID) |
 | Styling | Scoped CSS, custom properties |
+| Video Downloads | [yt-dlp](https://github.com/yt-dlp/yt-dlp) + FFmpeg |
 | Language | TypeScript |
 
 ## Quick Start
@@ -108,6 +113,18 @@ docker run --rm -v scrolly_scrolly-data:/data -v $(pwd):/backup alpine \
   tar czf /backup/scrolly-backup-$(date +%Y%m%d).tar.gz -C / data
 ```
 
+### Self-Hosting Responsibilities
+
+By operating a self-hosted instance, you assume full responsibility for:
+
+- All content downloaded, stored, and shared on your instance
+- Compliance with data protection laws (GDPR, CCPA, etc.) applicable to your users
+- Compliance with telecommunications regulations if using SMS features
+- Establishing your own terms of service and privacy policy (templates are served at `/legal/`)
+- Securing your deployment and protecting user data
+
+The Scrolly maintainers accept no responsibility for third-party deployments. See [DISCLAIMER.md](DISCLAIMER.md).
+
 ## Scripts
 
 | Command | Description |
@@ -131,6 +148,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, 
 
 See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnerabilities.
 
-## License
+## Legal
 
 [MIT](LICENSE) — Created by [@GraysonCAdams](https://github.com/GraysonCAdams)
+
+See [DISCLAIMER.md](DISCLAIMER.md) for content and liability disclaimers, and [NOTICE](NOTICE) for third-party attributions.
