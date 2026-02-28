@@ -50,7 +50,7 @@ Response: { "verified": true }
 
 **Complete onboarding:**
 ```
-Request:  { "action": "onboard", "username": "grayson", "phone": "+1234567890" }
+Request:  { "action": "onboard", "username": "jane", "phone": "+1234567890" }
 Response: { "user": { ... }, "group": { ... } }
 ```
 
