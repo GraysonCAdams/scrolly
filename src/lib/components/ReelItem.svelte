@@ -30,6 +30,7 @@
 		appleMusicUrl: string | null;
 		youtubeMusicUrl: string | null;
 		addedByUsername: string;
+		addedByAvatar: string | null;
 		platform: string;
 		status: string;
 		contentType: string;
@@ -598,6 +599,7 @@
 
 	<ReelOverlay
 		username={clip.addedByUsername}
+		avatarPath={clip.addedByAvatar}
 		platform={clip.platform}
 		caption={clip.title}
 		reactions={clip.reactions}
@@ -621,6 +623,13 @@
 		onreactionhold={triggerReactionPickerHold}
 		onmute={toggleMute}
 	/>
+
+	<!-- Spinning album art disc for music reels -->
+	{#if clip.contentType === 'music' && clip.albumArt}
+		<div class="music-disc" class:spinning={active && !paused}>
+			<img src={clip.albumArt} alt="" class="music-disc-img" />
+		</div>
+	{/if}
 
 	<!-- Comment prompt bar (active reel only) -->
 	{#if active}
@@ -876,6 +885,36 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
+		}
+	}
+
+	/* Spinning album art disc for music reels */
+	.music-disc {
+		position: absolute;
+		right: var(--space-lg);
+		bottom: calc(56px + env(safe-area-inset-bottom));
+		width: 44px;
+		height: 44px;
+		border-radius: var(--radius-full);
+		overflow: hidden;
+		z-index: 5;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+		border: 2px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.music-disc.spinning {
+		animation: spin-disc 4s linear infinite;
+	}
+
+	.music-disc-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	@keyframes spin-disc {
+		to {
+			transform: rotate(360deg);
 		}
 	}
 </style>

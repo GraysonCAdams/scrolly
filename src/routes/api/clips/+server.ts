@@ -110,13 +110,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		allClips = allClips.filter((c) => favIds.has(c.id));
 	}
 
-	// Look up usernames for added_by
+	// Look up usernames + avatars for added_by
 	const userIds = [...new Set(allClips.map((c) => c.addedBy))];
-	const usersMap = new Map<string, string>();
+	const usersMap = new Map<string, { username: string; avatarPath: string | null }>();
 	if (userIds.length > 0) {
 		const userRows = await db.query.users.findMany();
 		for (const u of userRows) {
-			usersMap.set(u.id, u.username);
+			usersMap.set(u.id, { username: u.username, avatarPath: u.avatarPath });
 		}
 	}
 
@@ -125,7 +125,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const result = paginatedClips.map((c) => ({
 		...c,
-		addedByUsername: usersMap.get(c.addedBy) || 'Unknown',
+		addedByUsername: usersMap.get(c.addedBy)?.username || 'Unknown',
+		addedByAvatar: usersMap.get(c.addedBy)?.avatarPath || null,
 		watched: watchedIds.has(c.id),
 		favorited: favIds.has(c.id),
 		reactions: reactionsByClip.get(c.id) || {},

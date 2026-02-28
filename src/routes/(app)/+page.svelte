@@ -21,6 +21,7 @@
 		youtubeMusicUrl: string | null;
 		addedBy: string;
 		addedByUsername: string;
+		addedByAvatar: string | null;
 		platform: string;
 		status: string;
 		contentType: string;
