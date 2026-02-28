@@ -6,7 +6,7 @@ Scrolly is open-source software distributed under the [MIT License](LICENSE). It
 
 ## Content Responsibility
 
-Scrolly enables users to share video and music links within private groups. When a link is submitted, the software uses third-party tools (such as [yt-dlp](https://github.com/yt-dlp/yt-dlp)) to download media for private playback.
+Scrolly enables users to share video and music links within private groups. When a link is submitted, the software uses third-party download providers (installed at runtime by the host) to download media for private playback. **No download tools are bundled with or distributed by Scrolly.** The host explicitly chooses and installs a download provider from the Settings UI.
 
 **You are solely responsible for ensuring that your use of this software complies with:**
 
@@ -33,8 +33,9 @@ The Scrolly maintainers have no control over and accept no responsibility for th
 
 Scrolly integrates with third-party services and tools that have their own terms and licenses:
 
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — media downloading (Unlicense)
 - **[Twilio](https://www.twilio.com)** — SMS messaging
 - **[Odesli](https://odesli.co)** — cross-platform music link resolution
+
+Scrolly also supports optional third-party download providers that are **not bundled** with the software. These providers are independently installed by the host at runtime and are subject to their own licenses and terms of use. The host is solely responsible for their choice of provider.
 
 The Scrolly maintainers are not affiliated with these services and make no guarantees about their availability, functionality, or terms.

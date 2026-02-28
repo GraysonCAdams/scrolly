@@ -6,17 +6,18 @@ Deploy Scrolly directly on a VPS without Docker.
 
 - **OS:** Ubuntu 22.04+ (or similar Linux)
 - **Node.js:** 20+
-- **yt-dlp:** For video downloads (`pip install yt-dlp` or via apt)
 - **FFmpeg:** For video/audio processing
+- **Python 3:** Required by some download providers
 - **Process manager:** PM2 recommended
+
+Download providers (e.g. for video downloading) are installed at runtime by the host from the Settings UI — no manual installation required.
 
 ## Setup
 
 ```bash
 # 1. Install system dependencies
 sudo apt update
-sudo apt install -y ffmpeg python3-pip
-pip install yt-dlp
+sudo apt install -y ffmpeg python3
 
 # 2. Install Node.js 20+
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -

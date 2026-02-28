@@ -1,6 +1,6 @@
 # Docker Deployment
 
-The recommended way to run Scrolly in production. A single container includes Node.js, yt-dlp, and FFmpeg.
+The recommended way to run Scrolly in production. A single container includes Node.js, FFmpeg, and Python 3. Download providers are installed at runtime by the host from the Settings UI.
 
 ## Install
 

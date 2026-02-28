@@ -1,12 +1,12 @@
 # Scrolly Feature Breakdown
 
 ## 1. Video Ingestion
-- **Goal:** Allow users to share TikTok/Instagram/YouTube/Facebook links to the app. Videos are downloaded and re-hosted via yt-dlp.
+- **Goal:** Allow users to share TikTok/Instagram/YouTube/Facebook links to the app. Videos are downloaded and re-hosted via a pluggable download provider.
 - **Primary method:** SMS. Users text links to the Scrolly phone number (Twilio). Any non-URL text in the message becomes the video's **caption**.
 - **Web app:** Paste URL into the add-video modal.
 - **Android share target:** PWA registers as a share target via the Web Share Target API for direct share sheet integration.
 - **iOS limitation:** PWAs cannot be share targets. SMS or paste-in-app works.
-- **Notes:** Videos are downloaded server-side via yt-dlp and stored on the VPS filesystem. Failed downloads can be retried from the UI.
+- **Notes:** Videos are downloaded server-side via the active download provider and stored on the VPS filesystem. The host installs a provider from the Settings UI. Failed downloads can be retried from the UI.
 
 ## 2. Music Sharing
 - **Goal:** Share music links across streaming platforms.
@@ -64,7 +64,7 @@
 | Web URL submission | Done | Paste URL via add-video modal |
 | Android share target | Done | Web Share Target API |
 | Music sharing | Done | Odesli cross-platform resolution |
-| Video download & re-host | Done | yt-dlp on server, local filesystem |
+| Video download & re-host | Done | Pluggable provider, local filesystem |
 | Phone verification | Done | SMS codes via Twilio |
 | Username + avatar onboarding | Done | Circular crop, canvas processing |
 | Private access (invite code) | Done | Host can regenerate |

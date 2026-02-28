@@ -77,7 +77,7 @@ Each clip includes: id, originalUrl, title, addedBy (username, avatarPath), stat
 Request:  { "url": "https://tiktok.com/...", "title": "optional caption" }
 Response: { "clip": { "id", "status": "downloading" } }
 ```
-Triggers the yt-dlp download pipeline. Returns immediately with status `downloading`.
+Triggers the download pipeline via the active provider. Requires a download provider to be configured (see Settings). Returns immediately with status `downloading`.
 
 ### PATCH /api/clips/[id]
 ```

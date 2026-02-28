@@ -9,7 +9,7 @@ Scrolly is a lightweight monolith — a single Node.js process serving the front
 | Resource | Requirement | Notes |
 |----------|-------------|-------|
 | **CPU** | 1 vCPU | Sufficient for small groups (5–10 users) |
-| **RAM** | 512 MB | Node.js (~100 MB) + yt-dlp/FFmpeg spikes during downloads |
+| **RAM** | 512 MB | Node.js (~100 MB) + FFmpeg spikes during downloads |
 | **Disk** | 1 GB + video storage | ~500 MB for the app/dependencies, rest for media |
 | **OS** | Linux (x86_64 or arm64) | Ubuntu 22.04+, Debian 12+, or any Docker-capable host |
 | **Runtime** | Node.js 20+ | Included in Docker image |
@@ -30,9 +30,10 @@ Included in the Docker image. For manual deployments, install these:
 | Dependency | Version | Purpose |
 |------------|---------|---------|
 | **Node.js** | 20+ | Application runtime |
-| **yt-dlp** | Latest | Video/audio downloading |
 | **FFmpeg** | 4.4+ | Media processing and thumbnail generation |
-| **Python 3** | 3.10+ | Required by yt-dlp |
+| **Python 3** | 3.10+ | Required by some download providers |
+
+Download providers are installed at runtime by the host from the Settings UI — they are not bundled with Scrolly.
 
 ### Storage Considerations
 

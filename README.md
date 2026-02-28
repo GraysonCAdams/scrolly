@@ -23,7 +23,7 @@ Share video clips and music links with your close friends through private groups
 ## Features
 
 - **TikTok-Style Feed** — Full-screen vertical reel with swipe navigation and inline playback
-- **Video Sharing** — Share links via SMS (Twilio) or paste in-app; videos downloaded and re-hosted via yt-dlp
+- **Video Sharing** — Share links via SMS (Twilio) or paste in-app; videos downloaded and re-hosted via pluggable download providers
 - **Music Sharing** — Cross-platform streaming link resolution via Odesli (Spotify, Apple Music, YouTube Music)
 - **Android Share Target** — Share directly from any app's share sheet to Scrolly
 - **Private Groups** — Invite-only access with customizable accent colors and group names
@@ -39,7 +39,7 @@ Share video clips and music links with your close friends through private groups
 
 ## Important: Legal Responsibilities
 
-Scrolly uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download media from third-party platforms. **You are responsible for ensuring your use complies with applicable laws and platform terms of service.** This software is intended for personal, private use among small friend groups. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
+Scrolly supports pluggable download providers that the host installs at runtime from the Settings UI. **No download tools are bundled with Scrolly.** The host is responsible for choosing and installing a provider, and for ensuring that their use complies with applicable laws and platform terms of service. This software is intended for personal, private use among small friend groups. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
 
 ## Tech Stack
 
@@ -51,7 +51,7 @@ Scrolly uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download media from t
 | SMS & Verification | Twilio |
 | Notifications | Web Push (VAPID) |
 | Music Resolution | Odesli |
-| Video Downloads | [yt-dlp](https://github.com/yt-dlp/yt-dlp) + FFmpeg |
+| Video Downloads | Pluggable providers (host-installed) + FFmpeg |
 | Containerization | Docker |
 | Language | TypeScript |
 

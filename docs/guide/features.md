@@ -2,7 +2,7 @@
 
 ## Video Sharing
 
-Share links from TikTok, Instagram, YouTube, Facebook, and more. Videos are downloaded server-side via [yt-dlp](https://github.com/yt-dlp/yt-dlp) and re-hosted from your server.
+Share links from TikTok, Instagram, YouTube, Facebook, and more. Videos are downloaded server-side via a pluggable download provider and re-hosted from your server. The host installs a provider from the Settings UI — no download tools are bundled with Scrolly.
 
 **How to share:**
 - **SMS** — Text links to your group's Scrolly phone number (Twilio). Any extra text becomes the caption.

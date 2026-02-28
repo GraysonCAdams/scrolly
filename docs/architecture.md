@@ -7,7 +7,7 @@
 | Frontend | SvelteKit (PWA) | Compiled to vanilla JS, small bundle, built-in service worker support |
 | Backend | SvelteKit adapter-node | Monolithic — API routes + frontend in one Node.js process |
 | Database | SQLite via Drizzle ORM | Single file, no separate server, type-safe queries |
-| Video downloads | yt-dlp (subprocess) | Supports TikTok, Instagram, YouTube, Facebook, and more |
+| Video downloads | Pluggable providers (subprocess) | Host-installed at runtime; supports TikTok, Instagram, YouTube, Facebook, and more |
 | Music resolution | Odesli | Cross-platform streaming link resolution (Spotify, Apple Music, YouTube Music) |
 | Video storage | Local filesystem | `data/videos/` on VPS |
 | SMS | Twilio | Inbound webhook for video/music ingestion, SMS verification codes |
@@ -32,7 +32,7 @@
 │                  SQLite  Filesystem │
 │                  (Drizzle) (videos) │
 ├─────────────────────────────────────┤
-│  yt-dlp (subprocess)                │
+│  Download provider (subprocess)     │
 │  Twilio (SMS inbound/verification)  │
 │  web-push (notifications)           │
 │  Odesli (music link resolution)     │
@@ -55,8 +55,13 @@ scrolly/
 │   │   │   │   ├── schema.ts        # Drizzle schema definitions
 │   │   │   │   ├── index.ts         # DB connection (better-sqlite3)
 │   │   │   │   └── migrations/      # Drizzle migrations
+│   │   │   ├── providers/
+│   │   │   │   ├── types.ts         # Download provider interface
+│   │   │   │   ├── registry.ts      # Known providers, runtime resolution
+│   │   │   │   ├── binary.ts        # Binary download/install utilities
+│   │   │   │   └── ytdlp/           # yt-dlp provider implementation
 │   │   │   ├── video/
-│   │   │   │   └── download.ts      # yt-dlp wrapper + metadata extraction
+│   │   │   │   └── download.ts      # Video download orchestration + metadata
 │   │   │   ├── music/
 │   │   │   │   └── download.ts      # Odesli link resolution + audio download
 │   │   │   ├── sms/
@@ -157,22 +162,22 @@ The recommended deployment method is Docker. See the README for docker-compose s
 docker compose up -d
 ```
 
-The container includes Node.js, yt-dlp, and FFmpeg. Database migrations run automatically on startup. Data is persisted via a Docker volume.
+The container includes Node.js and FFmpeg. Download providers are installed at runtime by the host from the Settings UI. Database migrations run automatically on startup. Data is persisted via a Docker volume.
 
 ### Manual Deployment
 
 ```
 VPS (Ubuntu, e.g., DigitalOcean or Hetzner)
 ├── Node.js 20+   → runs SvelteKit build
-├── yt-dlp         → installed via pip or apt
 ├── FFmpeg         → for video/audio processing
-├── data/          → SQLite DB + video files
+├── Python 3       → required by some download providers
+├── data/          → SQLite DB + video files + provider binaries
 └── PM2            → process management, auto-restart
 ```
 
 **Setup:**
 
-1. Provision VPS (Ubuntu 22.04+), install Node.js 20+, yt-dlp, FFmpeg
+1. Provision VPS (Ubuntu 22.04+), install Node.js 20+, FFmpeg, Python 3
 2. Clone repo, `npm install`, `npm run build`
 3. Create `data/videos/` directory
 4. Configure environment variables (see `.env` template in repo)

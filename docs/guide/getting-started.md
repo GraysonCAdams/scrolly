@@ -54,7 +54,7 @@ npm run preview  # test the production build locally
 | SMS & Verification | Twilio |
 | Notifications | Web Push (VAPID) |
 | Music Resolution | Odesli |
-| Video Downloads | yt-dlp + FFmpeg |
+| Video Downloads | Pluggable providers (host-installed) + FFmpeg |
 | Containerization | Docker |
 | Language | TypeScript |
 

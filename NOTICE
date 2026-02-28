@@ -7,15 +7,14 @@ This project includes or depends on the following third-party software:
 
 ---
 
-yt-dlp
-  License: Unlicense
-  URL: https://github.com/yt-dlp/yt-dlp
-  Usage: Video and audio downloading (installed as a system binary in Docker)
-
 FFmpeg
   License: LGPL 2.1+ / GPL 2+
   URL: https://ffmpeg.org
   Usage: Media processing and transcoding (installed as a system package in Docker)
+
+Note: Scrolly supports optional third-party download providers that are NOT bundled
+with or distributed by this software. Providers are independently installed at runtime
+by the host. Any such providers are subject to their own licenses and terms.
 
 Twilio SDK
   License: MIT
