@@ -62,7 +62,8 @@ export default ts.config(
 			'max-lines': 'off',
 			'@typescript-eslint/no-explicit-any': 'off',
 			'sonarjs/cognitive-complexity': 'off',
-			'sonarjs/no-hardcoded-credentials': 'off'
+			'sonarjs/no-hardcoded-credentials': 'off',
+			'sonarjs/no-clear-text-protocols': 'off'
 		}
 	},
 	{
@@ -71,6 +72,7 @@ export default ts.config(
 			'.svelte-kit/',
 			'node_modules/',
 			'data/',
+			'docs/.vitepress/dist/',
 			'vite.config.ts.timestamp-*'
 		]
 	}
