@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { clips, watched, favorites } from '$lib/server/db/schema';
+import { clips, watched, favorites, commentViews } from '$lib/server/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import { parseSmsBody, getContentType } from '$lib/server/sms/inbound';
+import { isSupportedUrl, detectPlatform, getContentType } from '$lib/url-validation';
 import { downloadVideo } from '$lib/server/video/download';
 import { downloadMusic } from '$lib/server/music/download';
 import { sendGroupNotification } from '$lib/server/push';
@@ -66,6 +66,23 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 	}
 
+	// Get unread comment counts (comments since user last viewed)
+	const userCommentViews = await db.query.commentViews.findMany({
+		where: eq(commentViews.userId, userId)
+	});
+	const viewedAtMap = new Map<string, Date>();
+	for (const cv of userCommentViews) {
+		viewedAtMap.set(cv.clipId, cv.viewedAt);
+	}
+	const unreadCommentCounts = new Map<string, number>();
+	for (const c of allComments) {
+		if (!clipIds.includes(c.clipId)) continue;
+		const viewedAt = viewedAtMap.get(c.clipId);
+		if (!viewedAt || c.createdAt > viewedAt) {
+			unreadCommentCounts.set(c.clipId, (unreadCommentCounts.get(c.clipId) || 0) + 1);
+		}
+	}
+
 	// Get view counts (all watched rows, not just current user)
 	const allWatchedRows = await db.query.watched.findMany();
 	const viewCounts = new Map<string, number>();
@@ -113,6 +130,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		favorited: favIds.has(c.id),
 		reactions: reactionsByClip.get(c.id) || {},
 		commentCount: commentCounts.get(c.id) || 0,
+		unreadCommentCount: unreadCommentCounts.get(c.id) || 0,
 		viewCount: viewCounts.get(c.id) || 0,
 		seenByOthers: seenByOthersSet.has(c.id)
 	}));
@@ -128,8 +146,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (!videoUrl) return json({ error: 'URL required' }, { status: 400 });
 
-	const parsed = parseSmsBody(videoUrl);
-	if (parsed.urls.length === 0 || !parsed.platform) {
+	if (!isSupportedUrl(videoUrl)) {
 		return json(
 			{
 				error:
@@ -139,8 +156,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 
-	const contentType = getContentType(parsed.platform);
-	const normalizedUrl = normalizeUrl(parsed.urls[0]);
+	const platform = detectPlatform(videoUrl)!;
+	const contentType = getContentType(platform);
+	const normalizedUrl = normalizeUrl(videoUrl);
 
 	// Check if this URL already exists in the group's feed
 	const existing = await db.query.clips.findFirst({
@@ -156,8 +174,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		groupId: locals.user.groupId,
 		addedBy: locals.user.id,
 		originalUrl: normalizedUrl,
-		title: title || parsed.caption || null,
-		platform: parsed.platform,
+		title: title || null,
+		platform,
 		contentType,
 		status: 'downloading',
 		createdAt: new Date()
@@ -181,9 +199,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	};
 
 	if (contentType === 'music') {
-		downloadMusic(clipId, parsed.urls[0]).catch(markFailedOnError);
+		downloadMusic(clipId, videoUrl).catch(markFailedOnError);
 	} else {
-		downloadVideo(clipId, parsed.urls[0]).catch(markFailedOnError);
+		downloadVideo(clipId, videoUrl).catch(markFailedOnError);
 	}
 
 	// Notify group members
