@@ -24,6 +24,7 @@
 	import InviteLink from '$lib/components/settings/InviteLink.svelte';
 	import GroupNameEdit from '$lib/components/settings/GroupNameEdit.svelte';
 	import RetentionPicker from '$lib/components/settings/RetentionPicker.svelte';
+	import MaxDurationPicker from '$lib/components/settings/MaxDurationPicker.svelte';
 	import ClipsManager from '$lib/components/settings/ClipsManager.svelte';
 	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
 	import AccentColorPicker from '$lib/components/settings/AccentColorPicker.svelte';
@@ -234,6 +235,12 @@
 			<div class="settings-section">
 				<h3 class="section-title">Invite Link</h3>
 				<div class="card"><InviteLink inviteCode={group.inviteCode} /></div>
+			</div>
+			<div class="settings-section">
+				<h3 class="section-title">Max Clip Duration</h3>
+				<div class="card">
+					<MaxDurationPicker currentMaxDuration={group.maxDurationSeconds} />
+				</div>
 			</div>
 			<div class="settings-section">
 				<h3 class="section-title">Content Retention</h3>
