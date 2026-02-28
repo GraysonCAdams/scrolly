@@ -2,18 +2,23 @@ import { db } from '$lib/server/db';
 import { users, clips, watched, notificationPreferences } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
+import { runBackup } from '$lib/server/backup';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('scheduler');
 
 let lastReminderDate: string | null = null;
+let lastBackupDate: string | null = null;
 
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 const REMINDER_HOUR = 9; // 9 AM server time
+const BACKUP_HOUR = 2; // 2 AM server time
 
 export function startScheduler(): void {
 	checkAndSendReminders();
+	checkAndRunBackup();
 	setInterval(checkAndSendReminders, CHECK_INTERVAL);
+	setInterval(checkAndRunBackup, CHECK_INTERVAL);
 	log.info('scheduler started');
 }
 
@@ -31,6 +36,22 @@ async function checkAndSendReminders(): Promise<void> {
 	} catch (err) {
 		log.error({ err }, 'daily reminder failed');
 		lastReminderDate = null; // Allow retry next hour
+	}
+}
+
+async function checkAndRunBackup(): Promise<void> {
+	const now = new Date();
+	const today = now.toISOString().split('T')[0];
+
+	if (lastBackupDate === today || now.getHours() < BACKUP_HOUR) return;
+
+	lastBackupDate = today;
+
+	try {
+		await runBackup();
+	} catch (err) {
+		log.error({ err }, 'scheduled backup failed');
+		lastBackupDate = null; // Retry next hour
 	}
 }
 
