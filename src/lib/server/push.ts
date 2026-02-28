@@ -3,6 +3,9 @@ import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import { pushSubscriptions, notificationPreferences, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('push');
 
 type NotificationPayload = {
 	title: string;
@@ -47,11 +50,12 @@ export async function sendNotification(
 					},
 					payloadStr
 				);
-			} catch (err: any) {
-				if (err.statusCode === 410 || err.statusCode === 404) {
+			} catch (err: unknown) {
+				const pushErr = err as { statusCode?: number };
+				if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
 					await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
 				} else {
-					console.error(`Push failed for subscription ${sub.id}:`, err);
+					log.error({ err, subscriptionId: sub.id }, 'push failed for subscription');
 				}
 			}
 		})

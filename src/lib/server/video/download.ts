@@ -1,53 +1,17 @@
-import { resolve } from 'path';
 import { db } from '../db';
-import { clips, groups } from '../db/schema';
+import { clips } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { readdir, stat, unlink } from 'fs/promises';
 import { deduplicatedDownload } from '../download-lock';
 import { getActiveProvider } from '../providers/registry';
+import {
+	DATA_DIR,
+	getMaxFileSize,
+	cleanupClipFiles,
+	totalFileSize
+} from '$lib/server/download-utils';
+import { createLogger } from '$lib/server/logger';
 
-const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
-
-async function getMaxFileSize(clipId: string): Promise<number | null> {
-	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	if (!clip) return null;
-	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
-	if (group?.maxFileSizeMb === null || group?.maxFileSizeMb === undefined) return null;
-	return group.maxFileSizeMb * 1024 * 1024;
-}
-
-async function cleanupClipFiles(clipId: string): Promise<void> {
-	try {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename
-		const files = await readdir(DATA_DIR);
-		for (const f of files.filter((f) => f.startsWith(clipId))) {
-			try {
-				// eslint-disable-next-line security/detect-non-literal-fs-filename
-				await unlink(`${DATA_DIR}/${f}`);
-			} catch {
-				// Best-effort cleanup
-			}
-		}
-	} catch {
-		// DATA_DIR may not exist yet
-	}
-}
-
-async function totalFileSize(paths: (string | null)[]): Promise<number> {
-	let total = 0;
-	for (const path of paths) {
-		if (path) {
-			try {
-				// eslint-disable-next-line security/detect-non-literal-fs-filename
-				const s = await stat(path);
-				total += s.size;
-			} catch {
-				// File may not exist
-			}
-		}
-	}
-	return total;
-}
+const log = createLogger('video');
 
 async function handleDownloadError(
 	clipId: string,
@@ -60,7 +24,7 @@ async function handleDownloadError(
 
 	if (isSizeReject && maxFileSizeBytes) {
 		const sizeMb = Math.round(maxFileSizeBytes / (1024 * 1024));
-		console.warn(`Clip ${clipId} rejected by size filter`);
+		log.warn({ clipId }, 'clip rejected by size filter');
 		await cleanupClipFiles(clipId);
 		await db
 			.update(clips)
@@ -69,7 +33,7 @@ async function handleDownloadError(
 		return;
 	}
 
-	console.error(`Download failed for clip ${clipId}:`, err);
+	log.error({ err, clipId }, 'download failed');
 	await cleanupClipFiles(clipId);
 	await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
 }
@@ -100,7 +64,7 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 		const fileSizeBytes = await totalFileSize([result.videoPath, result.thumbnailPath]);
 		if (maxFileSizeBytes && fileSizeBytes > maxFileSizeBytes) {
 			const sizeMb = Math.round(maxFileSizeBytes / (1024 * 1024));
-			console.warn(`Clip ${clipId} file size ${fileSizeBytes} exceeds limit ${maxFileSizeBytes}`);
+			log.warn({ clipId, fileSizeBytes, maxFileSizeBytes }, 'clip file size exceeds limit');
 			await cleanupClipFiles(clipId);
 			await db
 				.update(clips)

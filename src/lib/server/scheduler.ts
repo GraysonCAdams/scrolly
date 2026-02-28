@@ -2,6 +2,9 @@ import { db } from '$lib/server/db';
 import { users, clips, watched, notificationPreferences } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('scheduler');
 
 let lastReminderDate: string | null = null;
 
@@ -11,7 +14,7 @@ const REMINDER_HOUR = 9; // 9 AM server time
 export function startScheduler(): void {
 	checkAndSendReminders();
 	setInterval(checkAndSendReminders, CHECK_INTERVAL);
-	console.log('[scheduler] Daily reminder scheduler started');
+	log.info('scheduler started');
 }
 
 async function checkAndSendReminders(): Promise<void> {
@@ -26,7 +29,7 @@ async function checkAndSendReminders(): Promise<void> {
 	try {
 		await sendDailyReminders();
 	} catch (err) {
-		console.error('[scheduler] Daily reminder failed:', err);
+		log.error({ err }, 'daily reminder failed');
 		lastReminderDate = null; // Allow retry next hour
 	}
 }
@@ -69,11 +72,11 @@ async function sendDailyReminders(): Promise<void> {
 			});
 			sent++;
 		} catch (err) {
-			console.error(`[scheduler] Reminder failed for user ${pref.userId}:`, err);
+			log.error({ err, userId: pref.userId }, 'reminder failed for user');
 		}
 	}
 
 	if (sent > 0) {
-		console.log(`[scheduler] Sent daily reminders to ${sent} user(s)`);
+		log.info({ sent }, `sent daily reminders to ${sent} user(s)`);
 	}
 }

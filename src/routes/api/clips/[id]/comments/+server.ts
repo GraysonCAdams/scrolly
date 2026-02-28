@@ -11,9 +11,17 @@ import {
 import { eq, and, inArray } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
 import { v4 as uuid } from 'uuid';
+import { requireAuth, requireClipInGroup, parseBody, isResponse } from '$lib/server/api-utils';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('comments');
 
 export const GET: RequestHandler = async ({ locals, params }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+	const authError = requireAuth(locals);
+	if (authError) return authError;
+
+	const clipOrError = await requireClipInGroup(params.id, locals.user!.groupId);
+	if (isResponse(clipOrError)) return clipOrError;
 
 	const clipId = params.id;
 
@@ -44,7 +52,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	const userHearted = new Set<string>();
 	for (const h of allHearts) {
 		heartCounts.set(h.commentId, (heartCounts.get(h.commentId) || 0) + 1);
-		if (h.userId === locals.user.id) userHearted.add(h.commentId);
+		if (h.userId === locals.user!.id) userHearted.add(h.commentId);
 	}
 
 	// Separate top-level vs replies
@@ -81,7 +89,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	});
 
 	// Build response with nested replies (sorted chronologically)
-	const result = topLevel.map((c) => {
+	const formatted = topLevel.map((c) => {
 		const replies = (repliesByParent.get(c.id) || [])
 			.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
 			.map(formatComment);
@@ -92,7 +100,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		};
 	});
 
-	return json({ comments: result });
+	return json({ comments: formatted });
 };
 
 /** Send push + insert notification record for a comment or reply. */
@@ -115,7 +123,7 @@ async function notifyCommentRecipient(
 				? `${actorUsername} replied: ${commentText}`
 				: `${actorUsername}: ${commentText}`;
 		sendNotification(recipientId, { title, body, url: '/', tag: `${type}-${clipId}` }).catch(
-			(err) => console.error('Push notification failed:', err)
+			(err) => log.error({ err }, 'push notification failed')
 		);
 	}
 	await db.insert(notifications).values({
@@ -194,9 +202,15 @@ function validateCommentInput(body: {
 }
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+	const authError = requireAuth(locals);
+	if (authError) return authError;
 
-	const body = await request.json();
+	const clipOrError = await requireClipInGroup(params.id, locals.user!.groupId);
+	if (isResponse(clipOrError)) return clipOrError;
+
+	const body = await parseBody<{ text?: string; gifUrl?: string; parentId?: string }>(request);
+	if (isResponse(body)) return body;
+
 	const clipId = params.id;
 
 	const validation = validateCommentInput(body);
@@ -217,7 +231,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	await db.insert(comments).values({
 		id: commentId,
 		clipId,
-		userId: locals.user.id,
+		userId: locals.user!.id,
 		parentId: body.parentId || null,
 		text: trimmed,
 		gifUrl: validGifUrl,
@@ -225,7 +239,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	});
 
 	const preview = hasText ? trimmed.slice(0, 80) : '[GIF]';
-	await dispatchCommentNotification(clipId, body.parentId || null, locals.user, preview, now);
+	await dispatchCommentNotification(clipId, body.parentId || null, locals.user!, preview, now);
 
 	return json(
 		{
@@ -233,9 +247,9 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 				id: commentId,
 				text: trimmed,
 				gifUrl: validGifUrl,
-				userId: locals.user.id,
-				username: locals.user.username,
-				avatarPath: locals.user.avatarPath || null,
+				userId: locals.user!.id,
+				username: locals.user!.username,
+				avatarPath: locals.user!.avatarPath || null,
 				parentId: body.parentId || null,
 				heartCount: 0,
 				hearted: false,
@@ -247,9 +261,13 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 };
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+	const authError = requireAuth(locals);
+	if (authError) return authError;
 
-	const { commentId } = await request.json();
+	const body = await parseBody<{ commentId?: string }>(request);
+	if (isResponse(body)) return body;
+
+	const { commentId } = body;
 
 	if (!commentId) {
 		return json({ error: 'Comment ID required' }, { status: 400 });
@@ -257,7 +275,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 	// Only allow deleting own comments
 	const comment = await db.query.comments.findFirst({
-		where: and(eq(comments.id, commentId), eq(comments.userId, locals.user.id))
+		where: and(eq(comments.id, commentId), eq(comments.userId, locals.user!.id))
 	});
 
 	if (!comment) {

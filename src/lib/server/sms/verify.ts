@@ -1,5 +1,8 @@
 import twilio from 'twilio';
 import { env } from '$env/dynamic/private';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('sms');
 
 function smsDevMode() {
 	return env.SMS_DEV_MODE === 'true';
@@ -45,7 +48,7 @@ export async function sendVerification(
 	}
 
 	if (smsDevMode()) {
-		console.log(`[DEV VERIFY] Verification sent via ${channel} to: ${to} (any code will work)`);
+		log.debug({ channel, to }, 'dev mode: verification sent (any code will work)');
 		return { status: 'pending' };
 	}
 
@@ -60,7 +63,7 @@ export async function sendVerification(
 			return { status: 'error', error: 'Too many codes sent. Please wait before trying again.' };
 		}
 
-		console.error('[Twilio Verify] sendVerification failed:', err);
+		log.error({ err }, 'sendVerification failed');
 		return { status: 'error', error: 'Failed to send verification code. Please try again.' };
 	}
 }
@@ -70,7 +73,7 @@ export async function checkVerification(
 	code: string
 ): Promise<CheckVerificationResult> {
 	if (smsDevMode()) {
-		console.log(`[DEV VERIFY] Check for ${to}: code=${code} — auto-approved`);
+		log.debug({ to }, 'dev mode: verification auto-approved');
 		return { valid: true, status: 'approved' };
 	}
 
@@ -94,7 +97,7 @@ export async function checkVerification(
 			};
 		}
 
-		console.error('[Twilio Verify] checkVerification failed:', err);
+		log.error({ err }, 'checkVerification failed');
 		return { valid: false, status: 'error', error: 'Verification check failed. Please try again.' };
 	}
 }

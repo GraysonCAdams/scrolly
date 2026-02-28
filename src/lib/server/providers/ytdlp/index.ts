@@ -8,6 +8,9 @@ import type {
 } from '../types';
 import { getBinaryPath, isBinaryInstalled, downloadBinary, removeBinary } from '../binary';
 import { getKnownProvider } from '../registry';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('ytdlp');
 
 const PROVIDER_ID = 'ytdlp';
 const BINARY_NAME = 'yt-dlp';
@@ -173,9 +176,7 @@ export class YtDlpProvider implements DownloadProvider {
 				lastError = err instanceof Error ? err : new Error(String(err));
 				if (attempt < MAX_RETRIES) {
 					const delay = RETRY_DELAY_MS * attempt;
-					console.warn(
-						`yt-dlp attempt ${attempt}/${MAX_RETRIES} failed, retrying in ${delay}ms...`
-					);
+					log.warn(`yt-dlp attempt ${attempt}/${MAX_RETRIES} failed, retrying in ${delay}ms...`);
 					await new Promise((r) => setTimeout(r, delay));
 				}
 			}
@@ -244,7 +245,7 @@ export class YtDlpProvider implements DownloadProvider {
 
 			proc.on('close', async (code) => {
 				if (code !== 0) {
-					console.error(`yt-dlp stdout:\n${stdout}`);
+					log.error({ stdout: stdout.slice(0, 500) }, 'yt-dlp audio failed');
 					reject(new Error(`yt-dlp audio exited with code ${code}: ${stderr}`));
 					return;
 				}

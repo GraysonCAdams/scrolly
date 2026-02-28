@@ -6,12 +6,17 @@ import { eq } from 'drizzle-orm';
 import { downloadVideo } from '$lib/server/video/download';
 import { downloadMusic } from '$lib/server/music/download';
 import { getActiveProvider } from '$lib/server/providers/registry';
+import { requireAuth, requireClipInGroup, isResponse } from '$lib/server/api-utils';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('retry');
 
 export const POST: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+	const authError = requireAuth(locals);
+	if (authError) return authError;
 
 	// Check provider is still available
-	const provider = await getActiveProvider(locals.user.groupId);
+	const provider = await getActiveProvider(locals.user!.groupId);
 	if (!provider) {
 		return json(
 			{ error: 'No download provider configured. Ask your group host to set one up in Settings.' },
@@ -19,13 +24,10 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		);
 	}
 
-	const clip = await db.query.clips.findFirst({
-		where: eq(clips.id, params.id)
-	});
+	const clipOrError = await requireClipInGroup(params.id, locals.user!.groupId);
+	if (isResponse(clipOrError)) return clipOrError;
 
-	if (!clip) return json({ error: 'Clip not found' }, { status: 404 });
-	if (clip.groupId !== locals.user.groupId)
-		return json({ error: 'Not authorized' }, { status: 403 });
+	const clip = clipOrError;
 	if (clip.status !== 'failed')
 		return json({ error: 'Clip is not in a failed state' }, { status: 400 });
 
@@ -33,11 +35,11 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
 	if (clip.contentType === 'music') {
 		downloadMusic(clip.id, clip.originalUrl).catch((err) => {
-			console.error(`Music retry download failed for clip ${clip.id}:`, err);
+			log.error({ err, clipId: clip.id }, 'music retry download failed');
 		});
 	} else {
 		downloadVideo(clip.id, clip.originalUrl).catch((err) => {
-			console.error(`Retry download failed for clip ${clip.id}:`, err);
+			log.error({ err, clipId: clip.id }, 'retry download failed');
 		});
 	}
 

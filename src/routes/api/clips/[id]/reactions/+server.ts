@@ -1,46 +1,57 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { reactions, clips, notificationPreferences, notifications } from '$lib/server/db/schema';
+import { reactions, notificationPreferences, notifications } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
 import { v4 as uuid } from 'uuid';
+import {
+	requireAuth,
+	requireClipInGroup,
+	groupReactions,
+	parseBody,
+	isResponse
+} from '$lib/server/api-utils';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('reactions');
 
 const ALLOWED_EMOJI = ['❤️', '👍', '👎', '😂', '‼️', '❓'];
 
 export const GET: RequestHandler = async ({ locals, params }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+	const authError = requireAuth(locals);
+	if (authError) return authError;
+
+	const clipOrError = await requireClipInGroup(params.id, locals.user!.groupId);
+	if (isResponse(clipOrError)) return clipOrError;
 
 	const clipId = params.id;
-	const userId = locals.user.id;
+	const userId = locals.user!.id;
 
 	const allReactions = await db.query.reactions.findMany({
 		where: eq(reactions.clipId, clipId)
 	});
 
-	// Group by emoji
-	const grouped: Record<string, { count: number; reacted: boolean }> = {};
-	for (const r of allReactions) {
-		if (!grouped[r.emoji]) {
-			grouped[r.emoji] = { count: 0, reacted: false };
-		}
-		grouped[r.emoji].count++;
-		if (r.userId === userId) {
-			grouped[r.emoji].reacted = true;
-		}
-	}
-
-	return json({ reactions: grouped });
+	return json({ reactions: groupReactions(allReactions, userId) });
 };
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+	const authError = requireAuth(locals);
+	if (authError) return authError;
 
-	const { emoji } = await request.json();
+	const clipOrError = await requireClipInGroup(params.id, locals.user!.groupId);
+	if (isResponse(clipOrError)) return clipOrError;
+
+	const clip = clipOrError;
+
+	const body = await parseBody<{ emoji?: string }>(request);
+	if (isResponse(body)) return body;
+
+	const { emoji } = body;
 	const clipId = params.id;
-	const userId = locals.user.id;
+	const userId = locals.user!.id;
 
-	if (!ALLOWED_EMOJI.includes(emoji)) {
+	if (!emoji || !ALLOWED_EMOJI.includes(emoji)) {
 		return json({ error: 'Invalid emoji' }, { status: 400 });
 	}
 
@@ -65,18 +76,17 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 		});
 
 		// Notify clip owner about the new reaction
-		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-		if (clip && clip.addedBy !== userId) {
+		if (clip.addedBy !== userId) {
 			const ownerPrefs = await db.query.notificationPreferences.findFirst({
 				where: eq(notificationPreferences.userId, clip.addedBy)
 			});
 			if (!ownerPrefs || ownerPrefs.reactions) {
 				sendNotification(clip.addedBy, {
 					title: 'New reaction',
-					body: `${locals.user.username} reacted ${emoji} to your clip`,
+					body: `${locals.user!.username} reacted ${emoji} to your clip`,
 					url: '/',
 					tag: `reaction-${clipId}`
-				}).catch((err) => console.error('Push notification failed:', err));
+				}).catch((err) => log.error({ err }, 'push notification failed'));
 			}
 
 			// Create in-app notification
@@ -97,16 +107,5 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 		where: eq(reactions.clipId, clipId)
 	});
 
-	const grouped: Record<string, { count: number; reacted: boolean }> = {};
-	for (const r of allReactions) {
-		if (!grouped[r.emoji]) {
-			grouped[r.emoji] = { count: 0, reacted: false };
-		}
-		grouped[r.emoji].count++;
-		if (r.userId === userId) {
-			grouped[r.emoji].reacted = true;
-		}
-	}
-
-	return json({ reactions: grouped, toggled: !existing });
+	return json({ reactions: groupReactions(allReactions, userId), toggled: !existing });
 };

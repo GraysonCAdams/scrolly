@@ -1,13 +1,14 @@
-import { resolve } from 'path';
-import { readdir, stat, unlink } from 'fs/promises';
+import { stat } from 'fs/promises';
 import { db } from '../db';
-import { clips, groups } from '../db/schema';
+import { clips } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { deduplicatedDownload } from '../download-lock';
 import { getActiveProvider } from '../providers/registry';
 import type { AudioDownloadResult } from '../providers/types';
+import { DATA_DIR, getMaxFileSize, cleanupClipFiles } from '$lib/server/download-utils';
+import { createLogger } from '$lib/server/logger';
 
-const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
+const log = createLogger('music');
 
 interface OdesliResponse {
 	entityUniqueId: string;
@@ -37,37 +38,12 @@ interface MusicMetadata {
 	youtubeMusicUrl: string | null;
 }
 
-async function getMaxFileSize(clipId: string): Promise<number | null> {
-	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	if (!clip) return null;
-	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
-	if (group?.maxFileSizeMb === null || group?.maxFileSizeMb === undefined) return null;
-	return group.maxFileSizeMb * 1024 * 1024;
-}
-
-async function cleanupClipFiles(clipId: string): Promise<void> {
-	try {
-		// eslint-disable-next-line security/detect-non-literal-fs-filename
-		const files = await readdir(DATA_DIR);
-		for (const f of files.filter((f) => f.startsWith(clipId))) {
-			try {
-				// eslint-disable-next-line security/detect-non-literal-fs-filename
-				await unlink(`${DATA_DIR}/${f}`);
-			} catch {
-				// Best-effort cleanup
-			}
-		}
-	} catch {
-		// DATA_DIR may not exist yet
-	}
-}
-
 async function resolveOdesli(url: string): Promise<MusicMetadata> {
 	const apiUrl = `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(url)}`;
 	const res = await fetch(apiUrl);
 
 	if (!res.ok) {
-		console.error(`Odesli API returned ${res.status} for ${url}`);
+		log.error({ status: res.status, url }, 'odesli API error');
 		return {
 			title: null,
 			artist: null,
@@ -110,7 +86,7 @@ async function finalizeMusicClip(
 	// Post-download file size safety net
 	if (maxFileSizeBytes && fileSizeBytes > maxFileSizeBytes) {
 		const sizeMb = Math.round(maxFileSizeBytes / (1024 * 1024));
-		console.warn(`Music clip ${clipId} size ${fileSizeBytes} exceeds limit ${maxFileSizeBytes}`);
+		log.warn({ clipId, fileSizeBytes, maxFileSizeBytes }, 'music clip size exceeds limit');
 		await cleanupClipFiles(clipId);
 		await db
 			.update(clips)
@@ -186,7 +162,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 					downloadOptions
 				);
 			} catch (err) {
-				console.error(`YouTube search failed for "${metadata.title} ${metadata.artist}":`, err);
+				log.error({ err, title: metadata.title, artist: metadata.artist }, 'youtube search failed');
 			}
 		}
 
@@ -195,7 +171,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 			try {
 				result = await provider.downloadAudio(metadata.youtubeMusicUrl, downloadOptions);
 			} catch (err) {
-				console.error(`YouTube Music URL download failed:`, err);
+				log.error({ err }, 'youtube music URL download failed');
 			}
 		}
 
@@ -207,7 +183,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 			await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
 		}
 	} catch (err) {
-		console.error(`Music download failed for clip ${clipId}:`, err);
+		log.error({ err, clipId }, 'music download failed');
 		await cleanupClipFiles(clipId);
 		await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
 	}
