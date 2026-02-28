@@ -8,6 +8,7 @@ import { downloadVideo } from '$lib/server/video/download';
 import { downloadMusic } from '$lib/server/music/download';
 import { sendGroupNotification } from '$lib/server/push';
 import { normalizeUrl } from '$lib/server/download-lock';
+import { getActiveProvider } from '$lib/server/providers/registry';
 import { v4 as uuid } from 'uuid';
 
 interface ReactionData {
@@ -152,6 +153,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+
+	// Check that a download provider is configured
+	const provider = await getActiveProvider(locals.user.groupId);
+	if (!provider) {
+		return json(
+			{ error: 'No download provider configured. Ask your group host to set one up in Settings.' },
+			{ status: 400 }
+		);
+	}
 
 	const body = await request.json();
 	const { url: videoUrl, title } = body;

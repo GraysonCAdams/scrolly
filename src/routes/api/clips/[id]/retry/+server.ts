@@ -5,9 +5,19 @@ import { clips } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { downloadVideo } from '$lib/server/video/download';
 import { downloadMusic } from '$lib/server/music/download';
+import { getActiveProvider } from '$lib/server/providers/registry';
 
 export const POST: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+
+	// Check provider is still available
+	const provider = await getActiveProvider(locals.user.groupId);
+	if (!provider) {
+		return json(
+			{ error: 'No download provider configured. Ask your group host to set one up in Settings.' },
+			{ status: 400 }
+		);
+	}
 
 	const clip = await db.query.clips.findFirst({
 		where: eq(clips.id, params.id)
