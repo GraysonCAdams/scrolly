@@ -258,7 +258,7 @@ async function handleLoginSendCode(body: Record<string, string>) {
 		id: uuid(),
 		phone,
 		code,
-		userId: user.id,
+		userId: user!.id,
 		attempts: 0,
 		expiresAt,
 		createdAt: now
