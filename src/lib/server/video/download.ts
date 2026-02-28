@@ -3,10 +3,13 @@ import { resolve } from 'path';
 import { db } from '../db';
 import { clips, groups } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { readdir, stat, unlink } from 'fs/promises';
+import { readdir, stat, unlink, readFile } from 'fs/promises';
 import { deduplicatedDownload } from '../download-lock';
 
 const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
+
+/** Estimated average bytes-per-second for social media video (generous ~1.5 MB/s ≈ 12 Mbps) */
+const VIDEO_BYTES_PER_SEC = 1.5 * 1024 * 1024;
 
 interface DownloadResult {
 	videoPath: string;
@@ -15,8 +18,36 @@ interface DownloadResult {
 	duration: number | null;
 }
 
-function runYtDlp(clipId: string, url: string): Promise<DownloadResult> {
-	return new Promise((resolve, reject) => {
+async function getMaxDuration(clipId: string): Promise<number | null> {
+	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+	if (!clip) return null;
+	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
+	return group?.maxDurationSeconds ?? null;
+}
+
+async function cleanupClipFiles(clipId: string): Promise<void> {
+	try {
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		const files = await readdir(DATA_DIR);
+		for (const f of files.filter((f) => f.startsWith(clipId))) {
+			try {
+				// eslint-disable-next-line security/detect-non-literal-fs-filename
+				await unlink(`${DATA_DIR}/${f}`);
+			} catch {
+				// Best-effort cleanup
+			}
+		}
+	} catch {
+		// DATA_DIR may not exist yet
+	}
+}
+
+function runYtDlp(
+	clipId: string,
+	url: string,
+	maxDuration: number | null
+): Promise<DownloadResult> {
+	return new Promise((resolvePromise, reject) => {
 		const outputTemplate = `${DATA_DIR}/${clipId}.%(ext)s`;
 
 		const args = [
@@ -28,11 +59,18 @@ function runYtDlp(clipId: string, url: string): Promise<DownloadResult> {
 			'jpg',
 			'--write-info-json',
 			'--js-runtimes',
-			'node',
-			'-o',
-			outputTemplate,
-			url
+			'node'
 		];
+
+		if (maxDuration) {
+			// Pre-download: reject if duration metadata exceeds limit
+			args.push('--match-filter', `duration <= ${maxDuration}`);
+			// Mid-download: abort if file size exceeds estimated max for this duration
+			const maxBytes = Math.round(maxDuration * VIDEO_BYTES_PER_SEC);
+			args.push('--max-filesize', String(maxBytes));
+		}
+
+		args.push('-o', outputTemplate, url);
 
 		const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
 		let stderr = '';
@@ -49,7 +87,7 @@ function runYtDlp(clipId: string, url: string): Promise<DownloadResult> {
 
 			try {
 				const result = await findDownloadedFiles(clipId);
-				resolve(result);
+				resolvePromise(result);
 			} catch (err) {
 				reject(err);
 			}
@@ -81,7 +119,7 @@ async function findDownloadedFiles(clipId: string): Promise<DownloadResult> {
 
 	if (infoFile) {
 		try {
-			const { readFile } = await import('fs/promises');
+			// eslint-disable-next-line security/detect-non-literal-fs-filename
 			const info = JSON.parse(await readFile(`${DATA_DIR}/${infoFile}`, 'utf-8'));
 			title = info.title || info.fulltitle || null;
 			duration = typeof info.duration === 'number' ? Math.round(info.duration) : null;
@@ -98,36 +136,17 @@ async function findDownloadedFiles(clipId: string): Promise<DownloadResult> {
 	};
 }
 
-async function getMaxDuration(clipId: string): Promise<number | null> {
-	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	if (!clip) return null;
-	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
-	return group?.maxDurationSeconds ?? null;
-}
-
-async function cleanupFiles(paths: (string | null)[]): Promise<void> {
-	for (const p of paths) {
-		if (p) {
-			try {
-				// eslint-disable-next-line security/detect-non-literal-fs-filename
-				await unlink(p);
-			} catch {
-				// File may not exist
-			}
-		}
-	}
-}
-
 async function downloadVideoInner(clipId: string, url: string): Promise<void> {
-	try {
-		const result = await runYtDlp(clipId, url);
+	const maxDuration = await getMaxDuration(clipId);
 
-		// Enforce max duration
-		const maxDuration = await getMaxDuration(clipId);
+	try {
+		const result = await runYtDlp(clipId, url, maxDuration);
+
+		// Post-download duration safety net (metadata may not have been available pre-download)
 		if (maxDuration && result.duration && result.duration > maxDuration) {
 			const mins = Math.round(maxDuration / 60);
 			console.warn(`Clip ${clipId} duration ${result.duration}s exceeds limit ${maxDuration}s`);
-			await cleanupFiles([result.videoPath, result.thumbnailPath]);
+			await cleanupClipFiles(clipId);
 			await db
 				.update(clips)
 				.set({
@@ -139,12 +158,10 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 			return;
 		}
 
-		// Update clip with downloaded file info
 		// Keep existing title (caption from SMS) if present, otherwise use yt-dlp title
 		const existing = await db.query.clips.findFirst({
 			where: eq(clips.id, clipId)
 		});
-
 		const title = existing?.title || result.title || null;
 
 		// Calculate total file size
@@ -173,7 +190,23 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 			})
 			.where(eq(clips.id, clipId));
 	} catch (err) {
+		const errMsg = err instanceof Error ? err.message : String(err);
+		const isDurationReject =
+			errMsg.includes('match_filter') || errMsg.includes('File is larger than max-filesize');
+
+		if (isDurationReject && maxDuration) {
+			const mins = Math.round(maxDuration / 60);
+			console.warn(`Clip ${clipId} rejected by yt-dlp duration/size filter`);
+			await cleanupClipFiles(clipId);
+			await db
+				.update(clips)
+				.set({ status: 'failed', title: `Exceeds ${mins} min limit` })
+				.where(eq(clips.id, clipId));
+			return;
+		}
+
 		console.error(`Download failed for clip ${clipId}:`, err);
+		await cleanupClipFiles(clipId);
 		await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
 	}
 }
