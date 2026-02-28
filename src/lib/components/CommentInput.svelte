@@ -2,17 +2,25 @@
 	const {
 		replyingTo,
 		submitting,
+		attachedGif = null,
 		onsubmit,
-		oncancelreply
+		oncancelreply,
+		ongiftoggle,
+		onremovegif
 	}: {
 		replyingTo: { id: string; username: string } | null;
 		submitting: boolean;
-		onsubmit: (text: string) => void;
+		attachedGif: { url: string; stillUrl: string } | null;
+		onsubmit: (text: string, gifUrl?: string) => void;
 		oncancelreply: () => void;
+		ongiftoggle: () => void;
+		onremovegif: () => void;
 	} = $props();
 
 	let text = $state('');
 	let inputEl: HTMLInputElement | null = $state(null);
+
+	const canSubmit = $derived(text.trim().length > 0 || !!attachedGif);
 
 	export function focus() {
 		inputEl?.focus();
@@ -24,8 +32,8 @@
 
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!text.trim() || submitting) return;
-		onsubmit(text.trim());
+		if (!canSubmit || submitting) return;
+		onsubmit(text.trim(), attachedGif?.url);
 	}
 </script>
 
@@ -33,6 +41,13 @@
 	<div class="reply-indicator">
 		<span>Replying to <strong>{replyingTo.username}</strong></span>
 		<button class="cancel-reply" onclick={oncancelreply}>&times;</button>
+	</div>
+{/if}
+
+{#if attachedGif}
+	<div class="gif-preview">
+		<img src={attachedGif.stillUrl} alt="Attached GIF" />
+		<button class="remove-gif" onclick={onremovegif}>&times;</button>
 	</div>
 {/if}
 
@@ -45,7 +60,10 @@
 		maxlength={500}
 		disabled={submitting}
 	/>
-	<button type="submit" disabled={!text.trim() || submitting}>Send</button>
+	<button type="button" class="gif-btn" class:active={!!attachedGif} onclick={ongiftoggle}
+		>GIF</button
+	>
+	<button type="submit" disabled={!canSubmit || submitting}>Send</button>
 </form>
 
 <style>
@@ -85,6 +103,35 @@
 		line-height: 1;
 	}
 
+	.gif-preview {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		padding: var(--space-xs) var(--space-lg);
+		background: var(--bg-elevated);
+		border-top: 1px solid var(--border);
+		position: relative;
+	}
+	.gif-preview img {
+		height: 52px;
+		border-radius: var(--radius-sm);
+		object-fit: cover;
+	}
+	.remove-gif {
+		background: var(--bg-subtle);
+		border: none;
+		color: var(--text-primary);
+		width: 20px;
+		height: 20px;
+		border-radius: var(--radius-full);
+		font-size: 0.75rem;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
+	}
+
 	.input-bar {
 		display: flex;
 		gap: var(--space-sm);
@@ -111,7 +158,27 @@
 		color: var(--text-muted);
 	}
 
-	.input-bar button {
+	.gif-btn {
+		padding: var(--space-xs) var(--space-sm);
+		background: var(--bg-elevated);
+		color: var(--text-secondary);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		font-size: 0.6875rem;
+		font-weight: 700;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		letter-spacing: 0.02em;
+	}
+	.gif-btn:active {
+		transform: scale(0.97);
+	}
+	.gif-btn.active {
+		color: var(--accent-primary);
+		border-color: var(--accent-primary);
+	}
+
+	.input-bar button[type='submit'] {
 		padding: var(--space-sm) var(--space-lg);
 		background: var(--accent-primary);
 		color: #000000;
@@ -122,10 +189,10 @@
 		cursor: pointer;
 		transition: transform 0.1s ease;
 	}
-	.input-bar button:active {
+	.input-bar button[type='submit']:active {
 		transform: scale(0.97);
 	}
-	.input-bar button:disabled {
+	.input-bar button[type='submit']:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
 	}

@@ -2,6 +2,7 @@
 	import { relativeTime } from '$lib/utils';
 	import { toast } from '$lib/stores/toasts';
 	import CommentInput from './CommentInput.svelte';
+	import GifPicker from './GifPicker.svelte';
 	import {
 		type Comment,
 		fetchComments,
@@ -29,6 +30,14 @@
 	let visible = $state(false);
 	let replyingTo = $state<{ id: string; username: string } | null>(null);
 	let commentInput: ReturnType<typeof CommentInput> | null = $state(null);
+	let showGifPicker = $state(false);
+	let attachedGif = $state<{
+		id: string;
+		url: string;
+		stillUrl: string;
+		width: number;
+		height: number;
+	} | null>(null);
 
 	const totalCount = $derived(comments.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0));
 
@@ -70,10 +79,10 @@
 		if (autoFocus) setTimeout(() => commentInput?.focus(), 350);
 	}
 
-	async function handleSubmit(text: string) {
+	async function handleSubmit(text: string, gifUrl?: string) {
 		submitting = true;
 		try {
-			const newComment = await postComment(clipId, text, replyingTo?.id);
+			const newComment = await postComment(clipId, text, replyingTo?.id, gifUrl);
 			if (replyingTo) {
 				const parent = comments.find((c) => c.id === replyingTo!.id);
 				if (parent) {
@@ -91,6 +100,8 @@
 				}, 300);
 			}
 			commentInput?.clear();
+			attachedGif = null;
+			showGifPicker = false;
 		} catch {
 			toast.error('Failed to post comment');
 		}
@@ -151,7 +162,15 @@
 <div class="overlay" class:visible onclick={dismiss} role="presentation"></div>
 
 <div class="sheet" class:visible>
-	<div class="handle-bar" onclick={dismiss} role="button" tabindex="-1">
+	<div
+		class="handle-bar"
+		onclick={dismiss}
+		onkeydown={(e) => {
+			if (e.key === 'Enter' || e.key === ' ') dismiss();
+		}}
+		role="button"
+		tabindex="-1"
+	>
 		<div class="handle"></div>
 	</div>
 
@@ -178,7 +197,12 @@
 								<button class="delete-btn" onclick={() => handleDelete(comment.id)}>&times;</button>
 							{/if}
 						</div>
-						<p class="comment-text">{comment.text}</p>
+						{#if comment.text}
+							<p class="comment-text">{comment.text}</p>
+						{/if}
+						{#if comment.gifUrl}
+							<img class="comment-gif" src={comment.gifUrl} alt="GIF" loading="lazy" />
+						{/if}
 						<div class="comment-actions">
 							<button class="reply-btn" onclick={() => startReply(comment)}>Reply</button>
 							<button
@@ -221,7 +245,12 @@
 													>
 												{/if}
 											</div>
-											<p class="reply-text">{reply.text}</p>
+											{#if reply.text}
+												<p class="reply-text">{reply.text}</p>
+											{/if}
+											{#if reply.gifUrl}
+												<img class="reply-gif" src={reply.gifUrl} alt="GIF" loading="lazy" />
+											{/if}
 											<div class="comment-actions">
 												<button
 													class="heart-btn"
@@ -257,13 +286,32 @@
 		{/if}
 	</div>
 
+	{#if showGifPicker}
+		<GifPicker
+			onselect={(gif) => {
+				attachedGif = gif;
+				showGifPicker = false;
+			}}
+			ondismiss={() => {
+				showGifPicker = false;
+			}}
+		/>
+	{/if}
+
 	<CommentInput
 		bind:this={commentInput}
 		{replyingTo}
 		{submitting}
+		{attachedGif}
 		onsubmit={handleSubmit}
 		oncancelreply={() => {
 			replyingTo = null;
+		}}
+		ongiftoggle={() => {
+			showGifPicker = !showGifPicker;
+		}}
+		onremovegif={() => {
+			attachedGif = null;
 		}}
 	/>
 </div>
@@ -272,7 +320,7 @@
 	.overlay {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
+		background: transparent;
 		z-index: 99;
 		opacity: 0;
 		transition: opacity 300ms ease;
@@ -287,7 +335,7 @@
 		left: 0;
 		right: 0;
 		height: 70vh;
-		background: var(--bg-surface);
+		background: rgba(0, 0, 0, 0.93);
 		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 		z-index: 100;
 		display: flex;
@@ -342,9 +390,8 @@
 		gap: var(--space-sm);
 		margin-bottom: var(--space-lg);
 	}
-	.comment-avatar {
-		width: 28px;
-		height: 28px;
+	.comment-avatar,
+	.reply-avatar {
 		border-radius: var(--radius-full);
 		background: var(--accent-magenta);
 		color: white;
@@ -354,9 +401,14 @@
 		flex-shrink: 0;
 		font-family: var(--font-display);
 		font-weight: 700;
+	}
+	.comment-avatar {
+		width: 28px;
+		height: 28px;
 		font-size: 0.75rem;
 	}
-	.comment-body {
+	.comment-body,
+	.reply-body {
 		flex: 1;
 		min-width: 0;
 	}
@@ -392,10 +444,23 @@
 	}
 
 	.comment-text {
-		margin: 0;
 		font-size: 0.875rem;
-		color: var(--text-secondary);
-		line-height: 1.4;
+	}
+
+	.comment-gif,
+	.reply-gif {
+		display: block;
+		border-radius: var(--radius-sm);
+		margin-top: var(--space-xs);
+		object-fit: contain;
+	}
+	.comment-gif {
+		max-width: 200px;
+		max-height: 160px;
+	}
+	.reply-gif {
+		max-width: 160px;
+		max-height: 120px;
 	}
 
 	.comment-actions {
@@ -455,37 +520,26 @@
 	.reply-avatar {
 		width: 22px;
 		height: 22px;
-		border-radius: var(--radius-full);
-		background: var(--accent-magenta);
-		color: white;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		font-family: var(--font-display);
-		font-weight: 700;
 		font-size: 0.625rem;
-	}
-	.reply-body {
-		flex: 1;
-		min-width: 0;
 	}
 	.reply-username {
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--text-primary);
 	}
+	.comment-text,
 	.reply-text {
 		margin: 0;
-		font-size: 0.8125rem;
 		color: var(--text-secondary);
 		line-height: 1.4;
+	}
+	.reply-text {
+		font-size: 0.8125rem;
 	}
 
 	.heart-btn.heart-pop svg {
 		animation: heart-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
-
 	@keyframes heart-pop {
 		0% {
 			transform: scale(1);
@@ -497,11 +551,9 @@
 			transform: scale(1);
 		}
 	}
-
 	.comment.just-posted {
 		animation: comment-slide-in 250ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
-
 	@keyframes comment-slide-in {
 		from {
 			opacity: 0;
