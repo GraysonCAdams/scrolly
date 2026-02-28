@@ -2,8 +2,9 @@
 	import AddVideo from './AddVideo.svelte';
 	import { addToast, toast } from '$lib/stores/toasts';
 	import { clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
+	import { showShortcutNudge, dismissShortcutNudge } from '$lib/stores/shortcutNudge';
 
-	const { ondismiss }: { ondismiss: () => void } = $props();
+	const { ondismiss, initialUrl }: { ondismiss: () => void; initialUrl?: string } = $props();
 
 	let phase = $state<'form' | 'uploading' | 'done' | 'failed'>('form');
 	let visible = $state(false);
@@ -17,6 +18,7 @@
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let savingCaption = $state(false);
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
+	let closedViaBack = false;
 
 	$effect(() => {
 		requestAnimationFrame(() => {
@@ -27,9 +29,20 @@
 		if (phase === 'form') {
 			setTimeout(() => addVideoRef?.focus(), 350);
 		}
+
+		// Android back button / gesture support
+		history.pushState({ sheet: 'addVideo' }, '');
+		const handlePopState = () => {
+			closedViaBack = true;
+			ondismiss();
+		};
+		window.addEventListener('popstate', handlePopState);
+
 		return () => {
 			document.body.style.overflow = '';
 			if (pollTimer) clearInterval(pollTimer);
+			window.removeEventListener('popstate', handlePopState);
+			if (!closedViaBack) history.back();
 		};
 	});
 
@@ -161,7 +174,7 @@
 			<span class="title">Add to feed</span>
 		</div>
 		<div class="sheet-body">
-			<AddVideo bind:this={addVideoRef} onsubmitted={handleSubmitted} />
+			<AddVideo bind:this={addVideoRef} onsubmitted={handleSubmitted} {initialUrl} />
 		</div>
 	{:else}
 		<!-- Upload / Done / Failed screen -->
@@ -252,6 +265,39 @@
 					<button class="primary-btn" onclick={handleSaveAndView} disabled={savingCaption}>
 						{savingCaption ? 'Saving...' : 'View in feed'}
 					</button>
+
+					{#if $showShortcutNudge}
+						<div class="shortcut-nudge">
+							<a
+								href="/share/setup"
+								class="nudge-link"
+								onclick={() => {
+									dismissShortcutNudge();
+									visible = false;
+									setTimeout(ondismiss, 300);
+								}}
+							>
+								Share clips faster from other apps
+							</a>
+							<button
+								class="nudge-dismiss"
+								onclick={dismissShortcutNudge}
+								aria-label="Dismiss"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<line x1="18" y1="6" x2="6" y2="18" />
+									<line x1="6" y1="6" x2="18" y2="18" />
+								</svg>
+							</button>
+						</div>
+					{/if}
 				{:else if phase === 'failed'}
 					<button class="primary-btn" onclick={handleRetry}> Try again </button>
 				{/if}
@@ -488,7 +534,7 @@
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		border-radius: var(--radius-md);
 		color: #fff;
-		font-size: 0.9375rem;
+		font-size: 1rem;
 		font-family: var(--font-body);
 		text-align: center;
 		outline: none;
@@ -525,6 +571,44 @@
 	.primary-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	/* Shortcut nudge */
+	.shortcut-nudge {
+		display: flex;
+		align-items: center;
+		gap: var(--space-xs);
+		margin-top: var(--space-lg);
+		animation: fade-in 0.3s ease 0.5s both;
+	}
+
+	.nudge-link {
+		font-size: 0.75rem;
+		color: rgba(255, 255, 255, 0.5);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+
+	.nudge-dismiss {
+		background: none;
+		border: none;
+		padding: 2px;
+		color: rgba(255, 255, 255, 0.3);
+		cursor: pointer;
+	}
+
+	.nudge-dismiss svg {
+		width: 14px;
+		height: 14px;
+	}
+
+	@keyframes fade-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 
 	/* Animations */
