@@ -3,6 +3,7 @@ import { fetchUnreadCount } from '$lib/stores/notifications';
 export interface Comment {
 	id: string;
 	text: string;
+	gifUrl: string | null;
 	userId: string;
 	username: string;
 	avatarPath: string | null;
@@ -26,10 +27,12 @@ export async function fetchComments(clipId: string): Promise<Comment[]> {
 export async function postComment(
 	clipId: string,
 	text: string,
-	parentId?: string
+	parentId?: string,
+	gifUrl?: string
 ): Promise<Comment> {
-	const body: { text: string; parentId?: string } = { text };
+	const body: { text: string; parentId?: string; gifUrl?: string } = { text };
 	if (parentId) body.parentId = parentId;
+	if (gifUrl) body.gifUrl = gifUrl;
 
 	const res = await fetch(`/api/clips/${clipId}/comments`, {
 		method: 'POST',
@@ -42,10 +45,7 @@ export async function postComment(
 	return data.comment;
 }
 
-export async function deleteComment(
-	clipId: string,
-	commentId: string
-): Promise<string[]> {
+export async function deleteComment(clipId: string, commentId: string): Promise<string[]> {
 	const res = await fetch(`/api/clips/${clipId}/comments`, {
 		method: 'DELETE',
 		headers: { 'Content-Type': 'application/json' },

@@ -62,6 +62,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		return {
 			id: c.id,
 			text: c.text,
+			gifUrl: c.gifUrl || null,
 			userId: c.userId,
 			username: user?.username || 'Unknown',
 			avatarPath: user?.avatarPath || null,
@@ -94,31 +95,120 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	return json({ comments: result });
 };
 
+/** Send push + insert notification record for a comment or reply. */
+async function notifyCommentRecipient(
+	recipientId: string,
+	actorUsername: string,
+	actorId: string,
+	clipId: string,
+	commentText: string,
+	type: 'comment' | 'reply',
+	now: Date
+) {
+	const prefs = await db.query.notificationPreferences.findFirst({
+		where: eq(notificationPreferences.userId, recipientId)
+	});
+	if (!prefs || prefs.comments) {
+		const title = type === 'reply' ? 'New reply' : 'New comment';
+		const body =
+			type === 'reply'
+				? `${actorUsername} replied: ${commentText}`
+				: `${actorUsername}: ${commentText}`;
+		sendNotification(recipientId, { title, body, url: '/', tag: `${type}-${clipId}` }).catch(
+			(err) => console.error('Push notification failed:', err)
+		);
+	}
+	await db.insert(notifications).values({
+		id: uuid(),
+		userId: recipientId,
+		type,
+		clipId,
+		actorId,
+		commentPreview: commentText,
+		createdAt: now
+	});
+}
+
+/** Determine the notification recipient and dispatch. */
+async function dispatchCommentNotification(
+	clipId: string,
+	parentId: string | null,
+	actor: { id: string; username: string },
+	preview: string,
+	now: Date
+) {
+	if (parentId) {
+		const parentComment = await db.query.comments.findFirst({
+			where: eq(comments.id, parentId)
+		});
+		if (parentComment && parentComment.userId !== actor.id) {
+			await notifyCommentRecipient(
+				parentComment.userId,
+				actor.username,
+				actor.id,
+				clipId,
+				preview,
+				'reply',
+				now
+			);
+		}
+	} else {
+		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+		if (clip && clip.addedBy !== actor.id) {
+			await notifyCommentRecipient(
+				clip.addedBy,
+				actor.username,
+				actor.id,
+				clipId,
+				preview,
+				'comment',
+				now
+			);
+		}
+	}
+}
+
+function isValidGiphyUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		return parsed.hostname.endsWith('giphy.com');
+	} catch {
+		return false;
+	}
+}
+
+/** Validate and normalize comment input. Returns error string or parsed data. */
+function validateCommentInput(body: {
+	text?: unknown;
+	gifUrl?: unknown;
+}): { error: string } | { trimmed: string; hasText: boolean; validGifUrl: string | null } {
+	const trimmed = (typeof body.text === 'string' ? body.text : '').trim();
+	const hasText = trimmed.length > 0;
+	const hasGif = typeof body.gifUrl === 'string' && body.gifUrl.length > 0;
+
+	if (!hasText && !hasGif) return { error: 'Comment text or GIF required' };
+	if (hasText && trimmed.length > 500) return { error: 'Comment too long (max 500 characters)' };
+	if (hasGif && !isValidGiphyUrl(body.gifUrl as string)) return { error: 'Invalid GIF URL' };
+
+	return { trimmed, hasText, validGifUrl: hasGif ? (body.gifUrl as string) : null };
+}
+
 export const POST: RequestHandler = async ({ request, locals, params }) => {
 	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
 
-	const { text, parentId } = await request.json();
+	const body = await request.json();
 	const clipId = params.id;
 
-	if (!text || typeof text !== 'string' || text.trim().length === 0) {
-		return json({ error: 'Comment text required' }, { status: 400 });
-	}
+	const validation = validateCommentInput(body);
+	if ('error' in validation) return json({ error: validation.error }, { status: 400 });
+	const { trimmed, hasText, validGifUrl } = validation;
 
-	if (text.length > 500) {
-		return json({ error: 'Comment too long (max 500 characters)' }, { status: 400 });
-	}
-
-	// Validate parentId if provided
-	if (parentId) {
+	if (body.parentId) {
 		const parent = await db.query.comments.findFirst({
-			where: and(eq(comments.id, parentId), eq(comments.clipId, clipId))
+			where: and(eq(comments.id, body.parentId), eq(comments.clipId, clipId))
 		});
-		if (!parent) {
-			return json({ error: 'Parent comment not found' }, { status: 404 });
-		}
-		if (parent.parentId) {
-			return json({ error: 'Cannot reply to a reply' }, { status: 400 });
-		}
+		if (!parent) return json({ error: 'Parent comment not found' }, { status: 404 });
+		if (parent.parentId) return json({ error: 'Cannot reply to a reply' }, { status: 400 });
 	}
 
 	const commentId = uuid();
@@ -128,77 +218,25 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 		id: commentId,
 		clipId,
 		userId: locals.user.id,
-		parentId: parentId || null,
-		text: text.trim(),
+		parentId: body.parentId || null,
+		text: trimmed,
+		gifUrl: validGifUrl,
 		createdAt: now
 	});
 
-	// Notification logic
-	if (parentId) {
-		// Reply: notify the parent comment author
-		const parentComment = await db.query.comments.findFirst({
-			where: eq(comments.id, parentId)
-		});
-		if (parentComment && parentComment.userId !== locals.user.id) {
-			const prefs = await db.query.notificationPreferences.findFirst({
-				where: eq(notificationPreferences.userId, parentComment.userId)
-			});
-			if (!prefs || prefs.comments) {
-				sendNotification(parentComment.userId, {
-					title: 'New reply',
-					body: `${locals.user.username} replied: ${text.trim().slice(0, 80)}`,
-					url: '/',
-					tag: `reply-${clipId}`
-				}).catch((err) => console.error('Push notification failed:', err));
-			}
-
-			await db.insert(notifications).values({
-				id: uuid(),
-				userId: parentComment.userId,
-				type: 'reply',
-				clipId,
-				actorId: locals.user.id,
-				commentPreview: text.trim().slice(0, 80),
-				createdAt: now
-			});
-		}
-	} else {
-		// Top-level: notify clip owner
-		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-		if (clip && clip.addedBy !== locals.user.id) {
-			const ownerPrefs = await db.query.notificationPreferences.findFirst({
-				where: eq(notificationPreferences.userId, clip.addedBy)
-			});
-			if (!ownerPrefs || ownerPrefs.comments) {
-				sendNotification(clip.addedBy, {
-					title: 'New comment',
-					body: `${locals.user.username}: ${text.trim().slice(0, 80)}`,
-					url: '/',
-					tag: `comment-${clipId}`
-				}).catch((err) => console.error('Push notification failed:', err));
-			}
-
-			await db.insert(notifications).values({
-				id: uuid(),
-				userId: clip.addedBy,
-				type: 'comment',
-				clipId,
-				actorId: locals.user.id,
-				commentPreview: text.trim().slice(0, 80),
-				createdAt: now
-			});
-		}
-	}
+	const preview = hasText ? trimmed.slice(0, 80) : '[GIF]';
+	await dispatchCommentNotification(clipId, body.parentId || null, locals.user, preview, now);
 
 	return json(
 		{
 			comment: {
 				id: commentId,
-				text: text.trim(),
+				text: trimmed,
+				gifUrl: validGifUrl,
 				userId: locals.user.id,
 				username: locals.user.username,
 				avatarPath: locals.user.avatarPath || null,
-				parentId: parentId || null,
+				parentId: body.parentId || null,
 				heartCount: 0,
 				hearted: false,
 				createdAt: now.toISOString()
