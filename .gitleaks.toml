@@ -1,0 +1,9 @@
+title = "Scrolly Gitleaks Config"
+
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    '''\.env\.example''',
+    '''\.env\.test''',
+    '''package-lock\.json'''
+  ]
