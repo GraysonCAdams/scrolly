@@ -3,7 +3,13 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { clips, watched, favorites, commentViews } from '$lib/server/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import { isSupportedUrl, detectPlatform, getContentType } from '$lib/url-validation';
+import {
+	isSupportedUrl,
+	detectPlatform,
+	getContentType,
+	isPlatformAllowed,
+	platformLabel
+} from '$lib/url-validation';
 import { downloadVideo } from '$lib/server/video/download';
 import { downloadMusic } from '$lib/server/music/download';
 import { sendGroupNotification } from '$lib/server/push';
@@ -179,6 +185,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const platform = detectPlatform(videoUrl)!;
+
+	// Enforce group platform filter
+	const filterList = locals.group?.platformFilterList
+		? JSON.parse(locals.group.platformFilterList)
+		: null;
+	if (!isPlatformAllowed(platform, locals.group?.platformFilterMode ?? 'all', filterList)) {
+		return json(
+			{ error: `${platformLabel(videoUrl) || platform} links are not allowed in this group` },
+			{ status: 400 }
+		);
+	}
+
 	const contentType = getContentType(platform);
 	const normalizedUrl = normalizeUrl(videoUrl);
 
