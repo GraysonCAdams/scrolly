@@ -31,7 +31,7 @@
 	},
 	"dependencies": {
 		"better-sqlite3": "^11.0.0",
-		"drizzle-orm": "^0.38.0",
+		"drizzle-orm": "^0.45.1",
 		"mrmime": "^2.0.1",
 		"twilio": "^5.0.0",
 		"uuid": "^11.0.0",
@@ -46,7 +46,7 @@
 		"@types/uuid": "^10.0.0",
 		"@types/web-push": "^3.6.0",
 		"@vitest/coverage-v8": "^4.0.18",
-		"drizzle-kit": "^0.30.0",
+		"drizzle-kit": "^0.31.9",
 		"eslint": "^10.0.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-sonarjs": "^4.0.0",
