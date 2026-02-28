@@ -7,6 +7,7 @@ export const groups = sqliteTable('groups', {
 	retentionDays: integer('retention_days'),
 	maxStorageMb: integer('max_storage_mb'),
 	maxDurationSeconds: integer('max_duration_seconds').notNull().default(300),
+	maxFileSizeMb: integer('max_file_size_mb').default(500),
 	accentColor: text('accent_color').notNull().default('coral'),
 	downloadProvider: text('download_provider'),
 	platformFilterMode: text('platform_filter_mode').notNull().default('all'),
