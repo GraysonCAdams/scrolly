@@ -25,12 +25,13 @@
 	import InviteLink from '$lib/components/settings/InviteLink.svelte';
 	import GroupNameEdit from '$lib/components/settings/GroupNameEdit.svelte';
 	import RetentionPicker from '$lib/components/settings/RetentionPicker.svelte';
-	import MaxDurationPicker from '$lib/components/settings/MaxDurationPicker.svelte';
+	import MaxFileSizePicker from '$lib/components/settings/MaxFileSizePicker.svelte';
 	import ClipsManager from '$lib/components/settings/ClipsManager.svelte';
 	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
 	import AccentColorPicker from '$lib/components/settings/AccentColorPicker.svelte';
 	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
 	import PlatformFilter from '$lib/components/settings/PlatformFilter.svelte';
+	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
 
 	const vapidPublicKey = $derived($page.data.vapidPublicKey as string);
 	const user = $derived($page.data.user);
@@ -38,6 +39,28 @@
 	const isHost = $derived(group?.createdBy === user?.id);
 
 	let activeTab = $state<'me' | 'group'>('me');
+	let showAvatarCrop = $state(false);
+	let avatarOverride = $state<string | null | undefined>(undefined);
+	let avatarCacheBust = $state(0);
+	const avatarPath = $derived(
+		avatarOverride !== undefined ? avatarOverride : (user?.avatarPath ?? null)
+	);
+	const avatarUrl = $derived(
+		avatarPath ? `/api/profile/avatar/${avatarPath}?v=${avatarCacheBust}` : null
+	);
+
+	function handleAvatarUploaded(path: string) {
+		avatarOverride = path;
+		avatarCacheBust = Date.now();
+		showAvatarCrop = false;
+	}
+
+	async function handleRemoveAvatar() {
+		const res = await fetch('/api/profile/avatar', { method: 'DELETE' });
+		if (res.ok) {
+			avatarOverride = null;
+		}
+	}
 	let themeOverride = $state<'system' | 'light' | 'dark' | null>(null);
 	let autoScrollOverride = $state<boolean | null>(null);
 	let mutedByDefaultOverride = $state<boolean | null>(null);
@@ -57,6 +80,7 @@
 		return 2;
 	});
 
+	let showShareCta = $state(false);
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
 	let pushLoading = $state(false);
@@ -69,6 +93,9 @@
 	});
 
 	onMount(async () => {
+		const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+		showShareCta = isMobile || import.meta.env.DEV;
+
 		pushSupported = isPushSupported();
 		if (pushSupported) {
 			const sub = await getExistingSubscription();
@@ -142,9 +169,35 @@
 	{#if activeTab === 'me'}
 		<div class="tab-content">
 			<div class="profile-header">
-				<div class="avatar-large">
-					{user?.username?.charAt(0)?.toUpperCase() ?? '?'}
-				</div>
+				<button class="avatar-btn" onclick={() => (showAvatarCrop = true)}>
+					{#if avatarUrl}
+						<img src={avatarUrl} alt="Profile" class="avatar-large avatar-img" />
+					{:else}
+						<div class="avatar-large avatar-initials">
+							{user?.username?.charAt(0)?.toUpperCase() ?? '?'}
+						</div>
+					{/if}
+					<span class="avatar-edit-badge">
+						<svg
+							width="14"
+							height="14"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path
+								d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+							/>
+							<circle cx="12" cy="13" r="4" />
+						</svg>
+					</span>
+				</button>
+				{#if avatarPath}
+					<button class="remove-photo-btn" onclick={handleRemoveAvatar}>Remove photo</button>
+				{/if}
 				<h2 class="profile-name">{user?.username}</h2>
 				<span class="profile-phone">{user?.phone}</span>
 				{#if group}
@@ -152,29 +205,29 @@
 				{/if}
 			</div>
 
-			<div class="settings-section">
-				<h3 class="section-title">Appearance</h3>
-				<div class="card">
-					<div class="theme-toggle">
-						<div class="theme-bg" style="transform: translateX({themeIndex * 100}%)"></div>
-						<button
-							class="theme-option"
-							class:active={theme === 'system'}
-							onclick={() => handleThemeChange('system')}>System</button
-						>
-						<button
-							class="theme-option"
-							class:active={theme === 'light'}
-							onclick={() => handleThemeChange('light')}>Light</button
-						>
-						<button
-							class="theme-option"
-							class:active={theme === 'dark'}
-							onclick={() => handleThemeChange('dark')}>Dark</button
-						>
+			{#if showShareCta}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+				<a href="/share/setup" class="share-cta">
+					<svg
+						class="share-cta-icon"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+						<polyline points="16 6 12 2 8 6" />
+						<line x1="12" y1="2" x2="12" y2="15" />
+					</svg>
+					<div class="share-cta-content">
+						<span class="share-cta-title">Share from other apps</span>
+						<span class="share-cta-desc">Add clips directly from supported platforms</span>
 					</div>
-				</div>
-			</div>
+					<span class="share-cta-btn">Set up</span>
+				</a>
+			{/if}
 
 			<div class="settings-section">
 				<h3 class="section-title">Playback</h3>
@@ -211,20 +264,6 @@
 			</div>
 
 			<div class="settings-section">
-				<h3 class="section-title">Sharing</h3>
-				<div class="card">
-					<div class="setting-row last">
-						<div class="setting-label">
-							<span class="setting-name">Share from other apps</span>
-							<span class="setting-desc">Add clips directly from TikTok, Instagram & more</span>
-						</div>
-						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-						<a href="/share/setup" class="setup-link">Set up</a>
-					</div>
-				</div>
-			</div>
-
-			<div class="settings-section">
 				<h3 class="section-title">Notifications</h3>
 				<div class="card">
 					<NotificationSettings
@@ -236,6 +275,30 @@
 						onTogglePush={togglePush}
 						onUpdatePref={handleUpdatePref}
 					/>
+				</div>
+			</div>
+
+			<div class="settings-section">
+				<h3 class="section-title">Appearance</h3>
+				<div class="card">
+					<div class="theme-toggle">
+						<div class="theme-bg" style="transform: translateX({themeIndex * 100}%)"></div>
+						<button
+							class="theme-option"
+							class:active={theme === 'system'}
+							onclick={() => handleThemeChange('system')}>System</button
+						>
+						<button
+							class="theme-option"
+							class:active={theme === 'light'}
+							onclick={() => handleThemeChange('light')}>Light</button
+						>
+						<button
+							class="theme-option"
+							class:active={theme === 'dark'}
+							onclick={() => handleThemeChange('dark')}>Dark</button
+						>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -279,9 +342,9 @@
 				<div class="card"><InviteLink inviteCode={group.inviteCode} /></div>
 			</div>
 			<div class="settings-section">
-				<h3 class="section-title">Max Clip Duration</h3>
+				<h3 class="section-title">Max Clip Size</h3>
 				<div class="card">
-					<MaxDurationPicker currentMaxDuration={group.maxDurationSeconds} />
+					<MaxFileSizePicker currentMaxFileSizeMb={group.maxFileSizeMb} />
 				</div>
 			</div>
 			<div class="settings-section">
@@ -293,6 +356,10 @@
 				<div class="card"><ClipsManager /></div>
 			</div>
 		</div>
+	{/if}
+
+	{#if showAvatarCrop}
+		<AvatarCropModal ondismiss={() => (showAvatarCrop = false)} onuploaded={handleAvatarUploaded} />
 	{/if}
 
 	<footer class="version-footer">
@@ -369,10 +436,26 @@
 		padding: var(--space-sm) 0 var(--space-xl);
 	}
 
+	.avatar-btn {
+		position: relative;
+		border: none;
+		background: none;
+		padding: 0;
+		cursor: pointer;
+		margin-bottom: var(--space-xs);
+	}
+
+	.avatar-btn:active {
+		transform: scale(0.97);
+	}
+
 	.avatar-large {
 		width: 80px;
 		height: 80px;
 		border-radius: var(--radius-full);
+	}
+
+	.avatar-initials {
 		background: var(--bg-surface);
 		color: var(--text-secondary);
 		display: flex;
@@ -381,7 +464,36 @@
 		font-family: var(--font-display);
 		font-weight: 800;
 		font-size: 1.75rem;
-		margin-bottom: var(--space-xs);
+	}
+
+	.avatar-img {
+		object-fit: cover;
+		display: block;
+	}
+
+	.avatar-edit-badge {
+		position: absolute;
+		bottom: 0;
+		right: 0;
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-full);
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid var(--bg-primary);
+	}
+
+	.remove-photo-btn {
+		border: none;
+		background: none;
+		color: var(--error);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		padding: 0;
 	}
 
 	.profile-name {
@@ -479,7 +591,6 @@
 		border-bottom: 1px solid var(--bg-surface);
 	}
 
-	.setting-row.last,
 	.setting-row:last-child {
 		border-bottom: none;
 	}
@@ -502,12 +613,57 @@
 		color: var(--text-muted);
 	}
 
-	.setup-link {
+	.share-cta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		background: var(--bg-elevated);
+		border-radius: var(--radius-lg);
+		padding: var(--space-lg);
+		margin: var(--space-lg) 0;
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.share-cta:active {
+		transform: scale(0.98);
+	}
+
+	.share-cta-icon {
+		width: 28px;
+		height: 28px;
 		flex-shrink: 0;
 		color: var(--accent-primary);
+	}
+
+	.share-cta-content {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.share-cta-title {
+		font-family: var(--font-display);
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--text-primary);
+	}
+
+	.share-cta-desc {
 		font-size: 0.8125rem;
-		font-weight: 600;
-		text-decoration: none;
+		color: var(--text-secondary);
+	}
+
+	.share-cta-btn {
+		flex-shrink: 0;
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		font-size: 0.8125rem;
+		font-weight: 700;
+		padding: var(--space-sm) var(--space-lg);
+		border-radius: var(--radius-full);
 	}
 
 	.toggle {
