@@ -5,9 +5,12 @@
 
 	$effect(() => {
 		if ($confirmState.open) {
+			document.body.style.overflow = 'hidden';
 			requestAnimationFrame(() => {
 				visible = true;
 			});
+		} else {
+			document.body.style.overflow = '';
 		}
 	});
 

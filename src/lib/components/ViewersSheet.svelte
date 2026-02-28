@@ -23,13 +23,27 @@
 	let visible = $state(false);
 
 	// Animate in
+	let closedViaBack = false;
+
 	$effect(() => {
 		requestAnimationFrame(() => {
 			visible = true;
 		});
 		document.body.style.overflow = 'hidden';
+
+		// Android back button / gesture support
+		history.pushState({ sheet: 'viewers' }, '');
+		const handlePopState = () => {
+			closedViaBack = true;
+			ondismiss();
+		};
+		window.addEventListener('popstate', handlePopState);
+
 		return () => {
 			document.body.style.overflow = '';
+			window.removeEventListener('popstate', handlePopState);
+			// Clean up history entry if closed via button (not back gesture)
+			if (!closedViaBack) history.back();
 		};
 	});
 
@@ -158,7 +172,9 @@
 		flex: 1;
 		overflow-y: auto;
 		padding: var(--space-md) var(--space-lg);
+		padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
 		-webkit-overflow-scrolling: touch;
+		overscroll-behavior-y: contain;
 	}
 
 	.empty {
