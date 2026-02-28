@@ -1,5 +1,6 @@
 <script lang="ts">
 	/* eslint-disable max-lines */
+	import { env } from '$env/dynamic/public';
 	import iconUrl from '$lib/assets/icon.svg?url';
 	import InlineError from '$lib/components/InlineError.svelte';
 
@@ -225,11 +226,26 @@
 							class="phone-input"
 						/>
 					</div>
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- external operator-configured URLs -->
 					<p class="sms-consent">
 						By tapping "Send Code," you agree to receive SMS messages from Scrolly, including
 						verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data
 						rates may apply.
+						{#if env.PUBLIC_PRIVACY_URL || env.PUBLIC_TERMS_URL}
+							{#if env.PUBLIC_PRIVACY_URL}<a
+									href={env.PUBLIC_PRIVACY_URL}
+									target="_blank"
+									rel="noopener">Privacy Policy</a
+								>{/if}{#if env.PUBLIC_PRIVACY_URL && env.PUBLIC_TERMS_URL}
+								&amp;
+							{/if}{#if env.PUBLIC_TERMS_URL}<a
+									href={env.PUBLIC_TERMS_URL}
+									target="_blank"
+									rel="noopener">Terms</a
+								>{/if}.
+						{/if}
 					</p>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					<button type="submit" class="btn-primary" disabled={loading || !phoneValid}>
 						{#if loading}
 							<span class="spinner"></span>

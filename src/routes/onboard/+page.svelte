@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { env } from '$env/dynamic/public';
 	import InlineError from '$lib/components/InlineError.svelte';
 
 	let step = $state<'info' | 'verify'>('info');
@@ -145,11 +146,26 @@
 				<small>We'll send you a verification code</small>
 			</label>
 
+			<!-- eslint-disable svelte/no-navigation-without-resolve -- external operator-configured URLs -->
 			<p class="sms-consent">
 				By tapping "Send Verification Code," you agree to receive SMS messages from Scrolly,
 				including verification codes and replies when you text clips. Msg frequency varies. Msg
 				&amp; data rates may apply.
+				{#if env.PUBLIC_PRIVACY_URL || env.PUBLIC_TERMS_URL}
+					{#if env.PUBLIC_PRIVACY_URL}<a
+							href={env.PUBLIC_PRIVACY_URL}
+							target="_blank"
+							rel="noopener">Privacy Policy</a
+						>{/if}{#if env.PUBLIC_PRIVACY_URL && env.PUBLIC_TERMS_URL}
+						&amp;
+					{/if}{#if env.PUBLIC_TERMS_URL}<a
+							href={env.PUBLIC_TERMS_URL}
+							target="_blank"
+							rel="noopener">Terms</a
+						>{/if}.
+				{/if}
 			</p>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 
 			<button type="submit" disabled={loading || !username.trim() || !phone.trim()}>
 				{loading ? 'Sending...' : 'Send Verification Code'}
