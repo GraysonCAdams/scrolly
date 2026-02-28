@@ -7,6 +7,7 @@ export const isStandalone = writable(false);
 export function detectStandaloneMode(): boolean {
 	if (typeof window === 'undefined') return false;
 	// iOS Safari
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Safari non-standard property
 	if ((navigator as any).standalone === true) return true;
 	// Chrome / Edge / Firefox
 	if (window.matchMedia('(display-mode: standalone)').matches) return true;
@@ -15,6 +16,7 @@ export function detectStandaloneMode(): boolean {
 
 // --- Install prompt ---
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- BeforeInstallPromptEvent not in lib.dom.d.ts
 let deferredPrompt: any = null;
 
 export const canInstall = writable(false);
@@ -62,6 +64,7 @@ let waitingWorker: ServiceWorker | null = null;
 
 export function initSwUpdateListener(): void {
 	if (!('serviceWorker' in navigator)) return;
+	if (import.meta.env.DEV) return;
 
 	navigator.serviceWorker.ready.then((registration) => {
 		registration.addEventListener('updatefound', () => {
