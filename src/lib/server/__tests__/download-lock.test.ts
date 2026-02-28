@@ -31,8 +31,8 @@ describe('normalizeUrl', () => {
 	});
 
 	it('preserves non-tracking parameters', () => {
-		expect(normalizeUrl('https://example.com/page?id=123&ref=abc')).toBe(
-			'https://example.com/page?id=123&ref=abc'
+		expect(normalizeUrl('https://example.com/page?id=123&q=hello')).toBe(
+			'https://example.com/page?id=123&q=hello'
 		);
 	});
 

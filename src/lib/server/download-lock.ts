@@ -24,9 +24,17 @@ const TRACKING_PARAMS = [
 	'utm_medium',
 	'utm_campaign',
 	'utm_content',
+	'utm_term',
 	'igshid',
 	'igsh',
-	'fbclid'
+	'fbclid',
+	'ref',
+	'ref_src',
+	'ref_url',
+	's',
+	'context',
+	'share_id',
+	't'
 ];
 
 export function normalizeUrl(url: string): string {
