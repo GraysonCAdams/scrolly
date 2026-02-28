@@ -18,14 +18,66 @@ describe('isSupportedUrl', () => {
 		expect(isSupportedUrl('https://fb.watch/abc123')).toBe(true);
 	});
 
-	it('accepts YouTube Shorts URLs', () => {
+	it('accepts YouTube URLs (shorts and regular)', () => {
 		expect(isSupportedUrl('https://youtube.com/shorts/abc123')).toBe(true);
 		expect(isSupportedUrl('https://www.youtube.com/shorts/xyz')).toBe(true);
+		expect(isSupportedUrl('https://www.youtube.com/watch?v=abc123')).toBe(true);
+		expect(isSupportedUrl('https://youtu.be/abc123')).toBe(true);
 	});
 
-	it('rejects regular YouTube URLs (not /shorts/)', () => {
-		expect(isSupportedUrl('https://www.youtube.com/watch?v=abc123')).toBe(false);
-		expect(isSupportedUrl('https://youtube.com/playlist?list=xyz')).toBe(false);
+	it('accepts X/Twitter URLs', () => {
+		expect(isSupportedUrl('https://x.com/user/status/123')).toBe(true);
+		expect(isSupportedUrl('https://twitter.com/user/status/123')).toBe(true);
+		expect(isSupportedUrl('https://t.co/abc')).toBe(true);
+	});
+
+	it('accepts Reddit URLs', () => {
+		expect(isSupportedUrl('https://www.reddit.com/r/funny/comments/abc')).toBe(true);
+		expect(isSupportedUrl('https://v.redd.it/abc123')).toBe(true);
+	});
+
+	it('accepts Streamable URLs', () => {
+		expect(isSupportedUrl('https://streamable.com/abc123')).toBe(true);
+	});
+
+	it('accepts Twitch URLs', () => {
+		expect(isSupportedUrl('https://clips.twitch.tv/abc123')).toBe(true);
+		expect(isSupportedUrl('https://www.twitch.tv/user/clip/abc')).toBe(true);
+	});
+
+	it('accepts Vimeo URLs', () => {
+		expect(isSupportedUrl('https://vimeo.com/123456')).toBe(true);
+	});
+
+	it('accepts Threads URLs', () => {
+		expect(isSupportedUrl('https://www.threads.net/@user/post/abc')).toBe(true);
+	});
+
+	it('accepts Bluesky URLs', () => {
+		expect(isSupportedUrl('https://bsky.app/profile/user/post/abc')).toBe(true);
+	});
+
+	it('accepts Snapchat URLs', () => {
+		expect(isSupportedUrl('https://www.snapchat.com/spotlight/abc')).toBe(true);
+	});
+
+	it('accepts Pinterest URLs', () => {
+		expect(isSupportedUrl('https://www.pinterest.com/pin/123')).toBe(true);
+		expect(isSupportedUrl('https://pin.it/abc')).toBe(true);
+	});
+
+	it('accepts Kick URLs', () => {
+		expect(isSupportedUrl('https://kick.com/user/clips/abc')).toBe(true);
+	});
+
+	it('accepts Dailymotion URLs', () => {
+		expect(isSupportedUrl('https://www.dailymotion.com/video/abc')).toBe(true);
+		expect(isSupportedUrl('https://dai.ly/abc')).toBe(true);
+	});
+
+	it('accepts Imgur URLs', () => {
+		expect(isSupportedUrl('https://imgur.com/abc')).toBe(true);
+		expect(isSupportedUrl('https://i.imgur.com/abc.mp4')).toBe(true);
 	});
 
 	it('accepts Spotify URLs', () => {
@@ -36,10 +88,17 @@ describe('isSupportedUrl', () => {
 		expect(isSupportedUrl('https://music.apple.com/us/album/abc/123')).toBe(true);
 	});
 
+	it('accepts SoundCloud URLs', () => {
+		expect(isSupportedUrl('https://soundcloud.com/artist/track')).toBe(true);
+	});
+
+	it('accepts YouTube Music URLs', () => {
+		expect(isSupportedUrl('https://music.youtube.com/watch?v=abc')).toBe(true);
+	});
+
 	it('rejects unsupported domains', () => {
-		expect(isSupportedUrl('https://twitter.com/user/status/123')).toBe(false);
-		expect(isSupportedUrl('https://reddit.com/r/funny')).toBe(false);
 		expect(isSupportedUrl('https://google.com')).toBe(false);
+		expect(isSupportedUrl('https://example.com/video')).toBe(false);
 	});
 
 	it('rejects invalid URLs', () => {
@@ -49,7 +108,7 @@ describe('isSupportedUrl', () => {
 
 	it('accepts any protocol for supported domains', () => {
 		// URL parser accepts any protocol, and the code only checks hostname
-		// eslint-disable-next-line sonarjs/no-clear-text-protocols -- intentional test of non-https protocol handling
+
 		expect(isSupportedUrl('ftp://tiktok.com/@user/video/123')).toBe(true);
 	});
 
@@ -75,12 +134,28 @@ describe('detectPlatform', () => {
 		expect(detectPlatform('https://fb.watch/abc')).toBe('facebook');
 	});
 
-	it('returns "youtube" for YouTube Shorts', () => {
+	it('returns "youtube" for YouTube URLs', () => {
 		expect(detectPlatform('https://www.youtube.com/shorts/abc')).toBe('youtube');
+		expect(detectPlatform('https://www.youtube.com/watch?v=abc')).toBe('youtube');
+		expect(detectPlatform('https://youtu.be/abc')).toBe('youtube');
 	});
 
-	it('returns null for regular YouTube', () => {
-		expect(detectPlatform('https://www.youtube.com/watch?v=abc')).toBeNull();
+	it('returns "twitter" for X/Twitter URLs', () => {
+		expect(detectPlatform('https://x.com/user/status/123')).toBe('twitter');
+		expect(detectPlatform('https://twitter.com/user/status/123')).toBe('twitter');
+	});
+
+	it('returns "reddit" for Reddit URLs', () => {
+		expect(detectPlatform('https://www.reddit.com/r/funny/comments/abc')).toBe('reddit');
+		expect(detectPlatform('https://v.redd.it/abc')).toBe('reddit');
+	});
+
+	it('returns "streamable" for Streamable URLs', () => {
+		expect(detectPlatform('https://streamable.com/abc')).toBe('streamable');
+	});
+
+	it('returns "twitch" for Twitch URLs', () => {
+		expect(detectPlatform('https://clips.twitch.tv/abc')).toBe('twitch');
 	});
 
 	it('returns "spotify" for Spotify URLs', () => {
@@ -91,26 +166,37 @@ describe('detectPlatform', () => {
 		expect(detectPlatform('https://music.apple.com/us/album/abc/123')).toBe('apple_music');
 	});
 
+	it('returns "youtube_music" for YouTube Music URLs', () => {
+		expect(detectPlatform('https://music.youtube.com/watch?v=abc')).toBe('youtube_music');
+	});
+
+	it('returns "soundcloud" for SoundCloud URLs', () => {
+		expect(detectPlatform('https://soundcloud.com/artist/track')).toBe('soundcloud');
+	});
+
 	it('returns null for unsupported/invalid URLs', () => {
-		expect(detectPlatform('https://twitter.com/user')).toBeNull();
+		expect(detectPlatform('https://google.com')).toBeNull();
 		expect(detectPlatform('not a url')).toBeNull();
 	});
 });
 
 describe('getContentType', () => {
-	it('returns "music" for spotify', () => {
+	it('returns "music" for music platforms', () => {
 		expect(getContentType('spotify')).toBe('music');
-	});
-
-	it('returns "music" for apple_music', () => {
 		expect(getContentType('apple_music')).toBe('music');
+		expect(getContentType('soundcloud')).toBe('music');
+		expect(getContentType('youtube_music')).toBe('music');
 	});
 
-	it('returns "video" for all other platforms', () => {
+	it('returns "video" for video platforms', () => {
 		expect(getContentType('tiktok')).toBe('video');
 		expect(getContentType('instagram')).toBe('video');
 		expect(getContentType('facebook')).toBe('video');
 		expect(getContentType('youtube')).toBe('video');
+		expect(getContentType('twitter')).toBe('video');
+		expect(getContentType('reddit')).toBe('video');
+		expect(getContentType('streamable')).toBe('video');
+		expect(getContentType('twitch')).toBe('video');
 	});
 });
 
@@ -121,11 +207,14 @@ describe('platformLabel', () => {
 		expect(platformLabel('https://www.facebook.com/reel/123')).toBe('Facebook');
 		expect(platformLabel('https://open.spotify.com/track/abc')).toBe('Spotify');
 		expect(platformLabel('https://music.apple.com/us/album/abc/123')).toBe('Apple Music');
-		expect(platformLabel('https://www.youtube.com/shorts/abc')).toBe('YouTube Shorts');
+		expect(platformLabel('https://www.youtube.com/shorts/abc')).toBe('YouTube');
+		expect(platformLabel('https://x.com/user/status/123')).toBe('X');
+		expect(platformLabel('https://www.reddit.com/r/funny/comments/abc')).toBe('Reddit');
+		expect(platformLabel('https://streamable.com/abc')).toBe('Streamable');
 	});
 
 	it('returns null for unsupported URLs', () => {
-		expect(platformLabel('https://twitter.com/user')).toBeNull();
+		expect(platformLabel('https://google.com')).toBeNull();
 		expect(platformLabel('not a url')).toBeNull();
 	});
 });
