@@ -1,0 +1,66 @@
+{
+	"name": "scrolly",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "husky",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "eslint",
+		"lint:ci": "eslint --max-warnings 68",
+		"lint:strict": "eslint --max-warnings 0",
+		"format": "prettier --write \"src/**/*.{ts,svelte,css}\"",
+		"format:check": "prettier --check \"src/**/*.{ts,svelte,css}\"",
+		"type-check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
+	},
+	"lint-staged": {
+		"*.{ts,svelte}": [
+			"eslint --fix --max-warnings 0",
+			"prettier --write"
+		],
+		"*.css": [
+			"prettier --write"
+		]
+	},
+	"dependencies": {
+		"better-sqlite3": "^11.0.0",
+		"drizzle-orm": "^0.38.0",
+		"mrmime": "^2.0.1",
+		"twilio": "^5.0.0",
+		"uuid": "^11.0.0",
+		"web-push": "^3.6.7"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@sveltejs/adapter-node": "^5.0.0",
+		"@sveltejs/kit": "^2.50.2",
+		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@types/better-sqlite3": "^7.6.0",
+		"@types/uuid": "^10.0.0",
+		"@types/web-push": "^3.6.0",
+		"@vitest/coverage-v8": "^4.0.18",
+		"drizzle-kit": "^0.30.0",
+		"eslint": "^10.0.2",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-sonarjs": "^4.0.0",
+		"eslint-plugin-svelte": "^3.15.0",
+		"globals": "^17.3.0",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.7",
+		"prettier": "^3.8.1",
+		"prettier-plugin-svelte": "^3.5.0",
+		"svelte": "^5.51.0",
+		"svelte-check": "^4.3.6",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.56.1",
+		"vite": "^7.3.1",
+		"vitest": "^4.0.18"
+	}
+}
