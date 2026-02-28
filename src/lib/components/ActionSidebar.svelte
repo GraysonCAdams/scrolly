@@ -191,6 +191,7 @@
 		</span>
 	</button>
 
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
 	<a
 		href={originalUrl}
 		target="_blank"
