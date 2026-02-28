@@ -171,6 +171,20 @@ export const notifications = sqliteTable(
 	(table) => [index('notifications_user_created').on(table.userId, table.createdAt)]
 );
 
+export const commentViews = sqliteTable(
+	'comment_views',
+	{
+		clipId: text('clip_id')
+			.notNull()
+			.references(() => clips.id),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		viewedAt: integer('viewed_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [uniqueIndex('comment_views_unique').on(table.clipId, table.userId)]
+);
+
 export const notificationPreferences = sqliteTable('notification_preferences', {
 	userId: text('user_id')
 		.primaryKey()
