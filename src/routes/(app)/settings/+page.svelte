@@ -30,6 +30,7 @@
 	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
 	import AccentColorPicker from '$lib/components/settings/AccentColorPicker.svelte';
 	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
+	import PlatformFilter from '$lib/components/settings/PlatformFilter.svelte';
 
 	const vapidPublicKey = $derived($page.data.vapidPublicKey as string);
 	const user = $derived($page.data.user);
@@ -255,6 +256,17 @@
 			<div class="settings-section">
 				<h3 class="section-title">Download Provider</h3>
 				<div class="card"><DownloadProviderManager /></div>
+			</div>
+			<div class="settings-section">
+				<h3 class="section-title">Allowed Platforms</h3>
+				<div class="card">
+					<PlatformFilter
+						currentMode={group.platformFilterMode}
+						currentPlatforms={group.platformFilterList
+							? JSON.parse(group.platformFilterList)
+							: null}
+					/>
+				</div>
 			</div>
 			<div class="settings-section">
 				<h3 class="section-title">Members</h3>
