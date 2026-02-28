@@ -2,6 +2,7 @@
 	const {
 		favorited,
 		commentCount,
+		unreadCommentCount = 0,
 		originalUrl,
 		muted = true,
 		onfavorite,
@@ -12,6 +13,7 @@
 	}: {
 		favorited: boolean;
 		commentCount: number;
+		unreadCommentCount?: number;
 		originalUrl: string;
 		muted?: boolean;
 		onfavorite: () => void;
@@ -122,16 +124,21 @@
 			oncomment();
 		}}
 	>
-		<svg
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-		</svg>
+		<span class="icon-wrap">
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+			</svg>
+			{#if unreadCommentCount > 0}
+				<span class="unread-badge">{unreadCommentCount > 9 ? '9+' : unreadCommentCount}</span>
+			{/if}
+		</span>
 		{#if commentCount > 0}
 			<span class="sidebar-count">{commentCount}</span>
 		{/if}
@@ -211,6 +218,32 @@
 
 	.sidebar-btn.active {
 		color: var(--accent-magenta);
+	}
+
+	.icon-wrap {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.unread-badge {
+		position: absolute;
+		top: -4px;
+		right: -6px;
+		min-width: 16px;
+		height: 16px;
+		padding: 0 4px;
+		border-radius: var(--radius-full);
+		background: var(--accent-magenta);
+		color: #fff;
+		font-size: 0.5625rem;
+		font-weight: 700;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
+		filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 	}
 
 	.sidebar-count {
