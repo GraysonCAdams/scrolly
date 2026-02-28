@@ -46,7 +46,7 @@
 		"@types/uuid": "^10.0.0",
 		"@types/web-push": "^3.6.0",
 		"@vitest/coverage-v8": "^4.0.18",
-		"drizzle-kit": "^0.30.0",
+		"drizzle-kit": "^0.31.9",
 		"eslint": "^10.0.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-sonarjs": "^4.0.0",
