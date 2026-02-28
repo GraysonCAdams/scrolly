@@ -1,0 +1,14 @@
+{$DOMAIN:localhost} {
+	reverse_proxy scrolly:3000
+
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

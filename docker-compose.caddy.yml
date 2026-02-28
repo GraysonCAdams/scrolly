@@ -1,0 +1,37 @@
+# Caddy reverse proxy overlay — adds automatic HTTPS via Let's Encrypt.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+#
+# Required:
+#   Set DOMAIN in your .env file (e.g. DOMAIN=scrolly.example.com)
+#   Port 80 must be publicly reachable for ACME certificate challenges.
+
+services:
+  scrolly:
+    ports: !reset []
+    expose:
+      - "3000"
+    environment:
+      - ORIGIN=https://${DOMAIN}
+      - ADDRESS_HEADER=X-Forwarded-For
+      - XFF_DEPTH=1
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    restart: unless-stopped
+    depends_on:
+      - scrolly
+
+volumes:
+  caddy-data:
+  caddy-config:
