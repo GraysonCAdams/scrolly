@@ -1,15 +1,13 @@
-import { spawn } from 'child_process';
 import { resolve } from 'path';
-import { readdir, stat, unlink, readFile } from 'fs/promises';
+import { readdir, stat, unlink } from 'fs/promises';
 import { db } from '../db';
 import { clips, groups } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { deduplicatedDownload } from '../download-lock';
+import { getActiveProvider } from '../providers/registry';
+import type { AudioDownloadResult } from '../providers/types';
 
 const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
-
-/** Estimated average bytes-per-second for MP3 audio (generous ~100 KB/s ≈ 800 kbps) */
-const AUDIO_BYTES_PER_SEC = 100 * 1024;
 
 interface OdesliResponse {
 	entityUniqueId: string;
@@ -92,136 +90,9 @@ async function resolveOdesli(url: string): Promise<MusicMetadata> {
 	};
 }
 
-function spawnYtDlp(
-	clipId: string,
-	searchQuery: string,
-	maxDuration: number | null
-): Promise<{ audioPath: string; duration: number | null }> {
-	return new Promise((resolvePromise, reject) => {
-		const outputTemplate = `${DATA_DIR}/${clipId}.%(ext)s`;
-
-		const args = [
-			'--no-playlist',
-			'--js-runtimes',
-			'node',
-			'--remote-components',
-			'ejs:github',
-			'--extractor-args',
-			'youtube:player_client=android_vr,web_safari',
-			'-x',
-			'--audio-format',
-			'mp3',
-			'--audio-quality',
-			'0',
-			'--write-info-json'
-		];
-
-		if (maxDuration) {
-			args.push('--match-filter', `duration <= ${maxDuration}`);
-			const maxBytes = Math.round(maxDuration * AUDIO_BYTES_PER_SEC);
-			args.push('--max-filesize', String(maxBytes));
-		}
-
-		args.push('-o', outputTemplate, searchQuery);
-
-		// Strip Node/Vite env vars that interfere with yt-dlp's
-		// internal `node --permission` subprocess for JS challenge solving
-		const cleanEnv = { ...process.env };
-		const stripPrefixes = ['NODE_OPTIONS', 'NODE_DEV', 'NODE_CHANNEL_FD', 'VITE_'];
-		for (const key of Object.keys(cleanEnv)) {
-			if (stripPrefixes.some((p) => key.startsWith(p))) {
-				delete cleanEnv[key];
-			}
-		}
-
-		const proc = spawn('yt-dlp', args, {
-			stdio: ['ignore', 'pipe', 'pipe'],
-			env: cleanEnv
-		});
-		let stderr = '';
-		let stdout = '';
-
-		proc.stdout.on('data', (data: Buffer) => {
-			stdout += data.toString();
-		});
-		proc.stderr.on('data', (data: Buffer) => {
-			stderr += data.toString();
-		});
-
-		proc.on('close', async (code) => {
-			if (code !== 0) {
-				console.error(`yt-dlp stdout:\n${stdout}`);
-				reject(new Error(`yt-dlp audio exited with code ${code}: ${stderr}`));
-				return;
-			}
-
-			try {
-				// eslint-disable-next-line security/detect-non-literal-fs-filename
-				const files = await readdir(DATA_DIR);
-				const clipFiles = files.filter((f) => f.startsWith(clipId));
-				const audioFile = clipFiles.find((f) => f.endsWith('.mp3'));
-				const infoFile = clipFiles.find((f) => f.endsWith('.info.json'));
-
-				if (!audioFile) {
-					reject(new Error(`No audio file found for clip ${clipId}`));
-					return;
-				}
-
-				let duration: number | null = null;
-				if (infoFile) {
-					try {
-						// eslint-disable-next-line security/detect-non-literal-fs-filename
-						const info = JSON.parse(await readFile(`${DATA_DIR}/${infoFile}`, 'utf-8'));
-						duration = typeof info.duration === 'number' ? Math.round(info.duration) : null;
-					} catch {
-						// Best-effort
-					}
-				}
-
-				resolvePromise({
-					audioPath: `${DATA_DIR}/${audioFile}`,
-					duration
-				});
-			} catch (err) {
-				reject(err);
-			}
-		});
-
-		proc.on('error', (err) => {
-			reject(new Error(`Failed to spawn yt-dlp: ${err.message}. Is yt-dlp installed?`));
-		});
-	});
-}
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
-
-async function downloadAudioFromYt(
-	clipId: string,
-	searchQuery: string,
-	maxDuration: number | null
-): Promise<{ audioPath: string; duration: number | null }> {
-	let lastError: Error | null = null;
-
-	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-		try {
-			return await spawnYtDlp(clipId, searchQuery, maxDuration);
-		} catch (err) {
-			lastError = err instanceof Error ? err : new Error(String(err));
-			if (attempt < MAX_RETRIES) {
-				const delay = RETRY_DELAY_MS * attempt;
-				console.warn(`yt-dlp attempt ${attempt}/${MAX_RETRIES} failed, retrying in ${delay}ms...`);
-				await new Promise((r) => setTimeout(r, delay));
-			}
-		}
-	}
-
-	throw lastError ?? new Error('yt-dlp download failed');
-}
-
 async function finalizeMusicClip(
 	clipId: string,
-	result: { audioPath: string; duration: number | null },
+	result: AudioDownloadResult,
 	metadata: MusicMetadata,
 	maxDuration: number | null
 ): Promise<void> {
@@ -270,6 +141,18 @@ async function finalizeMusicClip(
 async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 	const maxDuration = await getMaxDuration(clipId);
 
+	// Resolve the active provider for this clip's group
+	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+	if (!clip) return;
+	const provider = await getActiveProvider(clip.groupId);
+	if (!provider) {
+		await db
+			.update(clips)
+			.set({ status: 'failed', title: 'No download provider configured' })
+			.where(eq(clips.id, clipId));
+		return;
+	}
+
 	try {
 		// Step 1: Resolve metadata from Odesli
 		const metadata = await resolveOdesli(url);
@@ -287,15 +170,19 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 			})
 			.where(eq(clips.id, clipId));
 
-		// Step 3: Search YouTube and download audio
-		let result: { audioPath: string; duration: number | null } | null = null;
+		// Step 3: Search YouTube and download audio via provider
+		let result: AudioDownloadResult | null = null;
+		const downloadOptions = {
+			outputDir: DATA_DIR,
+			clipId,
+			maxDurationSeconds: maxDuration
+		};
 
 		if (metadata.title && metadata.artist) {
 			try {
-				result = await downloadAudioFromYt(
-					clipId,
+				result = await provider.downloadAudio(
 					`ytsearch1:${metadata.title} ${metadata.artist}`,
-					maxDuration
+					downloadOptions
 				);
 			} catch (err) {
 				console.error(`YouTube search failed for "${metadata.title} ${metadata.artist}":`, err);
@@ -305,7 +192,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		// Step 4: Fallback — try the YouTube Music URL directly
 		if (!result && metadata.youtubeMusicUrl) {
 			try {
-				result = await downloadAudioFromYt(clipId, metadata.youtubeMusicUrl, maxDuration);
+				result = await provider.downloadAudio(metadata.youtubeMusicUrl, downloadOptions);
 			} catch (err) {
 				console.error(`YouTube Music URL download failed:`, err);
 			}
