@@ -1,11 +1,29 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { isSupportedUrl, platformLabel } from '$lib/url-validation';
+	import { resolve } from '$app/paths';
+	import {
+		isSupportedUrl,
+		platformLabel,
+		detectPlatform,
+		isPlatformAllowed
+	} from '$lib/url-validation';
 
 	const shareUrl = $derived($page.data.shareUrl as string);
 	const platform = $derived(platformLabel(shareUrl));
 	const isValid = $derived(isSupportedUrl(shareUrl));
+	const detectedPlatform = $derived(shareUrl ? detectPlatform(shareUrl) : null);
+	const platformFilterMode = $derived(($page.data.group?.platformFilterMode as string) ?? 'all');
+	const platformFilterList = $derived<string[] | null>(
+		$page.data.group?.platformFilterList
+			? JSON.parse($page.data.group.platformFilterList as string)
+			: null
+	);
+	const platformAllowed = $derived(
+		detectedPlatform
+			? isPlatformAllowed(detectedPlatform, platformFilterMode, platformFilterList)
+			: true
+	);
 
 	let loading = $state(false);
 	let error = $state('');
@@ -26,7 +44,7 @@
 				return;
 			}
 			success = true;
-			setTimeout(() => goto('/'), 1500);
+			setTimeout(() => goto(resolve('/')), 1500);
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -59,7 +77,25 @@
 			<h1 class="share-title">Unsupported link</h1>
 			<p class="share-desc">This URL isn't from a supported platform.</p>
 			<p class="share-url">{shareUrl}</p>
-			<a href="/" class="btn-secondary">Go to feed</a>
+			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+		{:else if !platformAllowed}
+			<div class="icon-wrap error">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<circle cx="12" cy="12" r="10" />
+					<line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+				</svg>
+			</div>
+			<h1 class="share-title">Platform not allowed</h1>
+			<p class="share-desc">{platform} links aren't allowed in this group.</p>
+			<p class="share-url">{shareUrl}</p>
+			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
 		{:else if success}
 			<div class="icon-wrap success">
 				<svg
@@ -85,9 +121,7 @@
 					stroke-linecap="round"
 					stroke-linejoin="round"
 				>
-					<path
-						d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"
-					/>
+					<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
 				</svg>
 			</div>
 			<h1 class="share-title">Add to feed</h1>
@@ -103,7 +137,7 @@
 			<button class="btn-primary" onclick={handleSubmit} disabled={loading}>
 				{loading ? 'Adding...' : 'Add to feed'}
 			</button>
-			<a href="/" class="btn-ghost">Cancel</a>
+			<a href={resolve('/')} class="btn-ghost">Cancel</a>
 		{/if}
 	</div>
 </div>

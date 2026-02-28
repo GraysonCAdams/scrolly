@@ -1,6 +1,12 @@
 <script lang="ts">
 	import InlineError from './InlineError.svelte';
-	import { isSupportedUrl, platformLabel } from '$lib/url-validation';
+	import {
+		isSupportedUrl,
+		platformLabel,
+		detectPlatform,
+		isPlatformAllowed,
+		ALL_PLATFORMS
+	} from '$lib/url-validation';
 	import { page } from '$app/stores';
 
 	const {
@@ -15,12 +21,31 @@
 	} = $props();
 
 	const hasProvider = $derived(!!$page.data.group?.downloadProvider);
+	const platformFilterMode = $derived(($page.data.group?.platformFilterMode as string) ?? 'all');
+	const platformFilterList = $derived<string[] | null>(
+		$page.data.group?.platformFilterList
+			? JSON.parse($page.data.group.platformFilterList as string)
+			: null
+	);
+	const allowedPlatformLabels = $derived.by(() => {
+		if (platformFilterMode === 'all') return null;
+		return ALL_PLATFORMS.filter((p) =>
+			isPlatformAllowed(p.key, platformFilterMode, platformFilterList)
+		).map((p) => p.label);
+	});
 
 	let url = $state('');
 	let error = $state('');
 	let loading = $state(false);
 	let urlInput = $state<HTMLInputElement | null>(null);
 	let clipboardSuggestion = $state<{ url: string; label: string } | null>(null);
+
+	const detectedPlatform = $derived(url.trim() ? detectPlatform(url.trim()) : null);
+	const platformBlocked = $derived(
+		detectedPlatform
+			? !isPlatformAllowed(detectedPlatform, platformFilterMode, platformFilterList)
+			: false
+	);
 
 	export function focus() {
 		urlInput?.focus();
@@ -39,9 +64,12 @@
 				const text = await navigator.clipboard.readText();
 				const trimmed = text?.trim();
 				if (trimmed && isSupportedUrl(trimmed)) {
-					const label = platformLabel(trimmed);
-					if (label) {
-						clipboardSuggestion = { url: trimmed, label };
+					const detected = detectPlatform(trimmed);
+					if (detected && isPlatformAllowed(detected, platformFilterMode, platformFilterList)) {
+						const label = platformLabel(trimmed);
+						if (label) {
+							clipboardSuggestion = { url: trimmed, label };
+						}
 					}
 				}
 			} catch {
@@ -165,7 +193,7 @@
 				placeholder="Paste a link..."
 				disabled={loading}
 			/>
-			<button type="submit" disabled={loading || !url.trim()}>
+			<button type="submit" disabled={loading || !url.trim() || platformBlocked}>
 				{#if loading}
 					<span class="spinner"></span>
 				{:else}
@@ -183,8 +211,18 @@
 				{/if}
 			</button>
 		</div>
+		{#if platformBlocked}
+			<p class="platform-blocked">{platformLabel(url.trim())} links aren't allowed in this group</p>
+		{/if}
 		<InlineError message={error} />
-		<p class="platforms">TikTok, YouTube, Instagram, X, Reddit, Spotify & more</p>
+		<p class="platforms">
+			{#if allowedPlatformLabels}
+				{allowedPlatformLabels.slice(0, 5).join(', ')}{#if allowedPlatformLabels.length > 5}&nbsp;& {allowedPlatformLabels.length -
+						5} more{/if}
+			{:else}
+				TikTok, YouTube, Instagram, X, Reddit, Spotify & more
+			{/if}
+		</p>
 	</form>
 {/if}
 
@@ -377,6 +415,13 @@
 		to {
 			transform: rotate(360deg);
 		}
+	}
+
+	.platform-blocked {
+		margin: 0;
+		font-size: 0.8125rem;
+		color: var(--error);
+		text-align: center;
 	}
 
 	.platforms {
