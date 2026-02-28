@@ -151,5 +151,31 @@ export function platformLabel(url: string): string | null {
 	return platform ? (PLATFORM_LABELS[platform] ?? null) : null;
 }
 
-/** All platform labels for display purposes (e.g. "TikTok, YouTube, X, ...") */
-export const ALL_PLATFORM_LABELS = Object.values(PLATFORMS).map((p) => p.label);
+/** Platform metadata for UI rendering and validation */
+export interface PlatformInfo {
+	key: string;
+	label: string;
+	contentType: 'video' | 'music';
+}
+
+/** All platform entries for use in settings UI and validation */
+export const ALL_PLATFORMS: PlatformInfo[] = Object.entries(PLATFORMS).map(([key, def]) => ({
+	key,
+	label: def.label,
+	contentType: def.contentType
+}));
+
+/** All valid platform keys */
+export const PLATFORM_KEYS: string[] = Object.keys(PLATFORMS);
+
+/** Check if a detected platform is allowed by the group's platform filter */
+export function isPlatformAllowed(
+	platform: string,
+	mode: string,
+	filterList: string[] | null
+): boolean {
+	if (mode === 'all' || !filterList) return true;
+	if (mode === 'allow') return filterList.includes(platform);
+	if (mode === 'block') return !filterList.includes(platform);
+	return true;
+}
