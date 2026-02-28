@@ -145,6 +145,8 @@
 				<small>We'll send you a verification code</small>
 			</label>
 
+			<p class="sms-consent">By tapping "Send Verification Code," you agree to receive SMS messages from Scrolly, including verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data rates may apply. <a href="https://graysoncadams.github.io/scrolly/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &amp; <a href="https://graysoncadams.github.io/scrolly/terms.html" target="_blank" rel="noopener">Terms</a>.</p>
+
 			<button type="submit" disabled={loading || !username.trim() || !phone.trim()}>
 				{loading ? 'Sending...' : 'Send Verification Code'}
 			</button>
@@ -274,6 +276,20 @@
 	small {
 		color: var(--text-muted);
 		font-size: 0.75rem;
+	}
+
+	.sms-consent {
+		font-size: 0.6875rem;
+		line-height: 1.5;
+		color: var(--text-muted);
+		text-align: center;
+		max-width: 320px;
+		margin: 0;
+	}
+
+	.sms-consent a {
+		color: var(--text-secondary);
+		text-decoration: underline;
 	}
 
 	button {

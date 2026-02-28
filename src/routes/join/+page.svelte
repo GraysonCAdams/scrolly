@@ -108,7 +108,9 @@
 				error = data.error || 'Invalid code';
 				return;
 			}
-			window.location.href = '/';
+			const params = new URLSearchParams(window.location.search);
+			const returnTo = params.get('returnTo');
+			window.location.href = returnTo && returnTo.startsWith('/') ? returnTo : '/';
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -222,6 +224,7 @@
 							class="phone-input"
 						/>
 					</div>
+					<p class="sms-consent">By tapping "Send Code," you agree to receive SMS messages from Scrolly, including verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data rates may apply. <a href="https://graysoncadams.github.io/scrolly/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &amp; <a href="https://graysoncadams.github.io/scrolly/terms.html" target="_blank" rel="noopener">Terms</a>.</p>
 					<button type="submit" class="btn-primary" disabled={loading || !phoneValid}>
 						{#if loading}
 							<span class="spinner"></span>
@@ -565,6 +568,19 @@
 	.btn-ghost:disabled {
 		opacity: 0.35;
 		cursor: not-allowed;
+	}
+
+	.sms-consent {
+		font-size: 0.6875rem;
+		line-height: 1.5;
+		color: var(--text-muted);
+		text-align: center;
+		margin: 0;
+	}
+
+	.sms-consent a {
+		color: var(--text-secondary);
+		text-decoration: underline;
 	}
 
 	.resend-row {
