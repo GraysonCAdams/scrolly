@@ -39,7 +39,7 @@ Share video clips and music links with your close friends through private groups
 
 ## Important: Legal Responsibilities
 
-Scrolly supports pluggable download providers that the host installs at runtime from the Settings UI. **No download tools are bundled with Scrolly.** The host is responsible for choosing and installing a provider, and for ensuring that their use complies with applicable laws and platform terms of service. This software is intended for personal, private use among small friend groups. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
+Scrolly is a private media playback and sharing platform. On its own, it cannot download media from external platforms. The host must make a deliberate choice to install a third-party download provider from the Settings UI — **no download tools are bundled with or automatically installed by Scrolly.** By installing a provider, the host accepts sole responsibility for compliance with applicable laws, platform terms of service, and the provider's own license. This software is intended for personal, private use among small friend groups. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
 
 ## Tech Stack
 

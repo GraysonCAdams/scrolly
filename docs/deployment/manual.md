@@ -78,3 +78,16 @@ pm2 restart scrolly
 ```
 
 Migrations run automatically on startup.
+
+## Self-Hosting Responsibilities
+
+By operating a self-hosted instance, you are responsible for:
+
+- All content downloaded, stored, and shared on your instance
+- Compliance with data protection laws (GDPR, CCPA, etc.)
+- Compliance with telecommunications regulations if using SMS
+- Establishing your own terms of service and privacy policy
+- Securing your deployment and protecting user data
+- **Download providers:** Installing a provider is an explicit opt-in action. By doing so, you accept responsibility for compliance with applicable laws and the provider's own license terms. No download tools are bundled with or automatically installed by Scrolly.
+
+See the [Disclaimer](https://github.com/312-dev/scrolly/blob/main/DISCLAIMER.md) for full details.

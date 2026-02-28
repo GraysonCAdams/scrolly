@@ -33,7 +33,7 @@ Included in the Docker image. For manual deployments, install these:
 | **FFmpeg** | 4.4+ | Media processing and thumbnail generation |
 | **Python 3** | 3.10+ | Required by some download providers |
 
-Download providers are installed at runtime by the host from the Settings UI — they are not bundled with Scrolly.
+Download providers are installed at runtime by the host from the Settings UI — they are not bundled with or automatically installed by Scrolly. Installing a provider is an explicit opt-in action; by doing so, the host accepts responsibility for compliance with applicable laws and the provider's own license terms. See the [Disclaimer](https://github.com/312-dev/scrolly/blob/main/DISCLAIMER.md) for full details.
 
 ### Storage Considerations
 
