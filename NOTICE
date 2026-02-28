@@ -1,0 +1,48 @@
+Scrolly
+Copyright 2026 GraysonCAdams
+
+This software is licensed under the MIT License. See LICENSE for details.
+
+This project includes or depends on the following third-party software:
+
+---
+
+yt-dlp
+  License: Unlicense
+  URL: https://github.com/yt-dlp/yt-dlp
+  Usage: Video and audio downloading (installed as a system binary in Docker)
+
+FFmpeg
+  License: LGPL 2.1+ / GPL 2+
+  URL: https://ffmpeg.org
+  Usage: Media processing and transcoding (installed as a system package in Docker)
+
+Twilio SDK
+  License: MIT
+  URL: https://github.com/twilio/twilio-node
+  Usage: SMS verification and inbound message handling
+
+web-push
+  License: MIT
+  URL: https://github.com/web-push-libs/web-push
+  Usage: Web Push notification delivery
+
+Drizzle ORM
+  License: Apache-2.0
+  URL: https://github.com/drizzle-team/drizzle-orm
+  Usage: SQLite database access and migrations
+
+better-sqlite3
+  License: MIT
+  URL: https://github.com/WiseLibs/better-sqlite3
+  Usage: SQLite database driver
+
+SvelteKit
+  License: MIT
+  URL: https://github.com/sveltejs/kit
+  Usage: Application framework
+
+Odesli API
+  License: Proprietary (third-party service)
+  URL: https://odesli.co
+  Usage: Cross-platform music link resolution
