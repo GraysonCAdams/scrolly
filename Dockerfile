@@ -24,8 +24,6 @@ RUN apt-get update && \
       python3 \
       curl \
       ca-certificates && \
-    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd -r scrolly && useradd -r -g scrolly -m scrolly

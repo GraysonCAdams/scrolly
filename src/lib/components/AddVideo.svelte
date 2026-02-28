@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InlineError from './InlineError.svelte';
 	import { isSupportedUrl, platformLabel } from '$lib/url-validation';
+	import { page } from '$app/stores';
 
 	const {
 		onsubmitted,
@@ -12,6 +13,8 @@
 		) => void;
 		initialUrl?: string;
 	} = $props();
+
+	const hasProvider = $derived(!!$page.data.group?.downloadProvider);
 
 	let url = $state('');
 	let error = $state('');
@@ -82,86 +85,108 @@
 	}
 </script>
 
-<form
-	class="add-video"
-	onsubmit={(e) => {
-		e.preventDefault();
-		handleSubmit();
-	}}
->
-	{#if clipboardSuggestion}
-		<div class="clipboard-suggestion">
-			<div class="suggestion-content">
-				<svg
-					class="suggestion-icon"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-					<rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-				</svg>
-				<div class="suggestion-text">
-					<span class="suggestion-label">Paste from {clipboardSuggestion.label}?</span>
-					<span class="suggestion-url">{clipboardSuggestion.url}</span>
+{#if !hasProvider}
+	<div class="add-video no-provider-state">
+		<svg
+			class="no-provider-icon"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.5"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+			<polyline points="7 10 12 15 17 10" />
+			<line x1="12" y1="15" x2="12" y2="3" />
+		</svg>
+		<p class="no-provider-title">No download provider set up</p>
+		<p class="no-provider-desc">Ask your group host to configure one in Settings.</p>
+	</div>
+{:else}
+	<form
+		class="add-video"
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSubmit();
+		}}
+	>
+		{#if clipboardSuggestion}
+			<div class="clipboard-suggestion">
+				<div class="suggestion-content">
+					<svg
+						class="suggestion-icon"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+						<rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+					</svg>
+					<div class="suggestion-text">
+						<span class="suggestion-label">Paste from {clipboardSuggestion.label}?</span>
+						<span class="suggestion-url">{clipboardSuggestion.url}</span>
+					</div>
+				</div>
+				<div class="suggestion-actions">
+					<button type="button" class="suggestion-confirm" onclick={acceptClipboard}>
+						Paste
+					</button>
+					<button
+						type="button"
+						class="suggestion-dismiss"
+						onclick={dismissClipboard}
+						aria-label="Dismiss"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<line x1="18" y1="6" x2="6" y2="18" />
+							<line x1="6" y1="6" x2="18" y2="18" />
+						</svg>
+					</button>
 				</div>
 			</div>
-			<div class="suggestion-actions">
-				<button type="button" class="suggestion-confirm" onclick={acceptClipboard}> Paste </button>
-				<button
-					type="button"
-					class="suggestion-dismiss"
-					onclick={dismissClipboard}
-					aria-label="Dismiss"
-				>
+		{/if}
+
+		<div class="input-wrap" class:has-error={!!error}>
+			<input
+				bind:this={urlInput}
+				type="url"
+				bind:value={url}
+				placeholder="Paste a link..."
+				disabled={loading}
+			/>
+			<button type="submit" disabled={loading || !url.trim()}>
+				{#if loading}
+					<span class="spinner"></span>
+				{:else}
 					<svg
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="2"
+						stroke-width="2.5"
 						stroke-linecap="round"
 						stroke-linejoin="round"
 					>
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
+						<line x1="5" y1="12" x2="19" y2="12" />
+						<polyline points="12 5 19 12 12 19" />
 					</svg>
-				</button>
-			</div>
+				{/if}
+			</button>
 		</div>
-	{/if}
-
-	<div class="input-wrap" class:has-error={!!error}>
-		<input
-			bind:this={urlInput}
-			type="url"
-			bind:value={url}
-			placeholder="Paste a link..."
-			disabled={loading}
-		/>
-		<button type="submit" disabled={loading || !url.trim()}>
-			{#if loading}
-				<span class="spinner"></span>
-			{:else}
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="5" y1="12" x2="19" y2="12" />
-					<polyline points="12 5 19 12 12 19" />
-				</svg>
-			{/if}
-		</button>
-	</div>
-	<InlineError message={error} />
-	<p class="platforms">TikTok, YouTube, Instagram, X, Reddit, Spotify & more</p>
-</form>
+		<InlineError message={error} />
+		<p class="platforms">TikTok, YouTube, Instagram, X, Reddit, Spotify & more</p>
+	</form>
+{/if}
 
 <style>
 	.add-video {
@@ -360,5 +385,34 @@
 		color: var(--text-muted);
 		text-align: center;
 		letter-spacing: 0.01em;
+	}
+
+	.no-provider-state {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		padding: var(--space-2xl) var(--space-lg);
+	}
+
+	.no-provider-icon {
+		width: 40px;
+		height: 40px;
+		color: var(--text-muted);
+		opacity: 0.4;
+		margin-bottom: var(--space-md);
+	}
+
+	.no-provider-title {
+		font-family: var(--font-display);
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0 0 var(--space-xs);
+	}
+
+	.no-provider-desc {
+		font-size: 0.875rem;
+		color: var(--text-muted);
+		margin: 0;
 	}
 </style>
