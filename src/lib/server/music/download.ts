@@ -37,11 +37,12 @@ interface MusicMetadata {
 	youtubeMusicUrl: string | null;
 }
 
-async function getMaxDuration(clipId: string): Promise<number | null> {
+async function getMaxFileSize(clipId: string): Promise<number | null> {
 	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
 	if (!clip) return null;
 	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
-	return group?.maxDurationSeconds ?? null;
+	if (group?.maxFileSizeMb === null || group?.maxFileSizeMb === undefined) return null;
+	return group.maxFileSizeMb * 1024 * 1024;
 }
 
 async function cleanupClipFiles(clipId: string): Promise<void> {
@@ -94,28 +95,8 @@ async function finalizeMusicClip(
 	clipId: string,
 	result: AudioDownloadResult,
 	metadata: MusicMetadata,
-	maxDuration: number | null
+	maxFileSizeBytes: number | null
 ): Promise<void> {
-	// Post-download duration safety net
-	if (maxDuration && result.duration && result.duration > maxDuration) {
-		const mins = Math.round(maxDuration / 60);
-		console.warn(`Music clip ${clipId} duration ${result.duration}s exceeds limit ${maxDuration}s`);
-		await cleanupClipFiles(clipId);
-		await db
-			.update(clips)
-			.set({
-				status: 'failed',
-				title: `Exceeds ${mins} min limit`,
-				durationSeconds: result.duration
-			})
-			.where(eq(clips.id, clipId));
-		return;
-	}
-
-	// Keep existing title (caption from SMS) if present
-	const existing = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	const title = existing?.title || metadata.title || null;
-
 	// Calculate file size
 	let fileSizeBytes = 0;
 	try {
@@ -125,6 +106,26 @@ async function finalizeMusicClip(
 	} catch {
 		// File may not exist
 	}
+
+	// Post-download file size safety net
+	if (maxFileSizeBytes && fileSizeBytes > maxFileSizeBytes) {
+		const sizeMb = Math.round(maxFileSizeBytes / (1024 * 1024));
+		console.warn(`Music clip ${clipId} size ${fileSizeBytes} exceeds limit ${maxFileSizeBytes}`);
+		await cleanupClipFiles(clipId);
+		await db
+			.update(clips)
+			.set({
+				status: 'failed',
+				title: `Exceeds ${sizeMb} MB limit`,
+				durationSeconds: result.duration
+			})
+			.where(eq(clips.id, clipId));
+		return;
+	}
+
+	// Keep existing title (caption from SMS) if present
+	const existing = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+	const title = existing?.title || metadata.title || null;
 
 	await db
 		.update(clips)
@@ -139,7 +140,7 @@ async function finalizeMusicClip(
 }
 
 async function downloadMusicInner(clipId: string, url: string): Promise<void> {
-	const maxDuration = await getMaxDuration(clipId);
+	const maxFileSizeBytes = await getMaxFileSize(clipId);
 
 	// Resolve the active provider for this clip's group
 	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
@@ -175,7 +176,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		const downloadOptions = {
 			outputDir: DATA_DIR,
 			clipId,
-			maxDurationSeconds: maxDuration
+			maxFileSizeBytes
 		};
 
 		if (metadata.title && metadata.artist) {
@@ -199,7 +200,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		}
 
 		if (result) {
-			await finalizeMusicClip(clipId, result, metadata, maxDuration);
+			await finalizeMusicClip(clipId, result, metadata, maxFileSizeBytes);
 		} else {
 			// Failed to download audio, but metadata + platform links are still visible
 			await cleanupClipFiles(clipId);

@@ -8,11 +8,12 @@ import { getActiveProvider } from '../providers/registry';
 
 const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
 
-async function getMaxDuration(clipId: string): Promise<number | null> {
+async function getMaxFileSize(clipId: string): Promise<number | null> {
 	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
 	if (!clip) return null;
 	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
-	return group?.maxDurationSeconds ?? null;
+	if (group?.maxFileSizeMb === null || group?.maxFileSizeMb === undefined) return null;
+	return group.maxFileSizeMb * 1024 * 1024;
 }
 
 async function cleanupClipFiles(clipId: string): Promise<void> {
@@ -51,19 +52,19 @@ async function totalFileSize(paths: (string | null)[]): Promise<number> {
 async function handleDownloadError(
 	clipId: string,
 	err: unknown,
-	maxDuration: number | null
+	maxFileSizeBytes: number | null
 ): Promise<void> {
 	const errMsg = err instanceof Error ? err.message : String(err);
-	const isDurationReject =
+	const isSizeReject =
 		errMsg.includes('match_filter') || errMsg.includes('File is larger than max-filesize');
 
-	if (isDurationReject && maxDuration) {
-		const mins = Math.round(maxDuration / 60);
-		console.warn(`Clip ${clipId} rejected by duration/size filter`);
+	if (isSizeReject && maxFileSizeBytes) {
+		const sizeMb = Math.round(maxFileSizeBytes / (1024 * 1024));
+		console.warn(`Clip ${clipId} rejected by size filter`);
 		await cleanupClipFiles(clipId);
 		await db
 			.update(clips)
-			.set({ status: 'failed', title: `Exceeds ${mins} min limit` })
+			.set({ status: 'failed', title: `Exceeds ${sizeMb} MB limit` })
 			.where(eq(clips.id, clipId));
 		return;
 	}
@@ -74,7 +75,7 @@ async function handleDownloadError(
 }
 
 async function downloadVideoInner(clipId: string, url: string): Promise<void> {
-	const maxDuration = await getMaxDuration(clipId);
+	const maxFileSizeBytes = await getMaxFileSize(clipId);
 
 	// Resolve the active provider for this clip's group
 	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
@@ -92,19 +93,20 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 		const result = await provider.downloadVideo(url, {
 			outputDir: DATA_DIR,
 			clipId,
-			maxDurationSeconds: maxDuration
+			maxFileSizeBytes
 		});
 
-		// Post-download duration safety net (metadata may not have been available pre-download)
-		if (maxDuration && result.duration && result.duration > maxDuration) {
-			const mins = Math.round(maxDuration / 60);
-			console.warn(`Clip ${clipId} duration ${result.duration}s exceeds limit ${maxDuration}s`);
+		// Post-download file size safety net
+		const fileSizeBytes = await totalFileSize([result.videoPath, result.thumbnailPath]);
+		if (maxFileSizeBytes && fileSizeBytes > maxFileSizeBytes) {
+			const sizeMb = Math.round(maxFileSizeBytes / (1024 * 1024));
+			console.warn(`Clip ${clipId} file size ${fileSizeBytes} exceeds limit ${maxFileSizeBytes}`);
 			await cleanupClipFiles(clipId);
 			await db
 				.update(clips)
 				.set({
 					status: 'failed',
-					title: `Exceeds ${mins} min limit`,
+					title: `Exceeds ${sizeMb} MB limit`,
 					durationSeconds: result.duration
 				})
 				.where(eq(clips.id, clipId));
@@ -116,7 +118,6 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 			where: eq(clips.id, clipId)
 		});
 		const title = existing?.title || result.title || null;
-		const fileSizeBytes = await totalFileSize([result.videoPath, result.thumbnailPath]);
 
 		await db
 			.update(clips)
@@ -130,7 +131,7 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 			})
 			.where(eq(clips.id, clipId));
 	} catch (err) {
-		await handleDownloadError(clipId, err, maxDuration);
+		await handleDownloadError(clipId, err, maxFileSizeBytes);
 	}
 }
 
