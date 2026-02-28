@@ -20,10 +20,12 @@
 	const {
 		clipId,
 		currentUserId,
+		autoFocus = false,
 		ondismiss
 	}: {
 		clipId: string;
 		currentUserId: string;
+		autoFocus?: boolean;
 		ondismiss: () => void;
 	} = $props();
 
@@ -38,14 +40,27 @@
 
 	const totalCount = $derived(comments.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0));
 
+	let closedViaBack = false;
+
 	// Animate in
 	$effect(() => {
 		requestAnimationFrame(() => {
 			visible = true;
 		});
 		document.body.style.overflow = 'hidden';
+
+		// Android back button / gesture support
+		history.pushState({ sheet: 'comments' }, '');
+		const handlePopState = () => {
+			closedViaBack = true;
+			ondismiss();
+		};
+		window.addEventListener('popstate', handlePopState);
+
 		return () => {
 			document.body.style.overflow = '';
+			window.removeEventListener('popstate', handlePopState);
+			if (!closedViaBack) history.back();
 		};
 	});
 
@@ -71,6 +86,12 @@
 			})
 				.then(() => fetchUnreadCount())
 				.catch(() => {});
+		}
+		// Record that user viewed comments for this clip (for unread tracking)
+		fetch(`/api/clips/${clipId}/comments/viewed`, { method: 'POST' }).catch(() => {});
+		// Auto-focus input after sheet animates in
+		if (autoFocus) {
+			setTimeout(() => inputEl?.focus(), 350);
 		}
 	}
 
@@ -392,6 +413,7 @@
 		overflow-y: auto;
 		padding: var(--space-md) var(--space-lg);
 		-webkit-overflow-scrolling: touch;
+		overscroll-behavior-y: contain;
 	}
 
 	.empty {
@@ -608,7 +630,7 @@
 		border-radius: var(--radius-full);
 		background: var(--bg-elevated);
 		color: var(--text-primary);
-		font-size: 0.875rem;
+		font-size: 1rem;
 		outline: none;
 		transition: border-color 0.2s ease;
 	}
