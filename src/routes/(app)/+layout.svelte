@@ -13,7 +13,11 @@
 	const isActivity = $derived(page.url.pathname === '/activity');
 	const isSettings = $derived(page.url.pathname === '/settings');
 
-	const pageTitle = $derived(isActivity ? 'Activity' : isSettings ? 'Settings' : '');
+	const pageTitle = $derived.by(() => {
+		if (isActivity) return 'Activity';
+		if (isSettings) return 'Settings';
+		return '';
+	});
 
 	onMount(() => {
 		startPolling();
@@ -56,19 +60,20 @@
 			// Match app background based on effective theme
 			const manual = document.documentElement.dataset.theme;
 			const isDark =
-				manual === 'dark' ||
-				(!manual && window.matchMedia('(prefers-color-scheme: dark)').matches);
+				manual === 'dark' || (!manual && window.matchMedia('(prefers-color-scheme: dark)').matches);
 			metas.forEach((m) => m.setAttribute('content', isDark ? '#000000' : '#FFFFFF'));
 		}
 	}
 
 	// Re-sync when navigating between feed and other pages
 	$effect(() => {
+		// eslint-disable-next-line sonarjs/void-use -- reading isFeed to trigger effect re-run
 		void isFeed;
 		syncThemeColor();
 	});
 </script>
 
+<!-- eslint-disable svelte/no-navigation-without-resolve -- static routes, resolve() unnecessary -->
 <div class="app-shell">
 	{#if isFeed}
 		<!-- Feed: notification bell floats top-right -->
@@ -238,6 +243,16 @@
 		align-items: center;
 		justify-content: center;
 		line-height: 1;
+		animation: badge-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes badge-pop {
+		from {
+			transform: scale(0);
+		}
+		to {
+			transform: scale(1);
+		}
 	}
 
 	/* Non-feed: top bar with title */

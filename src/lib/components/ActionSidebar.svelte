@@ -27,6 +27,18 @@
 	let holdTimer: ReturnType<typeof setTimeout> | null = null;
 	let holdFired = false;
 
+	let justFaved = $state(false);
+	let prevFavorited = $state(favorited);
+	$effect(() => {
+		if (favorited && !prevFavorited) {
+			justFaved = true;
+			setTimeout(() => {
+				justFaved = false;
+			}, 300);
+		}
+		prevFavorited = favorited;
+	});
+
 	function stop(e: MouseEvent | PointerEvent) {
 		e.stopPropagation();
 	}
@@ -61,6 +73,7 @@
 	}
 </script>
 
+<!-- eslint-disable svelte/no-navigation-without-resolve -- only external URLs in this component -->
 <div class="action-sidebar">
 	{#if onmute}
 		<button
@@ -111,7 +124,7 @@
 		}}
 		aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
 	>
-		<span class="icon-circle">
+		<span class="icon-circle" class:pop={justFaved}>
 			<svg
 				viewBox="0 0 24 24"
 				fill={favorited ? 'currentColor' : 'none'}
@@ -178,11 +191,10 @@
 		</span>
 	</button>
 
-	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
 	<a
 		href={originalUrl}
 		target="_blank"
-		rel="noopener"
+		rel="noopener noreferrer"
 		class="sidebar-btn"
 		onclick={stop}
 		aria-label="Open original"
@@ -287,5 +299,34 @@
 		font-weight: 600;
 		color: #fff;
 		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+	}
+
+	.icon-circle.pop {
+		animation: icon-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes icon-pop {
+		0% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(1.3);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+
+	.unread-badge {
+		animation: badge-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes badge-pop {
+		from {
+			transform: scale(0);
+		}
+		to {
+			transform: scale(1);
+		}
 	}
 </style>

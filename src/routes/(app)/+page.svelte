@@ -2,6 +2,7 @@
 	import ReelItem from '$lib/components/ReelItem.svelte';
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
+	import SkeletonReel from '$lib/components/SkeletonReel.svelte';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
 	import { addToast, clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
 	import { homeTapSignal } from '$lib/stores/homeTap';
@@ -127,7 +128,11 @@
 
 		function handleTouchMove(e: TouchEvent) {
 			if (!isPullingActive || isRefreshing) return;
-			if (sc.scrollTop > 0) { isPullingActive = false; pullDistance = 0; return; }
+			if (sc.scrollTop > 0) {
+				isPullingActive = false;
+				pullDistance = 0;
+				return;
+			}
 			const delta = e.touches[0].clientY - touchStartY;
 			if (delta > 0) {
 				pullDistance = Math.min(delta * 0.4, 120);
@@ -169,7 +174,8 @@
 
 	$effect(() => {
 		if (!scrollContainer) return;
-		const _len = clips.length;
+		// eslint-disable-next-line sonarjs/void-use -- triggers $effect re-run when clips change
+		void clips.length;
 		const slots = scrollContainer.querySelectorAll('.reel-slot');
 		if (slots.length === 0) return;
 		const observer = new IntersectionObserver(
@@ -188,14 +194,25 @@
 	});
 
 	$effect(() => {
-		if (clips.length > 0 && hasMore && !loadingMore && activeIndex >= clips.length - LOAD_MORE_THRESHOLD) loadMore();
+		if (
+			clips.length > 0 &&
+			hasMore &&
+			!loadingMore &&
+			activeIndex >= clips.length - LOAD_MORE_THRESHOLD
+		)
+			loadMore();
 	});
 
 	$effect(() => {
 		function handleKeydown(e: KeyboardEvent) {
 			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-			if (e.key === 'ArrowDown') { e.preventDefault(); scrollToIndex(activeIndex + 1); }
-			else if (e.key === 'ArrowUp') { e.preventDefault(); scrollToIndex(activeIndex - 1); }
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				scrollToIndex(activeIndex + 1);
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				scrollToIndex(activeIndex - 1);
+			}
 		}
 		document.addEventListener('keydown', handleKeydown);
 		return () => document.removeEventListener('keydown', handleKeydown);
@@ -210,7 +227,16 @@
 				if (data) {
 					clips = clips.map((c) =>
 						c.id === readyClipId
-							? { ...c, status: data.status, videoPath: data.videoPath ?? c.videoPath, audioPath: data.audioPath ?? c.audioPath, thumbnailPath: data.thumbnailPath ?? c.thumbnailPath, title: data.title ?? c.title, artist: data.artist ?? c.artist, albumArt: data.albumArt ?? c.albumArt }
+							? {
+									...c,
+									status: data.status,
+									videoPath: data.videoPath ?? c.videoPath,
+									audioPath: data.audioPath ?? c.audioPath,
+									thumbnailPath: data.thumbnailPath ?? c.thumbnailPath,
+									title: data.title ?? c.title,
+									artist: data.artist ?? c.artist,
+									albumArt: data.albumArt ?? c.albumArt
+								}
 							: c
 					);
 				}
@@ -228,11 +254,18 @@
 			currentOffset = 0;
 			hasMore = true;
 			const data = await fetchClips('all', PAGE_SIZE);
-			if (data) { clips = data.clips; hasMore = data.hasMore; currentOffset = data.clips.length; }
+			if (data) {
+				clips = data.clips;
+				hasMore = data.hasMore;
+				currentOffset = data.clips.length;
+			}
 			loading = false;
 			await new Promise((r) => requestAnimationFrame(r));
 			const idx = clips.findIndex((c) => c.id === targetClipId);
-			if (idx >= 0) { activeIndex = idx; scrollToIndex(idx); }
+			if (idx >= 0) {
+				activeIndex = idx;
+				scrollToIndex(idx);
+			}
 		})();
 	});
 
@@ -240,7 +273,10 @@
 		const tap = $homeTapSignal;
 		if (tap > 0) {
 			if (filter !== 'unwatched') setFilter('unwatched');
-			else { activeIndex = 0; if (scrollContainer) scrollContainer.scrollTop = 0; }
+			else {
+				activeIndex = 0;
+				if (scrollContainer) scrollContainer.scrollTop = 0;
+			}
 		}
 	});
 
@@ -256,20 +292,46 @@
 		else if (idx < activeIndex) activeIndex = Math.max(0, activeIndex - 1);
 	}
 
-	function handleDragEnter(e: DragEvent) { e.preventDefault(); dragCounter++; isDragging = true; }
-	function handleDragOver(e: DragEvent) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; }
-	function handleDragLeave(e: DragEvent) { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; isDragging = false; } }
+	function handleDragEnter(e: DragEvent) {
+		e.preventDefault();
+		dragCounter++;
+		isDragging = true;
+	}
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+	}
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		dragCounter--;
+		if (dragCounter <= 0) {
+			dragCounter = 0;
+			isDragging = false;
+		}
+	}
 
 	async function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		dragCounter = 0;
 		isDragging = false;
 		const url = extractDroppedUrl(e.dataTransfer);
-		if (!url) { addToast({ type: 'error', message: 'No link found', autoDismiss: 3000 }); return; }
+		if (!url) {
+			addToast({ type: 'error', message: 'No link found', autoDismiss: 3000 });
+			return;
+		}
 		try {
 			const result = await submitClipUrl(url);
-			if ('error' in result) { addToast({ type: 'error', message: result.error, autoDismiss: 4000 }); return; }
-			addToast({ type: 'processing', message: `Adding ${result.clip.contentType === 'music' ? 'song' : 'video'} to feed...`, clipId: result.clip.id, contentType: result.clip.contentType, autoDismiss: 0 });
+			if ('error' in result) {
+				addToast({ type: 'error', message: result.error, autoDismiss: 4000 });
+				return;
+			}
+			addToast({
+				type: 'processing',
+				message: `Adding ${result.clip.contentType === 'music' ? 'song' : 'video'} to feed...`,
+				clipId: result.clip.id,
+				contentType: result.clip.contentType,
+				autoDismiss: 0
+			});
 			loadInitialClips();
 		} catch {
 			addToast({ type: 'error', message: 'Something went wrong', autoDismiss: 4000 });
@@ -283,8 +345,17 @@
 			(async () => {
 				try {
 					const result = await submitClipUrl(shareUrl);
-					if ('error' in result) { addToast({ type: 'error', message: result.error, autoDismiss: 4000 }); return; }
-					addToast({ type: 'processing', message: `Adding ${result.clip.contentType === 'music' ? 'song' : 'video'} to feed...`, clipId: result.clip.id, contentType: result.clip.contentType, autoDismiss: 0 });
+					if ('error' in result) {
+						addToast({ type: 'error', message: result.error, autoDismiss: 4000 });
+						return;
+					}
+					addToast({
+						type: 'processing',
+						message: `Adding ${result.clip.contentType === 'music' ? 'song' : 'video'} to feed...`,
+						clipId: result.clip.id,
+						contentType: result.clip.contentType,
+						autoDismiss: 0
+					});
 				} catch {
 					addToast({ type: 'error', message: 'Something went wrong', autoDismiss: 4000 });
 				}
@@ -299,11 +370,25 @@
 </svelte:head>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="drop-target" ondragenter={handleDragEnter} ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop}>
+<div
+	class="drop-target"
+	ondragenter={handleDragEnter}
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
+	ondrop={handleDrop}
+>
 	{#if isDragging}
 		<div class="drop-overlay">
 			<div class="drop-zone">
-				<svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<svg
+					class="drop-icon"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
 					<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
 					<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
 				</svg>
@@ -315,10 +400,18 @@
 	<FilterBar {filter} onfilter={setFilter} />
 
 	{#if loading}
-		<div class="reel-empty"><span class="spinner"></span></div>
+		<SkeletonReel />
 	{:else if clips.length === 0}
 		<div class="reel-empty">
-			<svg class="empty-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+			<svg
+				class="empty-icon"
+				viewBox="0 0 48 48"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
 				<rect x="6" y="10" width="36" height="28" rx="4" />
 				<polygon points="20,18 20,34 33,26" fill="currentColor" stroke="none" opacity="0.25" />
 				<polygon points="20,18 20,34 33,26" />
@@ -331,11 +424,25 @@
 		</div>
 	{:else}
 		{#if pullDistance > 0 || isRefreshing}
-			<div class="pull-indicator" style="transform: translateY({pullDistance - 48}px); opacity: {isRefreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1)}">
+			<div
+				class="pull-indicator"
+				style="transform: translateY({pullDistance - 48}px); opacity: {isRefreshing
+					? 1
+					: Math.min(pullDistance / PULL_THRESHOLD, 1)}"
+			>
 				{#if isRefreshing}
 					<span class="pull-spinner"></span>
 				{:else}
-					<svg class="pull-arrow" class:ready={pullDistance >= PULL_THRESHOLD} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<svg
+						class="pull-arrow"
+						class:ready={pullDistance >= PULL_THRESHOLD}
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
 						<polyline points="7 13 12 18 17 13" />
 						<line x1="12" y1="18" x2="12" y2="6" />
 					</svg>
@@ -346,20 +453,47 @@
 			{#each clips as clip, i (clip.id)}
 				<div class="reel-slot" data-index={i}>
 					{#if Math.abs(i - activeIndex) <= renderWindow}
-						<ReelItem {clip} {currentUserId} active={i === activeIndex} index={i} {autoScroll} canEditCaption={clip.addedBy === currentUserId} seenByOthers={clip.seenByOthers} onwatched={markWatched} onfavorited={toggleFavorite} onreaction={handleReaction} onretry={retryDownload} onended={() => scrollToIndex(i + 1)} oncaptionedit={handleCaptionEdit} ondelete={handleDelete} />
+						<ReelItem
+							{clip}
+							{currentUserId}
+							active={i === activeIndex}
+							index={i}
+							{autoScroll}
+							canEditCaption={clip.addedBy === currentUserId}
+							seenByOthers={clip.seenByOthers}
+							onwatched={markWatched}
+							onfavorited={toggleFavorite}
+							onreaction={handleReaction}
+							onretry={retryDownload}
+							onended={() => scrollToIndex(i + 1)}
+							oncaptionedit={handleCaptionEdit}
+							ondelete={handleDelete}
+						/>
 					{:else}
 						<div class="reel-placeholder">
 							{#if clip.thumbnailPath}
-								<img src="/api/thumbnails/{clip.thumbnailPath.split('/').pop()}" alt="" class="placeholder-thumb" loading="lazy" />
+								<img
+									src="/api/thumbnails/{clip.thumbnailPath.split('/').pop()}"
+									alt=""
+									class="placeholder-thumb"
+									loading="lazy"
+								/>
 							{:else if clip.albumArt}
-								<img src={clip.albumArt} alt="" class="placeholder-thumb placeholder-thumb-cover" loading="lazy" />
+								<img
+									src={clip.albumArt}
+									alt=""
+									class="placeholder-thumb placeholder-thumb-cover"
+									loading="lazy"
+								/>
 							{/if}
 						</div>
 					{/if}
 				</div>
 			{/each}
 			{#if loadingMore}
-				<div class="reel-slot loading-more-slot"><div class="reel-placeholder"><span class="spinner"></span></div></div>
+				<div class="reel-slot loading-more-slot">
+					<div class="reel-placeholder"><span class="spinner"></span></div>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -372,7 +506,9 @@
 <style>
 	.pull-indicator {
 		position: fixed;
-		top: 0; left: 0; right: 0;
+		top: 0;
+		left: 0;
+		right: 0;
 		z-index: 25;
 		display: flex;
 		align-items: center;
@@ -382,15 +518,22 @@
 		transition: opacity 0.15s ease;
 	}
 	.pull-arrow {
-		width: 24px; height: 24px;
+		width: 24px;
+		height: 24px;
 		color: rgba(255, 255, 255, 0.7);
 		transform: rotate(180deg);
-		transition: transform 0.2s ease, color 0.2s ease;
+		transition:
+			transform 0.2s ease,
+			color 0.2s ease;
 	}
-	.pull-arrow.ready { transform: rotate(0deg); color: var(--accent-primary); }
+	.pull-arrow.ready {
+		transform: rotate(0deg);
+		color: var(--accent-primary);
+	}
 	.pull-spinner {
 		display: inline-block;
-		width: 22px; height: 22px;
+		width: 22px;
+		height: 22px;
 		border: 2.5px solid rgba(255, 255, 255, 0.2);
 		border-top-color: var(--accent-primary);
 		border-radius: 50%;
@@ -403,11 +546,34 @@
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: none;
 	}
-	.reel-slot { height: 100dvh; width: 100%; scroll-snap-align: start; position: relative; overflow: hidden; }
-	.reel-placeholder { height: 100%; width: 100%; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; }
-	.placeholder-thumb { width: 100%; height: 100%; object-fit: contain; }
-	.placeholder-thumb-cover { object-fit: cover; }
-	.loading-more-slot { height: auto; min-height: 80px; scroll-snap-align: none; }
+	.reel-slot {
+		height: 100dvh;
+		width: 100%;
+		scroll-snap-align: start;
+		position: relative;
+		overflow: hidden;
+	}
+	.reel-placeholder {
+		height: 100%;
+		width: 100%;
+		background: var(--bg-primary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.placeholder-thumb {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+	.placeholder-thumb-cover {
+		object-fit: cover;
+	}
+	.loading-more-slot {
+		height: auto;
+		min-height: 80px;
+		scroll-snap-align: none;
+	}
 	.reel-empty {
 		height: 100dvh;
 		display: flex;
@@ -417,9 +583,25 @@
 		gap: var(--space-sm);
 		background: var(--bg-primary);
 	}
-	.empty-icon { width: 56px; height: 56px; color: var(--text-muted); opacity: 0.5; margin-bottom: var(--space-xs); }
-	.empty-title { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0; }
-	.empty-sub { color: var(--text-muted); font-size: 0.875rem; margin: 0 0 var(--space-md); }
+	.empty-icon {
+		width: 56px;
+		height: 56px;
+		color: var(--text-muted);
+		opacity: 0.5;
+		margin-bottom: var(--space-xs);
+	}
+	.empty-title {
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0;
+	}
+	.empty-sub {
+		color: var(--text-muted);
+		font-size: 0.875rem;
+		margin: 0 0 var(--space-md);
+	}
 	.empty-cta {
 		padding: 10px 24px;
 		background: var(--accent-primary);
@@ -431,17 +613,27 @@
 		cursor: pointer;
 		transition: transform 0.1s ease;
 	}
-	.empty-cta:active { transform: scale(0.97); }
+	.empty-cta:active {
+		transform: scale(0.97);
+	}
 	.spinner {
 		display: inline-block;
-		width: 32px; height: 32px;
+		width: 32px;
+		height: 32px;
 		border: 2.5px solid rgba(255, 255, 255, 0.2);
 		border-top-color: #fff;
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
-	@keyframes spin { to { transform: rotate(360deg); } }
-	.drop-target { height: 100dvh; position: relative; }
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.drop-target {
+		height: 100dvh;
+		position: relative;
+	}
 	.drop-overlay {
 		position: fixed;
 		inset: 0;
@@ -461,7 +653,24 @@
 		border: 2px dashed var(--accent-primary);
 		border-radius: var(--radius-xl);
 	}
-	.drop-icon { width: 48px; height: 48px; color: var(--accent-primary); }
-	.drop-text { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0; }
-	@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+	.drop-icon {
+		width: 48px;
+		height: 48px;
+		color: var(--accent-primary);
+	}
+	.drop-text {
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0;
+	}
+	@keyframes fade-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
 </style>
