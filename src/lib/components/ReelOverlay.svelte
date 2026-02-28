@@ -4,6 +4,7 @@
 
 	const {
 		username,
+		avatarPath = null,
 		platform,
 		caption,
 		reactions,
@@ -15,6 +16,7 @@
 		ondelete
 	}: {
 		username: string;
+		avatarPath?: string | null;
 		platform: string;
 		caption: string | null;
 		reactions: Record<string, { count: number; reacted: boolean }>;
@@ -38,6 +40,14 @@
 	const canModify = $derived(canEditCaption && !seenByOthers);
 
 	const reactionEntries = $derived(Object.entries(reactions).filter(([, v]) => v.count > 0));
+
+	// Get initials from username for avatar fallback
+	const initials = $derived(
+		username
+			.replace('@', '')
+			.slice(0, 2)
+			.toUpperCase()
+	);
 
 	function startEdit() {
 		if (!canModify) return;
@@ -108,6 +118,15 @@
 
 <div class="reel-overlay">
 	<div class="overlay-user">
+		{#if avatarPath}
+			<img
+				src="/api/profile/avatar/{avatarPath}"
+				alt=""
+				class="overlay-avatar"
+			/>
+		{:else}
+			<span class="overlay-avatar overlay-avatar-fallback">{initials}</span>
+		{/if}
 		<span class="username">@{username}</span>
 		<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
 	</div>
@@ -217,6 +236,28 @@
 		align-items: center;
 		gap: var(--space-sm);
 		margin-bottom: var(--space-xs);
+	}
+
+	.overlay-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: var(--radius-full);
+		object-fit: cover;
+		flex-shrink: 0;
+		border: 2px solid rgba(255, 255, 255, 0.25);
+	}
+
+	.overlay-avatar-fallback {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(255, 255, 255, 0.15);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		color: rgba(255, 255, 255, 0.8);
+		font-family: var(--font-display);
+		font-size: 0.75rem;
+		font-weight: 700;
 	}
 
 	.username {
