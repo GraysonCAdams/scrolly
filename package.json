@@ -12,7 +12,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "eslint",
-		"lint:ci": "eslint --max-warnings 89",
+		"lint:ci": "eslint --max-warnings 65",
 		"lint:strict": "eslint --max-warnings 0",
 		"format": "prettier --write \"src/**/*.{ts,svelte,css}\"",
 		"format:check": "prettier --check \"src/**/*.{ts,svelte,css}\"",

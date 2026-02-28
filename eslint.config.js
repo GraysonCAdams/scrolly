@@ -30,7 +30,7 @@ export default ts.config(
 			'prefer-const': 'error',
 			'no-var': 'error',
 			eqeqeq: 'error',
-			'max-lines': ['warn', 500],
+			'max-lines': ['error', 500],
 			'sonarjs/cognitive-complexity': ['warn', 15],
 			'sonarjs/pseudo-random': 'off',
 			'sonarjs/no-os-command-from-path': 'off',
