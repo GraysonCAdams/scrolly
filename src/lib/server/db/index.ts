@@ -6,8 +6,11 @@ import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 
 const dataDir = resolve(process.env.DATA_DIR || 'data');
+/* eslint-disable security/detect-non-literal-fs-filename */
 mkdirSync(dataDir, { recursive: true });
 mkdirSync(resolve(dataDir, 'videos'), { recursive: true });
+mkdirSync(resolve(dataDir, 'providers'), { recursive: true });
+/* eslint-enable security/detect-non-literal-fs-filename */
 
 const sqlite = new Database(resolve(dataDir, 'scrolly.db'));
 sqlite.pragma('journal_mode = WAL');
