@@ -104,7 +104,7 @@ describe('POST /api/clips/[id]/comments', () => {
 		expect(body.error).toBeDefined();
 	});
 
-	it('returns 400 for empty text', async () => {
+	it('returns 400 for empty text without GIF', async () => {
 		const event = createMockEvent({
 			method: 'POST',
 			path: `/api/clips/${data.readyClip.id}/comments`,
@@ -276,6 +276,66 @@ describe('POST /api/clips/[id]/comments', () => {
 		expect(res.status).toBe(201);
 		const body = await res.json();
 		expect(body.comment.text).toBe(exactText);
+	});
+
+	it('creates comment with GIF only (no text)', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			body: { text: '', gifUrl: 'https://media.giphy.com/media/abc123/giphy.gif' },
+			user: data.member,
+			group: data.group
+		});
+		const res = await commentsMod.POST(event as any);
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.comment.gifUrl).toBe('https://media.giphy.com/media/abc123/giphy.gif');
+		expect(body.comment.text).toBe('');
+	});
+
+	it('creates comment with text and GIF', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			body: { text: 'check this out', gifUrl: 'https://media.giphy.com/media/xyz/giphy.gif' },
+			user: data.member,
+			group: data.group
+		});
+		const res = await commentsMod.POST(event as any);
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.comment.text).toBe('check this out');
+		expect(body.comment.gifUrl).toBe('https://media.giphy.com/media/xyz/giphy.gif');
+	});
+
+	it('returns 400 for invalid GIF URL', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			body: { text: '', gifUrl: 'https://evil.com/malware.gif' },
+			user: data.member,
+			group: data.group
+		});
+		const res = await commentsMod.POST(event as any);
+		expect(res.status).toBe(400);
+		const body = await res.json();
+		expect(body.error).toContain('Invalid GIF URL');
+	});
+
+	it('returns 400 when neither text nor GIF is provided', async () => {
+		const event = createMockEvent({
+			method: 'POST',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			body: { text: '   ' },
+			user: data.member,
+			group: data.group
+		});
+		const res = await commentsMod.POST(event as any);
+		expect(res.status).toBe(400);
 	});
 });
 
@@ -611,6 +671,63 @@ describe('POST /api/clips/[id]/comments/[commentId]/heart', () => {
 		expect(comment2).toBeDefined();
 		expect(comment2.hearted).toBe(false);
 		expect(comment2.heartCount).toBe(1);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// GET response includes gifUrl
+// ---------------------------------------------------------------------------
+describe('GET /api/clips/[id]/comments — GIF support', () => {
+	it('includes gifUrl in response for GIF comments', async () => {
+		// Post a comment with GIF
+		const postEvent = createMockEvent({
+			method: 'POST',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			body: { text: 'gif test', gifUrl: 'https://media.giphy.com/media/giftest/giphy.gif' },
+			user: data.member,
+			group: data.group
+		});
+		await commentsMod.POST(postEvent as any);
+
+		// GET and verify gifUrl is present
+		const getEvent = createMockEvent({
+			method: 'GET',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			user: data.member,
+			group: data.group
+		});
+		const getRes = await commentsMod.GET(getEvent as any);
+		const body = await getRes.json();
+		const gifComment = body.comments.find((c: any) => c.text === 'gif test');
+		expect(gifComment).toBeDefined();
+		expect(gifComment.gifUrl).toBe('https://media.giphy.com/media/giftest/giphy.gif');
+	});
+
+	it('returns gifUrl as null for text-only comments', async () => {
+		const postEvent = createMockEvent({
+			method: 'POST',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			body: { text: 'no gif here' },
+			user: data.member,
+			group: data.group
+		});
+		await commentsMod.POST(postEvent as any);
+
+		const getEvent = createMockEvent({
+			method: 'GET',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			user: data.member,
+			group: data.group
+		});
+		const getRes = await commentsMod.GET(getEvent as any);
+		const body = await getRes.json();
+		const textComment = body.comments.find((c: any) => c.text === 'no gif here');
+		expect(textComment).toBeDefined();
+		expect(textComment.gifUrl).toBeNull();
 	});
 });
 
