@@ -9,14 +9,9 @@ import {
 import { db } from '$lib/server/db';
 import { users, groups, notificationPreferences, verificationCodes } from '$lib/server/db/schema';
 import { v4 as uuid } from 'uuid';
-import { eq, and, gt, isNull, desc } from 'drizzle-orm';
-import { sendSms } from '$lib/server/sms/client';
-import crypto from 'node:crypto';
+import { eq, and, desc } from 'drizzle-orm';
+import { sendVerification, checkVerification } from '$lib/server/sms/verify';
 import { dev } from '$app/environment';
-
-function generateOtp(): string {
-	return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
-}
 
 async function handleJoin(body: Record<string, string>) {
 	const { inviteCode } = body;
@@ -56,34 +51,11 @@ async function handleSendCode(userId: string, body: Record<string, string>) {
 		return json({ error: 'This phone number is already in use' }, { status: 409 });
 	}
 
-	// Rate limit: max 3 codes per phone per 10-minute window
-	const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-	const recentCodes = await db
-		.select()
-		.from(verificationCodes)
-		.where(and(eq(verificationCodes.phone, phone), gt(verificationCodes.createdAt, tenMinutesAgo)));
-	if (recentCodes.length >= 3) {
-		return json(
-			{ error: 'Too many codes sent. Please wait before trying again.' },
-			{ status: 429 }
-		);
+	const result = await sendVerification(phone);
+	if (result.status === 'error') {
+		const statusCode = result.error?.includes('Too many') ? 429 : 500;
+		return json({ error: result.error }, { status: statusCode });
 	}
-
-	const code = generateOtp();
-	const now = new Date();
-	const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
-
-	await db.insert(verificationCodes).values({
-		id: uuid(),
-		phone,
-		code,
-		userId,
-		attempts: 0,
-		expiresAt,
-		createdAt: now
-	});
-
-	await sendSms(phone, `Your scrolly verification code is: ${code}`);
 
 	return json({ sent: true });
 }
@@ -94,52 +66,24 @@ async function handleVerifyCode(userId: string, body: Record<string, string>) {
 		return json({ error: 'Phone and code are required' }, { status: 400 });
 	}
 
+	const result = await checkVerification(phone, code);
+	if (!result.valid) {
+		const statusCode = result.status === 'max_attempts_reached' ? 429 : 400;
+		return json({ error: result.error || 'Incorrect code.' }, { status: statusCode });
+	}
+
+	// Insert a verification record so handleOnboard can confirm freshness
 	const now = new Date();
-	const record = await db
-		.select()
-		.from(verificationCodes)
-		.where(
-			and(
-				eq(verificationCodes.phone, phone),
-				eq(verificationCodes.userId, userId),
-				gt(verificationCodes.expiresAt, now),
-				isNull(verificationCodes.verifiedAt)
-			)
-		)
-		.orderBy(desc(verificationCodes.createdAt))
-		.limit(1)
-		.then((rows) => rows[0] ?? null);
-
-	if (!record) {
-		return json({ error: 'No valid code found. Please request a new one.' }, { status: 400 });
-	}
-
-	if (record.attempts >= 5) {
-		return json({ error: 'Too many attempts. Please request a new code.' }, { status: 429 });
-	}
-
-	// Increment attempts before checking
-	await db
-		.update(verificationCodes)
-		.set({ attempts: record.attempts + 1 })
-		.where(eq(verificationCodes.id, record.id));
-
-	if (!dev) {
-		const codeBuffer = Buffer.from(code.padStart(6, '0'));
-		const recordBuffer = Buffer.from(record.code);
-		if (
-			codeBuffer.length !== recordBuffer.length ||
-			!crypto.timingSafeEqual(codeBuffer, recordBuffer)
-		) {
-			const remaining = 4 - record.attempts;
-			return json({ error: `Incorrect code. ${remaining} attempt(s) remaining.` }, { status: 400 });
-		}
-	}
-
-	await db
-		.update(verificationCodes)
-		.set({ verifiedAt: now })
-		.where(eq(verificationCodes.id, record.id));
+	await db.insert(verificationCodes).values({
+		id: uuid(),
+		phone,
+		code: '000000',
+		userId,
+		attempts: 0,
+		expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+		verifiedAt: now,
+		createdAt: now
+	});
 
 	return json({ verified: true });
 }
@@ -237,34 +181,11 @@ async function handleLoginSendCode(body: Record<string, string>) {
 		return json({ error: 'No account found with this phone number' }, { status: 404 });
 	}
 
-	// Rate limit: max 3 codes per phone per 10-minute window
-	const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-	const recentCodes = await db
-		.select()
-		.from(verificationCodes)
-		.where(and(eq(verificationCodes.phone, phone), gt(verificationCodes.createdAt, tenMinutesAgo)));
-	if (recentCodes.length >= 3) {
-		return json(
-			{ error: 'Too many codes sent. Please wait before trying again.' },
-			{ status: 429 }
-		);
+	const result = await sendVerification(phone);
+	if (result.status === 'error') {
+		const statusCode = result.error?.includes('Too many') ? 429 : 500;
+		return json({ error: result.error }, { status: statusCode });
 	}
-
-	const code = generateOtp();
-	const now = new Date();
-	const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
-
-	await db.insert(verificationCodes).values({
-		id: uuid(),
-		phone,
-		code,
-		userId: user!.id,
-		attempts: 0,
-		expiresAt,
-		createdAt: now
-	});
-
-	await sendSms(phone, `Your scrolly login code is: ${code}`);
 
 	return json({ sent: true });
 }
@@ -282,51 +203,11 @@ async function handleLoginVerifyCode(body: Record<string, string>) {
 		return json({ error: 'No account found with this phone number' }, { status: 404 });
 	}
 
-	const now = new Date();
-	const record = await db
-		.select()
-		.from(verificationCodes)
-		.where(
-			and(
-				eq(verificationCodes.phone, phone),
-				eq(verificationCodes.userId, user.id),
-				gt(verificationCodes.expiresAt, now),
-				isNull(verificationCodes.verifiedAt)
-			)
-		)
-		.orderBy(desc(verificationCodes.createdAt))
-		.limit(1)
-		.then((rows) => rows[0] ?? null);
-
-	if (!record) {
-		return json({ error: 'No valid code found. Please request a new one.' }, { status: 400 });
+	const result = await checkVerification(phone, code);
+	if (!result.valid) {
+		const statusCode = result.status === 'max_attempts_reached' ? 429 : 400;
+		return json({ error: result.error || 'Incorrect code.' }, { status: statusCode });
 	}
-
-	if (record.attempts >= 5) {
-		return json({ error: 'Too many attempts. Please request a new code.' }, { status: 429 });
-	}
-
-	await db
-		.update(verificationCodes)
-		.set({ attempts: record.attempts + 1 })
-		.where(eq(verificationCodes.id, record.id));
-
-	if (!dev) {
-		const codeBuffer = Buffer.from(code.padStart(6, '0'));
-		const recordBuffer = Buffer.from(record.code);
-		if (
-			codeBuffer.length !== recordBuffer.length ||
-			!crypto.timingSafeEqual(codeBuffer, recordBuffer)
-		) {
-			const remaining = 4 - record.attempts;
-			return json({ error: `Incorrect code. ${remaining} attempt(s) remaining.` }, { status: 400 });
-		}
-	}
-
-	await db
-		.update(verificationCodes)
-		.set({ verifiedAt: now })
-		.where(eq(verificationCodes.id, record.id));
 
 	const cookie = createSessionCookie(user.id);
 	const data = await getUserWithGroup(user.id);
