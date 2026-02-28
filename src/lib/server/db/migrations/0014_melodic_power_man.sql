@@ -1,0 +1,1 @@
+ALTER TABLE `groups` ADD `max_duration_seconds` integer DEFAULT 300 NOT NULL;

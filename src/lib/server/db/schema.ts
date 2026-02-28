@@ -6,6 +6,7 @@ export const groups = sqliteTable('groups', {
 	inviteCode: text('invite_code').notNull().unique(),
 	retentionDays: integer('retention_days'),
 	maxStorageMb: integer('max_storage_mb'),
+	maxDurationSeconds: integer('max_duration_seconds').notNull().default(300),
 	accentColor: text('accent_color').notNull().default('coral'),
 	createdBy: text('created_by'),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()

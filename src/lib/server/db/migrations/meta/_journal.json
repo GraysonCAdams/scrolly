@@ -99,6 +99,13 @@
       "when": 1772299846704,
       "tag": "0013_slim_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1772306027230,
+      "tag": "0014_melodic_power_man",
+      "breakpoints": true
     }
   ]
 }
