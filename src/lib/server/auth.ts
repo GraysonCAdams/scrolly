@@ -35,6 +35,7 @@ export function createSessionCookie(userId: string): string {
 
 export function getUserIdFromCookies(cookieHeader: string | null): string | null {
 	if (!cookieHeader) return null;
+	if (!env.SESSION_SECRET) return null;
 	const cookies = Object.fromEntries(
 		cookieHeader.split(';').map((c) => {
 			const [key, ...rest] = c.trim().split('=');

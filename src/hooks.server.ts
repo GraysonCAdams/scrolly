@@ -1,6 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
 import { getUserIdFromCookies, getUserWithGroup } from '$lib/server/auth';
 import { getAccentColor } from '$lib/colors';
+import { startScheduler } from '$lib/server/scheduler';
+
+startScheduler();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const userId = getUserIdFromCookies(event.request.headers.get('cookie'));
