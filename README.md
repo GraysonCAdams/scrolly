@@ -22,14 +22,20 @@ Share video clips and music links with your close friends through private groups
 
 ## Features
 
-- **Video Feed** — SMS-based clip sharing via Twilio with inline playback
-- **Music Sharing** — Cross-platform link resolution via Odesli
-- **Groups** — Invite codes, customizable accent colors, member management
-- **Push Notifications** — Real-time alerts via Web Push API
-- **Favorites & Reactions** — Save and react to shared content
-- **Comments** — Threaded discussions on posts
-- **Themes** — Dark, light, and system-based theme switching
-- **PWA** — Installable on mobile and desktop
+- **TikTok-Style Feed** — Full-screen vertical reel with swipe navigation and inline playback
+- **Video Sharing** — Share links via SMS (Twilio) or paste in-app; videos downloaded and re-hosted via yt-dlp
+- **Music Sharing** — Cross-platform streaming link resolution via Odesli (Spotify, Apple Music, YouTube Music)
+- **Android Share Target** — Share directly from any app's share sheet to Scrolly
+- **Private Groups** — Invite-only access with customizable accent colors and group names
+- **Comments & Reactions** — Threaded comments with hearts, emoji reactions with animated effects
+- **Activity Feed** — In-app notifications for new clips, reactions, and comments
+- **Push Notifications** — Real-time alerts via Web Push API (Android, desktop, iOS 16.4+ PWA)
+- **View Tracking** — See who watched each clip and how far they got
+- **Favorites** — Save clips and filter your feed
+- **Phone Verification** — SMS-based login and onboarding via Twilio
+- **Host Controls** — Manage members, retention policy, storage, invite codes
+- **Themes** — Dark, light, and system-based switching with per-user preference
+- **PWA** — Installable on mobile and desktop with offline support
 
 ## Important: Legal Responsibilities
 
@@ -42,13 +48,16 @@ Scrolly uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download media from t
 | Frontend | SvelteKit 2, Svelte 5 (runes) |
 | Backend | SvelteKit adapter-node |
 | Database | SQLite via Drizzle ORM |
-| Messaging | Twilio SMS |
+| SMS & Verification | Twilio |
 | Notifications | Web Push (VAPID) |
-| Styling | Scoped CSS, custom properties |
+| Music Resolution | Odesli |
 | Video Downloads | [yt-dlp](https://github.com/yt-dlp/yt-dlp) + FFmpeg |
+| Containerization | Docker |
 | Language | TypeScript |
 
 ## Quick Start
+
+**Prerequisites:** Node.js 20+, npm 10+
 
 ```bash
 # Clone and install
@@ -124,6 +133,19 @@ By operating a self-hosted instance, you assume full responsibility for:
 - Securing your deployment and protecting user data
 
 The Scrolly maintainers accept no responsibility for third-party deployments. See [DISCLAIMER.md](DISCLAIMER.md).
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/architecture.md) | System design, stack overview, deployment |
+| [API Endpoints](docs/api.md) | Full REST API reference |
+| [Data Model](docs/data-model.md) | Database schema and relationships |
+| [Features](docs/features.md) | Feature breakdown and status |
+| [Design Guidelines](docs/design-guidelines.md) | UI/UX design system and component specs |
+| [Notifications](docs/notifications.md) | Push notification setup and architecture |
+| [Platform Limitations](docs/platform-limitations.md) | iOS vs Android PWA capabilities |
+| [Playback Preferences](docs/playback-preferences.md) | Video playback and controls |
 
 ## Scripts
 
