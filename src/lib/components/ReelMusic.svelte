@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { basename } from '$lib/utils';
+	import { connectNormalizer } from '$lib/audio/normalizer';
 	import PlatformIcon from './PlatformIcon.svelte';
 
 	const {
@@ -7,6 +8,7 @@
 		active,
 		muted,
 		autoScroll,
+		playbackRate = 1,
 		onretry,
 		onended
 	}: {
@@ -26,6 +28,7 @@
 		active: boolean;
 		muted: boolean;
 		autoScroll: boolean;
+		playbackRate?: number;
 		onretry: (id: string) => void;
 		onended: () => void;
 	} = $props();
@@ -68,10 +71,11 @@
 		audioEl.currentTime = parseFloat(target.value);
 	}
 
-	// Autoplay/pause based on active state
+	// Autoplay/pause based on active state + connect volume normalizer
 	$effect(() => {
 		if (!audioEl) return;
 		if (active) {
+			connectNormalizer(audioEl);
 			audioEl.currentTime = 0;
 			audioEl.play().catch(() => {});
 		} else {
@@ -83,6 +87,13 @@
 	$effect(() => {
 		if (audioEl) {
 			audioEl.muted = muted;
+		}
+	});
+
+	// Sync playback rate
+	$effect(() => {
+		if (audioEl) {
+			audioEl.playbackRate = playbackRate;
 		}
 	});
 </script>

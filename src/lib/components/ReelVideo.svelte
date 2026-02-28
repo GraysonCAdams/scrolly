@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { basename } from '$lib/utils';
+	import { connectNormalizer } from '$lib/audio/normalizer';
 
 	let {
 		clip,
 		active,
 		muted,
 		autoScroll,
+		playbackRate = 1,
 		onretry,
 		onended,
 		videoEl = $bindable(null)
@@ -20,6 +22,7 @@
 		active: boolean;
 		muted: boolean;
 		autoScroll: boolean;
+		playbackRate?: number;
 		onretry: (id: string) => void;
 		onended: () => void;
 		videoEl: HTMLVideoElement | null;
@@ -35,10 +38,11 @@
 		return `/api/thumbnails/${basename(path)}`;
 	}
 
-	// Autoplay/pause based on active state
+	// Autoplay/pause based on active state + connect volume normalizer
 	$effect(() => {
 		if (!videoEl) return;
 		if (active) {
+			connectNormalizer(videoEl);
 			videoEl.currentTime = 0;
 			videoEl.play().catch(() => {});
 		} else {
@@ -50,6 +54,13 @@
 	$effect(() => {
 		if (videoEl) {
 			videoEl.muted = muted;
+		}
+	});
+
+	// Sync playback rate
+	$effect(() => {
+		if (videoEl) {
+			videoEl.playbackRate = playbackRate;
 		}
 	});
 </script>
