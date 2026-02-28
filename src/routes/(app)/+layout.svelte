@@ -6,6 +6,7 @@
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { unreadCount, startPolling } from '$lib/stores/notifications';
 	import { globalMuted } from '$lib/stores/mute';
+	import { initAudioContext } from '$lib/audio/normalizer';
 	const { children }: { children: Snippet } = $props();
 
 	const isFeed = $derived(page.url.pathname === '/');
@@ -21,6 +22,50 @@
 		if (user) {
 			globalMuted.set(user.mutedByDefault ?? true);
 		}
+
+		// Initialize AudioContext on first user interaction (for volume normalization)
+		function handleFirstInteraction() {
+			initAudioContext();
+			document.removeEventListener('click', handleFirstInteraction, true);
+			document.removeEventListener('touchstart', handleFirstInteraction, true);
+		}
+		document.addEventListener('click', handleFirstInteraction, true);
+		document.addEventListener('touchstart', handleFirstInteraction, true);
+
+		// Sync theme-color meta tags with current theme for PWA chrome blending
+		const themeObserver = new MutationObserver(() => syncThemeColor());
+		themeObserver.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-theme']
+		});
+		const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+		darkMq.addEventListener('change', syncThemeColor);
+
+		return () => {
+			themeObserver.disconnect();
+			darkMq.removeEventListener('change', syncThemeColor);
+		};
+	});
+
+	function syncThemeColor() {
+		const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+		if (isFeed) {
+			// Immersive feed: always black to blend with video content
+			metas.forEach((m) => m.setAttribute('content', '#000000'));
+		} else {
+			// Match app background based on effective theme
+			const manual = document.documentElement.dataset.theme;
+			const isDark =
+				manual === 'dark' ||
+				(!manual && window.matchMedia('(prefers-color-scheme: dark)').matches);
+			metas.forEach((m) => m.setAttribute('content', isDark ? '#000000' : '#FFFFFF'));
+		}
+	}
+
+	// Re-sync when navigating between feed and other pages
+	$effect(() => {
+		void isFeed;
+		syncThemeColor();
 	});
 </script>
 
@@ -200,7 +245,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: var(--space-md) var(--space-lg);
+		padding: calc(var(--space-md) + env(safe-area-inset-top)) var(--space-lg) var(--space-md);
 		background: var(--bg-primary);
 		border-bottom: 1px solid var(--border);
 		position: sticky;

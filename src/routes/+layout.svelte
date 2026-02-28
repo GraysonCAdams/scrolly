@@ -1,9 +1,24 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import favicon from '$lib/assets/favicon.svg?url';
 	import ToastStack from '$lib/components/ToastStack.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import InstallBanner from '$lib/components/InstallBanner.svelte';
+	import SwUpdateToast from '$lib/components/SwUpdateToast.svelte';
+	import {
+		isStandalone,
+		detectStandaloneMode,
+		initInstallPrompt,
+		initSwUpdateListener
+	} from '$lib/stores/pwa';
 
 	const { children } = $props();
+
+	onMount(() => {
+		isStandalone.set(detectStandaloneMode());
+		initInstallPrompt();
+		initSwUpdateListener();
+	});
 </script>
 
 <svelte:head>
@@ -13,6 +28,8 @@
 {@render children()}
 <ToastStack />
 <ConfirmDialog />
+<InstallBanner />
+<SwUpdateToast />
 
 <style>
 	:global(*, *::before, *::after) {
@@ -128,5 +145,14 @@
 		font-family: var(--font-body);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
+		overscroll-behavior: none;
+		-webkit-tap-highlight-color: transparent;
+		touch-action: manipulation;
+	}
+
+	:global(button, a, [role="button"]) {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
 	}
 </style>
