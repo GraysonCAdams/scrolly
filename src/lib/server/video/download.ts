@@ -1,9 +1,9 @@
 import { spawn } from 'child_process';
 import { resolve } from 'path';
 import { db } from '../db';
-import { clips } from '../db/schema';
+import { clips, groups } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { readdir, stat } from 'fs/promises';
+import { readdir, stat, unlink } from 'fs/promises';
 import { deduplicatedDownload } from '../download-lock';
 
 const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
@@ -62,6 +62,7 @@ function runYtDlp(clipId: string, url: string): Promise<DownloadResult> {
 }
 
 async function findDownloadedFiles(clipId: string): Promise<DownloadResult> {
+	// eslint-disable-next-line security/detect-non-literal-fs-filename
 	const files = await readdir(DATA_DIR);
 	const clipFiles = files.filter((f) => f.startsWith(clipId));
 
@@ -97,9 +98,46 @@ async function findDownloadedFiles(clipId: string): Promise<DownloadResult> {
 	};
 }
 
+async function getMaxDuration(clipId: string): Promise<number | null> {
+	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+	if (!clip) return null;
+	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
+	return group?.maxDurationSeconds ?? null;
+}
+
+async function cleanupFiles(paths: (string | null)[]): Promise<void> {
+	for (const p of paths) {
+		if (p) {
+			try {
+				// eslint-disable-next-line security/detect-non-literal-fs-filename
+				await unlink(p);
+			} catch {
+				// File may not exist
+			}
+		}
+	}
+}
+
 async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 	try {
 		const result = await runYtDlp(clipId, url);
+
+		// Enforce max duration
+		const maxDuration = await getMaxDuration(clipId);
+		if (maxDuration && result.duration && result.duration > maxDuration) {
+			const mins = Math.round(maxDuration / 60);
+			console.warn(`Clip ${clipId} duration ${result.duration}s exceeds limit ${maxDuration}s`);
+			await cleanupFiles([result.videoPath, result.thumbnailPath]);
+			await db
+				.update(clips)
+				.set({
+					status: 'failed',
+					title: `Exceeds ${mins} min limit`,
+					durationSeconds: result.duration
+				})
+				.where(eq(clips.id, clipId));
+			return;
+		}
 
 		// Update clip with downloaded file info
 		// Keep existing title (caption from SMS) if present, otherwise use yt-dlp title
@@ -114,6 +152,7 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 		for (const path of [result.videoPath, result.thumbnailPath]) {
 			if (path) {
 				try {
+					// eslint-disable-next-line security/detect-non-literal-fs-filename
 					const s = await stat(path);
 					fileSizeBytes += s.size;
 				} catch {
