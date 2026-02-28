@@ -129,7 +129,7 @@ By operating a self-hosted instance, you assume full responsibility for:
 - All content downloaded, stored, and shared on your instance
 - Compliance with data protection laws (GDPR, CCPA, etc.) applicable to your users
 - Compliance with telecommunications regulations if using SMS features
-- Establishing your own terms of service and privacy policy (templates are served at `/legal/`)
+- Establishing your own terms of service and privacy policy for your users
 - Securing your deployment and protecting user data
 
 The Scrolly maintainers accept no responsibility for third-party deployments. See [DISCLAIMER.md](DISCLAIMER.md).
