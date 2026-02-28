@@ -29,6 +29,7 @@ Private video-sharing PWA for friend groups. SvelteKit + SQLite + Twilio.
 - All API routes return JSON via `+server.ts` files
 - Use Drizzle ORM for all database queries — never raw SQL
 - IDs are UUIDs (text), timestamps are Unix epoch integers
+- After making code changes, run `npm run check` to verify no type errors were introduced
 
 ## Design System
 
