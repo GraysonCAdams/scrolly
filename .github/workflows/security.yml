@@ -150,6 +150,31 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: needs.changes.outputs.security_relevant == 'true' || github.event_name == 'schedule'
+    permissions:
+      security-events: write
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep scan --config=auto --sarif --output=semgrep-results.sarif .
+        env:
+          SEMGREP_RULES: auto
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+
   dast:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -201,11 +226,11 @@ jobs:
   security-status:
     runs-on: ubuntu-latest
     if: always()
-    needs: [codeql, secret-scan, dependency-scan, container-scan, dast]
+    needs: [codeql, secret-scan, dependency-scan, container-scan, semgrep, dast]
     steps:
       - name: Check security status
         run: |
-          results=("${{ needs.codeql.result }}" "${{ needs.secret-scan.result }}" "${{ needs.dependency-scan.result }}" "${{ needs.container-scan.result }}" "${{ needs.dast.result }}")
+          results=("${{ needs.codeql.result }}" "${{ needs.secret-scan.result }}" "${{ needs.dependency-scan.result }}" "${{ needs.container-scan.result }}" "${{ needs.semgrep.result }}" "${{ needs.dast.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" == "failure" ]]; then
               echo "Security scan failed"
