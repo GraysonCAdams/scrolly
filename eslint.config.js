@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import ts from 'typescript-eslint';
 import svelte from 'eslint-plugin-svelte';
 import sonarjs from 'eslint-plugin-sonarjs';
+import security from 'eslint-plugin-security';
 import globals from 'globals';
 
 export default ts.config(
@@ -9,6 +10,7 @@ export default ts.config(
 	...ts.configs.recommended,
 	...svelte.configs['flat/recommended'],
 	sonarjs.configs.recommended,
+	security.configs.recommended,
 	{
 		languageOptions: {
 			globals: {
@@ -39,7 +41,8 @@ export default ts.config(
 			'svelte/require-each-key': 'warn',
 			'svelte/prefer-svelte-reactivity': 'warn',
 			'sonarjs/no-dead-store': 'warn',
-			'sonarjs/no-unused-vars': 'warn'
+			'sonarjs/no-unused-vars': 'warn',
+			'security/detect-object-injection': 'off'
 		}
 	},
 	{
