@@ -27,7 +27,8 @@ RUN apt-get update && \
     curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd -r scrolly && useradd -r -g scrolly -m scrolly
 
 WORKDIR /app
 
@@ -35,6 +36,8 @@ COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/src/lib/server/db/migrations ./migrations
+
+RUN mkdir -p /app/data && chown -R scrolly:scrolly /app
 
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
@@ -47,5 +50,7 @@ EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
+
+USER scrolly
 
 CMD ["node", "build/index.js"]
