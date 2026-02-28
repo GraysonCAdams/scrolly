@@ -12,7 +12,7 @@ Thanks for your interest in contributing! This guide covers everything you need 
 
 ```bash
 # Clone the repo
-git clone https://github.com/graysoncadams/scrolly.git
+git clone https://github.com/312-dev/scrolly.git
 cd scrolly
 
 # Install dependencies

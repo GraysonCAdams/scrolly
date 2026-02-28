@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/graysoncadams/scrolly/actions/workflows/ci.yml"><img src="https://github.com/graysoncadams/scrolly/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/graysoncadams/scrolly/actions/workflows/security.yml"><img src="https://github.com/graysoncadams/scrolly/actions/workflows/security.yml/badge.svg" alt="Security"></a>
-  <a href="https://api.scorecard.dev/projects/github.com/graysoncadams/scrolly"><img src="https://api.scorecard.dev/projects/github.com/graysoncadams/scrolly/badge" alt="OpenSSF Scorecard"></a>
-  <a href="https://github.com/graysoncadams/scrolly/releases/latest"><img src="https://img.shields.io/github/v/release/graysoncadams/scrolly?label=release" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/graysoncadams/scrolly" alt="License"></a>
+  <a href="https://github.com/312-dev/scrolly/actions/workflows/ci.yml"><img src="https://github.com/312-dev/scrolly/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/312-dev/scrolly/actions/workflows/security.yml"><img src="https://github.com/312-dev/scrolly/actions/workflows/security.yml/badge.svg" alt="Security"></a>
+  <a href="https://api.scorecard.dev/projects/github.com/312-dev/scrolly"><img src="https://api.scorecard.dev/projects/github.com/312-dev/scrolly/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://github.com/312-dev/scrolly/releases/latest"><img src="https://img.shields.io/github/v/release/312-dev/scrolly?label=release" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/312-dev/scrolly" alt="License"></a>
 </p>
 
 ---
@@ -61,7 +61,7 @@ Scrolly uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download media from t
 
 ```bash
 # Clone and install
-git clone https://github.com/graysoncadams/scrolly.git
+git clone https://github.com/312-dev/scrolly.git
 cd scrolly
 npm install
 
@@ -79,8 +79,8 @@ npm run dev
 
 ```bash
 # 1. Download the compose file and env template
-curl -LO https://raw.githubusercontent.com/GraysonCAdams/scrolly/main/docker-compose.yml
-curl -LO https://raw.githubusercontent.com/GraysonCAdams/scrolly/main/.env.example
+curl -LO https://raw.githubusercontent.com/312-dev/scrolly/main/docker-compose.yml
+curl -LO https://raw.githubusercontent.com/312-dev/scrolly/main/.env.example
 cp .env.example .env
 
 # 2. Configure (edit .env — see comments for guidance)
@@ -104,12 +104,12 @@ docker compose up -d       # Restart with new version (migrations run automatica
 Edit `docker-compose.yml` to control which version you run:
 
 ```yaml
-image: ghcr.io/graysoncadams/scrolly:1.0.0   # Exact version
-image: ghcr.io/graysoncadams/scrolly:1.0      # Latest patch in 1.0.x
-image: ghcr.io/graysoncadams/scrolly:latest   # Always newest
+image: ghcr.io/312-dev/scrolly:1.0.0   # Exact version
+image: ghcr.io/312-dev/scrolly:1.0      # Latest patch in 1.0.x
+image: ghcr.io/312-dev/scrolly:latest   # Always newest
 ```
 
-All versions are listed on the [Releases](https://github.com/GraysonCAdams/scrolly/releases) page.
+All versions are listed on the [Releases](https://github.com/312-dev/scrolly/releases) page.
 
 ### Auto-Updates (optional)
 
@@ -136,16 +136,7 @@ The Scrolly maintainers accept no responsibility for third-party deployments. Se
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Architecture](docs/architecture.md) | System design, stack overview, deployment |
-| [API Endpoints](docs/api.md) | Full REST API reference |
-| [Data Model](docs/data-model.md) | Database schema and relationships |
-| [Features](docs/features.md) | Feature breakdown and status |
-| [Design Guidelines](docs/design-guidelines.md) | UI/UX design system and component specs |
-| [Notifications](docs/notifications.md) | Push notification setup and architecture |
-| [Platform Limitations](docs/platform-limitations.md) | iOS vs Android PWA capabilities |
-| [Playback Preferences](docs/playback-preferences.md) | Video playback and controls |
+Full docs at **[312-dev.github.io/scrolly](https://312-dev.github.io/scrolly/)** — deployment guides, configuration reference, and API docs.
 
 ## Scripts
 
@@ -172,6 +163,6 @@ See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnera
 
 ## Legal
 
-[MIT](LICENSE) — Created by [@GraysonCAdams](https://github.com/GraysonCAdams)
+[MIT](LICENSE) — Created by [@312-dev](https://github.com/312-dev)
 
 See [DISCLAIMER.md](DISCLAIMER.md) for content and liability disclaimers, and [NOTICE](NOTICE) for third-party attributions.
