@@ -3,24 +3,12 @@
 	import PlatformIcon from '$lib/components/PlatformIcon.svelte';
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
-
-	type Clip = {
-		id: string;
-		title: string | null;
-		platform: string;
-		contentType: string;
-		addedBy: string;
-		addedByUsername: string;
-		createdAt: string;
-		sizeMb: number;
-		thumbnailPath: string | null;
-		status: string;
-	};
+	import type { ClipSummary } from '$lib/types';
 
 	type MonthGroup = {
 		key: string;
 		label: string;
-		clips: Clip[];
+		clips: ClipSummary[];
 		totalSizeMb: number;
 	};
 
@@ -28,7 +16,7 @@
 
 	let loading = $state(true);
 	let loadingMore = $state(false);
-	let clips = $state<Clip[]>([]);
+	let clips = $state<ClipSummary[]>([]);
 	let totalSizeMb = $state(0);
 	let totalClips = $state(0);
 	let hasMore = $state(false);
@@ -183,7 +171,7 @@
 		_deleting = false;
 	}
 
-	function deleteSingle(clip: Clip) {
+	function deleteSingle(clip: ClipSummary) {
 		handleDelete(
 			[clip.id],
 			`Delete "${clip.title || 'Untitled clip'}"? This will permanently remove the clip and free up ${formatSize(clip.sizeMb)}.`

@@ -16,33 +16,7 @@
 	import ProgressBar from './ProgressBar.svelte';
 	import ViewBadge from './ViewBadge.svelte';
 	import ViewersSheet from './ViewersSheet.svelte';
-
-	interface Clip {
-		id: string;
-		originalUrl: string;
-		videoPath: string | null;
-		audioPath: string | null;
-		thumbnailPath: string | null;
-		title: string | null;
-		artist: string | null;
-		albumArt: string | null;
-		spotifyUrl: string | null;
-		appleMusicUrl: string | null;
-		youtubeMusicUrl: string | null;
-		addedByUsername: string;
-		addedByAvatar: string | null;
-		platform: string;
-		status: string;
-		contentType: string;
-		durationSeconds: number | null;
-		watched: boolean;
-		favorited: boolean;
-		commentCount: number;
-		unreadCommentCount: number;
-		viewCount: number;
-		reactions: Record<string, { count: number; reacted: boolean }>;
-		createdAt: string;
-	}
+	import type { FeedClip } from '$lib/types';
 
 	const {
 		clip,
@@ -60,7 +34,7 @@
 		oncaptionedit,
 		ondelete
 	}: {
-		clip: Clip;
+		clip: FeedClip;
 		currentUserId: string;
 		active: boolean;
 		index: number;

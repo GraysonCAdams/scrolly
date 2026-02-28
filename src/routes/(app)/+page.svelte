@@ -6,37 +6,9 @@
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import type { FeedClip } from '$lib/types';
 
-	type Clip = {
-		id: string;
-		originalUrl: string;
-		videoPath: string | null;
-		audioPath: string | null;
-		thumbnailPath: string | null;
-		title: string | null;
-		artist: string | null;
-		albumArt: string | null;
-		spotifyUrl: string | null;
-		appleMusicUrl: string | null;
-		youtubeMusicUrl: string | null;
-		addedBy: string;
-		addedByUsername: string;
-		addedByAvatar: string | null;
-		platform: string;
-		status: string;
-		contentType: string;
-		durationSeconds: number | null;
-		watched: boolean;
-		favorited: boolean;
-		commentCount: number;
-		unreadCommentCount: number;
-		viewCount: number;
-		reactions: Record<string, { count: number; reacted: boolean }>;
-		seenByOthers: boolean;
-		createdAt: string;
-	};
-
-	let clips = $state<Clip[]>([]);
+	let clips = $state<FeedClip[]>([]);
 	let filter = $state<'all' | 'unwatched' | 'watched' | 'favorites'>('unwatched');
 	let loading = $state(true);
 	let activeIndex = $state(0);
