@@ -47,3 +47,12 @@ Key principles:
 - Mobile-first: design for `375px` first, scale up
 - All API routes return JSON
 - Use Drizzle ORM for all database queries
+
+## Git Workflow
+
+- **Commit early and often** — make small, focused commits as work progresses during a session, not one massive commit at the end
+- Each commit should represent a single logical change (e.g., one feature, one bug fix, one refactor)
+- Write concise commit messages: imperative mood, lowercase, no period (e.g., `feat: add comment count badge`)
+- Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `style:`
+- Never bundle unrelated changes into a single commit
+- Commit working states — don't commit broken code unless on a WIP branch
