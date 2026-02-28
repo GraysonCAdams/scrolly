@@ -23,17 +23,15 @@ Make it engaging for the group.
 2. **Reactions** — Emoji reactions on clips
 3. **Favorites** — Favorite tab, toggle favorite
 4. **Push notifications** — web-push for new clips, comments, reactions (Android + iOS Home Screen PWA)
-5. **AI titles** — Send video metadata to LLM for concise titles when no caption provided, cache results
 
 **Done when:** Users can comment, react, favorite, and receive push notifications when someone adds a new clip.
 
 ## Phase 3 — Polish & Platform Features
 
-1. **Android share sheet** — `share_target` in manifest for direct sharing from other apps
+1. **Share sheet** — `share_target` in manifest for direct sharing from other apps
 2. **Retention policies** — Host controls for auto-delete by age, storage limits
 3. **Playback preferences** — Mute on load (default), playback speed, gesture controls
-4. **Media Session API** — Lock screen playback controls (play/pause/skip)
-5. **Volume normalization** — Web Audio API gain nodes for consistent volume across clips
-6. **Badge API** — Unread clip count on Home Screen icon
-7. **Notification preferences** — Per-user toggle for each notification type
-8. **Daily reminder** — Optional "you have unwatched clips" push notification
+4. **Volume normalization** — Web Audio API gain nodes for consistent volume across clips
+5. **Badge API** — Unread clip count on Home Screen icon
+6. **Notification preferences** — Per-user toggle for each notification type
+7. **Daily reminder** — Optional "you have unwatched clips" push notification
