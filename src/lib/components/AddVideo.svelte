@@ -13,7 +13,7 @@
 		initialUrl?: string;
 	} = $props();
 
-	let url = $state(initialUrl || '');
+	let url = $state('');
 	let error = $state('');
 	let loading = $state(false);
 	let urlInput = $state<HTMLInputElement | null>(null);
@@ -22,6 +22,11 @@
 	export function focus() {
 		urlInput?.focus();
 	}
+
+	// Seed URL from prop
+	$effect.pre(() => {
+		if (initialUrl) url = initialUrl;
+	});
 
 	// Attempt clipboard read on mount (requires user gesture — modal tap counts)
 	$effect(() => {
@@ -96,9 +101,7 @@
 					stroke-linecap="round"
 					stroke-linejoin="round"
 				>
-					<path
-						d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
-					/>
+					<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
 					<rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
 				</svg>
 				<div class="suggestion-text">
@@ -107,9 +110,7 @@
 				</div>
 			</div>
 			<div class="suggestion-actions">
-				<button type="button" class="suggestion-confirm" onclick={acceptClipboard}>
-					Paste
-				</button>
+				<button type="button" class="suggestion-confirm" onclick={acceptClipboard}> Paste </button>
 				<button
 					type="button"
 					class="suggestion-dismiss"
@@ -159,7 +160,7 @@
 		</button>
 	</div>
 	<InlineError message={error} />
-	<p class="platforms">TikTok, Instagram, YouTube Shorts, Spotify, Apple Music</p>
+	<p class="platforms">TikTok, YouTube, Instagram, X, Reddit, Spotify & more</p>
 </form>
 
 <style>

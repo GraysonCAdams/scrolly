@@ -10,6 +10,52 @@ import { sendGroupNotification } from '$lib/server/push';
 import { normalizeUrl } from '$lib/server/download-lock';
 import { v4 as uuid } from 'uuid';
 
+interface ReactionData {
+	count: number;
+	reacted: boolean;
+}
+
+function groupReactionsByClip(
+	reactions: { clipId: string; emoji: string; userId: string }[],
+	userId: string
+): Map<string, Record<string, ReactionData>> {
+	const map = new Map<string, Record<string, ReactionData>>();
+	for (const r of reactions) {
+		if (!map.has(r.clipId)) map.set(r.clipId, {});
+		const group = map.get(r.clipId)!;
+		if (!group[r.emoji]) group[r.emoji] = { count: 0, reacted: false };
+		group[r.emoji].count++;
+		if (r.userId === userId) group[r.emoji].reacted = true;
+	}
+	return map;
+}
+
+function countByClipId(items: { clipId: string }[], clipIds: Set<string>): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const item of items) {
+		if (clipIds.has(item.clipId)) {
+			counts.set(item.clipId, (counts.get(item.clipId) || 0) + 1);
+		}
+	}
+	return counts;
+}
+
+function countUnreadComments(
+	comments: { clipId: string; createdAt: Date }[],
+	clipIds: Set<string>,
+	viewedAtMap: Map<string, Date>
+): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const c of comments) {
+		if (!clipIds.has(c.clipId)) continue;
+		const viewedAt = viewedAtMap.get(c.clipId);
+		if (!viewedAt || c.createdAt > viewedAt) {
+			counts.set(c.clipId, (counts.get(c.clipId) || 0) + 1);
+		}
+	}
+	return counts;
+}
+
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
 
@@ -37,34 +83,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const favIds = new Set(favRows.map((f) => f.clipId));
 
 	// Get all reactions for clips in this group
-	const clipIds = allClips.map((c) => c.id);
-	const allReactions = clipIds.length > 0 ? await db.query.reactions.findMany() : [];
-	const clipReactions = allReactions.filter((r) => clipIds.includes(r.clipId));
-
-	// Group reactions by clip
-	const reactionsByClip = new Map<string, Record<string, { count: number; reacted: boolean }>>();
-	for (const r of clipReactions) {
-		if (!reactionsByClip.has(r.clipId)) {
-			reactionsByClip.set(r.clipId, {});
-		}
-		const group = reactionsByClip.get(r.clipId)!;
-		if (!group[r.emoji]) {
-			group[r.emoji] = { count: 0, reacted: false };
-		}
-		group[r.emoji].count++;
-		if (r.userId === userId) {
-			group[r.emoji].reacted = true;
-		}
-	}
+	const clipIdSet = new Set(allClips.map((c) => c.id));
+	const allReactions = clipIdSet.size > 0 ? await db.query.reactions.findMany() : [];
+	const clipReactions = allReactions.filter((r) => clipIdSet.has(r.clipId));
+	const reactionsByClip = groupReactionsByClip(clipReactions, userId);
 
 	// Get comment counts
-	const allComments = clipIds.length > 0 ? await db.query.comments.findMany() : [];
-	const commentCounts = new Map<string, number>();
-	for (const c of allComments) {
-		if (clipIds.includes(c.clipId)) {
-			commentCounts.set(c.clipId, (commentCounts.get(c.clipId) || 0) + 1);
-		}
-	}
+	const allComments = clipIdSet.size > 0 ? await db.query.comments.findMany() : [];
+	const commentCounts = countByClipId(allComments, clipIdSet);
 
 	// Get unread comment counts (comments since user last viewed)
 	const userCommentViews = await db.query.commentViews.findMany({
@@ -74,29 +100,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	for (const cv of userCommentViews) {
 		viewedAtMap.set(cv.clipId, cv.viewedAt);
 	}
-	const unreadCommentCounts = new Map<string, number>();
-	for (const c of allComments) {
-		if (!clipIds.includes(c.clipId)) continue;
-		const viewedAt = viewedAtMap.get(c.clipId);
-		if (!viewedAt || c.createdAt > viewedAt) {
-			unreadCommentCounts.set(c.clipId, (unreadCommentCounts.get(c.clipId) || 0) + 1);
-		}
-	}
+	const unreadCommentCounts = countUnreadComments(allComments, clipIdSet, viewedAtMap);
 
 	// Get view counts (all watched rows, not just current user)
 	const allWatchedRows = await db.query.watched.findMany();
-	const viewCounts = new Map<string, number>();
-	for (const w of allWatchedRows) {
-		if (clipIds.includes(w.clipId)) {
-			viewCounts.set(w.clipId, (viewCounts.get(w.clipId) || 0) + 1);
-		}
-	}
+	const viewCounts = countByClipId(allWatchedRows, clipIdSet);
 
 	// Compute which clips have been watched by someone other than the uploader
+	const uploaderMap = new Map(allClips.map((c) => [c.id, c.addedBy]));
 	const seenByOthersSet = new Set<string>();
 	for (const w of allWatchedRows) {
-		const clip = allClips.find((c) => c.id === w.clipId);
-		if (clip && w.userId !== clip.addedBy) {
+		if (uploaderMap.has(w.clipId) && w.userId !== uploaderMap.get(w.clipId)) {
 			seenByOthersSet.add(w.clipId);
 		}
 	}
@@ -111,13 +125,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	// Look up usernames + avatars for added_by
-	const userIds = [...new Set(allClips.map((c) => c.addedBy))];
 	const usersMap = new Map<string, { username: string; avatarPath: string | null }>();
-	if (userIds.length > 0) {
-		const userRows = await db.query.users.findMany();
-		for (const u of userRows) {
-			usersMap.set(u.id, { username: u.username, avatarPath: u.avatarPath });
-		}
+	const userRows = await db.query.users.findMany();
+	for (const u of userRows) {
+		usersMap.set(u.id, { username: u.username, avatarPath: u.avatarPath });
 	}
 
 	const total = allClips.length;
@@ -151,7 +162,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json(
 			{
 				error:
-					'Unsupported URL. Send a TikTok, Instagram, Facebook, YouTube Shorts, Spotify, or Apple Music link.'
+					'Unsupported URL. Try a link from TikTok, YouTube, Instagram, X, Reddit, Spotify, or other supported platforms.'
 			},
 			{ status: 400 }
 		);
