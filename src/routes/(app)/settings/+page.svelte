@@ -213,6 +213,20 @@
 				</div>
 			</div>
 
+			<!-- Sharing -->
+			<div class="settings-section">
+				<h3 class="section-title">Sharing</h3>
+				<div class="card">
+					<div class="setting-row last">
+						<div class="setting-label">
+							<span class="setting-name">Share from other apps</span>
+							<span class="setting-desc">Add clips directly from TikTok, Instagram & more</span>
+						</div>
+						<a href="/share/setup" class="setup-link">Set up</a>
+					</div>
+				</div>
+			</div>
+
 			<!-- Notifications -->
 			<div class="settings-section">
 				<h3 class="section-title">Notifications</h3>
@@ -591,6 +605,15 @@
 		font-size: 0.8125rem;
 		line-height: 1.5;
 		margin: 0;
+	}
+
+	/* Setup link */
+	.setup-link {
+		flex-shrink: 0;
+		color: var(--accent-primary);
+		font-size: 0.8125rem;
+		font-weight: 600;
+		text-decoration: none;
 	}
 
 	/* Toggle */
