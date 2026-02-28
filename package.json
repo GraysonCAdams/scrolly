@@ -19,7 +19,10 @@
 		"type-check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"test:coverage": "vitest run --coverage"
+		"test:coverage": "vitest run --coverage",
+		"docs:dev": "vitepress dev docs",
+		"docs:build": "vitepress build docs",
+		"docs:preview": "vitepress preview docs"
 	},
 	"lint-staged": {
 		"*.{ts,svelte}": [
@@ -63,6 +66,7 @@
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.56.1",
 		"vite": "^7.3.1",
+		"vitepress": "^1.6.4",
 		"vitest": "^4.0.18"
 	}
 }

@@ -14,6 +14,7 @@ export default defineConfig({
 		'playback-preferences.md',
 		'platform-limitations.md',
 		'features.md',
+		'api.md',
 		'inspo/**'
 	],
 
