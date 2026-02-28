@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import iconUrl from '$lib/assets/icon.svg?url';
 	import InlineError from '$lib/components/InlineError.svelte';
 
@@ -224,7 +225,15 @@
 							class="phone-input"
 						/>
 					</div>
-					<p class="sms-consent">By tapping "Send Code," you agree to receive SMS messages from Scrolly, including verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data rates may apply. <a href="https://graysoncadams.github.io/scrolly/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &amp; <a href="https://graysoncadams.github.io/scrolly/terms.html" target="_blank" rel="noopener">Terms</a>.</p>
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static files, not SvelteKit routes -->
+					<p class="sms-consent">
+						By tapping "Send Code," you agree to receive SMS messages from Scrolly, including
+						verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data
+						rates may apply. <a href="/legal/privacy.html" target="_blank" rel="noopener"
+							>Privacy Policy</a
+						>
+						&amp; <a href="/legal/terms.html" target="_blank" rel="noopener">Terms</a>.
+					</p>
 					<button type="submit" class="btn-primary" disabled={loading || !phoneValid}>
 						{#if loading}
 							<span class="spinner"></span>
@@ -256,7 +265,7 @@
 					}}
 				>
 					<div class="code-inputs" onpaste={handleCodePaste}>
-						{#each codeDigits as digit, i}
+						{#each codeDigits as digit, i (i)}
 							<input
 								type="text"
 								inputmode="numeric"

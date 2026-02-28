@@ -145,7 +145,15 @@
 				<small>We'll send you a verification code</small>
 			</label>
 
-			<p class="sms-consent">By tapping "Send Verification Code," you agree to receive SMS messages from Scrolly, including verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data rates may apply. <a href="https://graysoncadams.github.io/scrolly/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &amp; <a href="https://graysoncadams.github.io/scrolly/terms.html" target="_blank" rel="noopener">Terms</a>.</p>
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static files, not SvelteKit routes -->
+			<p class="sms-consent">
+				By tapping "Send Verification Code," you agree to receive SMS messages from Scrolly,
+				including verification codes and replies when you text clips. Msg frequency varies. Msg
+				&amp; data rates may apply. <a href="/legal/privacy.html" target="_blank" rel="noopener"
+					>Privacy Policy</a
+				>
+				&amp; <a href="/legal/terms.html" target="_blank" rel="noopener">Terms</a>.
+			</p>
 
 			<button type="submit" disabled={loading || !username.trim() || !phone.trim()}>
 				{loading ? 'Sending...' : 'Send Verification Code'}
