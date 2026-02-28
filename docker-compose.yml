@@ -1,0 +1,17 @@
+services:
+  scrolly:
+    image: ghcr.io/graysonadams/scrolly:latest
+    # To build locally instead, comment out 'image' and uncomment:
+    # build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - scrolly-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - ORIGIN=${PUBLIC_APP_URL:-http://localhost:3000}
+    restart: unless-stopped
+
+volumes:
+  scrolly-data:
