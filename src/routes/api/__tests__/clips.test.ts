@@ -16,6 +16,9 @@ vi.mock('$lib/server/music/download', () => ({
 vi.mock('$lib/server/scheduler', () => ({
 	startScheduler: vi.fn()
 }));
+vi.mock('$lib/server/providers/registry', () => ({
+	getActiveProvider: vi.fn().mockResolvedValue({ id: 'ytdlp', name: 'yt-dlp' })
+}));
 
 vi.mock('$lib/server/db', async () => {
 	const { createTestDb } = await import('../../../../tests/helpers/db');
@@ -252,6 +255,23 @@ describe('POST /api/clips', () => {
 		expect(res.status).toBe(409);
 		const body = await res.json();
 		expect(body.error).toMatch(/already been added/i);
+	});
+
+	it('returns 400 when no download provider configured', async () => {
+		const registry = await import('$lib/server/providers/registry');
+		vi.mocked(registry.getActiveProvider).mockResolvedValueOnce(null);
+
+		const event = createMockEvent({
+			method: 'POST',
+			path: '/api/clips',
+			body: { url: 'https://www.tiktok.com/@user/video/provider-test' },
+			user: data.member,
+			group: data.group
+		});
+		const res = await clipsMod.POST(event as any);
+		expect(res.status).toBe(400);
+		const body = await res.json();
+		expect(body.error).toMatch(/no download provider/i);
 	});
 
 	it('auto-marks clip as watched by uploader', async () => {
