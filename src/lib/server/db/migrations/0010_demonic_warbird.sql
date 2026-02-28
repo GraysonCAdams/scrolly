@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `muted_by_default` integer DEFAULT true NOT NULL;

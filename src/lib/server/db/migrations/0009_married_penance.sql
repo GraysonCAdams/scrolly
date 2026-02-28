@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `clips_group_url` ON `clips` (`group_id`,`original_url`);
