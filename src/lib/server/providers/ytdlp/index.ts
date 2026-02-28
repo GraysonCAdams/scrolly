@@ -85,10 +85,13 @@ export class YtDlpProvider implements DownloadProvider {
 				'node'
 			];
 
-			if (options.maxDurationSeconds) {
-				args.push('--match-filter', `duration <= ${options.maxDurationSeconds}`);
-				const maxBytes = Math.round(options.maxDurationSeconds * VIDEO_BYTES_PER_SEC);
-				args.push('--max-filesize', String(maxBytes));
+			if (options.maxFileSizeBytes) {
+				args.push('--max-filesize', String(options.maxFileSizeBytes));
+				// Derive a generous duration estimate as a fast pre-filter
+				const estimatedMaxDuration = Math.ceil(
+					(options.maxFileSizeBytes / VIDEO_BYTES_PER_SEC) * 1.5
+				);
+				args.push('--match-filter', `duration <= ${estimatedMaxDuration}`);
 			}
 
 			args.push('-o', outputTemplate, url);
@@ -205,10 +208,12 @@ export class YtDlpProvider implements DownloadProvider {
 				'--write-info-json'
 			];
 
-			if (options.maxDurationSeconds) {
-				args.push('--match-filter', `duration <= ${options.maxDurationSeconds}`);
-				const maxBytes = Math.round(options.maxDurationSeconds * AUDIO_BYTES_PER_SEC);
-				args.push('--max-filesize', String(maxBytes));
+			if (options.maxFileSizeBytes) {
+				args.push('--max-filesize', String(options.maxFileSizeBytes));
+				const estimatedMaxDuration = Math.ceil(
+					(options.maxFileSizeBytes / AUDIO_BYTES_PER_SEC) * 1.5
+				);
+				args.push('--match-filter', `duration <= ${estimatedMaxDuration}`);
 			}
 
 			args.push('-o', outputTemplate, searchQuery);

@@ -13,7 +13,7 @@ export interface AudioDownloadResult {
 export interface DownloadOptions {
 	outputDir: string;
 	clipId: string;
-	maxDurationSeconds: number | null;
+	maxFileSizeBytes: number | null;
 }
 
 export interface DownloadProvider {
