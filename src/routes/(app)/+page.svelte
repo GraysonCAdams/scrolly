@@ -28,6 +28,7 @@
 		watched: boolean;
 		favorited: boolean;
 		commentCount: number;
+		unreadCommentCount: number;
 		viewCount: number;
 		reactions: Record<string, { count: number; reacted: boolean }>;
 		seenByOthers: boolean;
@@ -436,8 +437,58 @@
 		}
 	}
 
+	function handleShareTarget() {
+		const params = new URLSearchParams(window.location.search);
+		const sharedUrl = params.get('shared_url');
+		const sharedText = params.get('shared_text');
+
+		// Clean share params from URL without reload
+		if (sharedUrl || sharedText) {
+			const clean = new URL(window.location.href);
+			clean.searchParams.delete('shared_url');
+			clean.searchParams.delete('shared_text');
+			clean.searchParams.delete('shared_title');
+			history.replaceState(null, '', clean.pathname);
+		}
+
+		// Prefer explicit URL param; fall back to extracting a URL from text
+		const url =
+			sharedUrl?.trim() ||
+			sharedText
+				?.split(/\s+/)
+				.find((t) => t.startsWith('http'))
+				?.trim();
+		if (!url) return;
+
+		(async () => {
+			try {
+				const res = await fetch('/api/clips', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ url })
+				});
+				const result = await res.json();
+				if (!res.ok) {
+					addToast({ type: 'error', message: result.error || 'Failed to add', autoDismiss: 4000 });
+					return;
+				}
+				addToast({
+					type: 'processing',
+					message: `Adding ${result.clip.contentType === 'music' ? 'song' : 'video'} to feed...`,
+					clipId: result.clip.id,
+					contentType: result.clip.contentType,
+					autoDismiss: 0
+				});
+				loadClips();
+			} catch {
+				addToast({ type: 'error', message: 'Something went wrong', autoDismiss: 4000 });
+			}
+		})();
+	}
+
 	onMount(() => {
 		isDesktopFeed = matchMedia('(pointer: fine)').matches;
+		handleShareTarget();
 		loadClips();
 	});
 </script>
