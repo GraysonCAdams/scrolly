@@ -29,6 +29,7 @@
 	import ClipsManager from '$lib/components/settings/ClipsManager.svelte';
 	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
 	import AccentColorPicker from '$lib/components/settings/AccentColorPicker.svelte';
+	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
 
 	const vapidPublicKey = $derived($page.data.vapidPublicKey as string);
 	const user = $derived($page.data.user);
@@ -36,12 +37,19 @@
 	const isHost = $derived(group?.createdBy === user?.id);
 
 	let activeTab = $state<'me' | 'group'>('me');
-	let theme = $state<'system' | 'light' | 'dark'>(
-		(user?.themePreference as 'system' | 'light' | 'dark') ?? 'system'
+	let themeOverride = $state<'system' | 'light' | 'dark' | null>(null);
+	let autoScrollOverride = $state<boolean | null>(null);
+	let mutedByDefaultOverride = $state<boolean | null>(null);
+	let currentAccentOverride = $state<AccentColorKey | null>(null);
+
+	const theme = $derived(
+		themeOverride ?? (user?.themePreference as 'system' | 'light' | 'dark') ?? 'system'
 	);
-	let autoScroll = $state(user?.autoScroll ?? false);
-	let mutedByDefault = $state(user?.mutedByDefault ?? true);
-	let currentAccent = $state<AccentColorKey>((group?.accentColor as AccentColorKey) ?? 'coral');
+	const autoScroll = $derived(autoScrollOverride ?? user?.autoScroll ?? false);
+	const mutedByDefault = $derived(mutedByDefaultOverride ?? user?.mutedByDefault ?? true);
+	const currentAccent = $derived(
+		currentAccentOverride ?? (group?.accentColor as AccentColorKey) ?? 'coral'
+	);
 	const themeIndex = $derived.by(() => {
 		if (theme === 'system') return 0;
 		if (theme === 'light') return 1;
@@ -70,20 +78,20 @@
 	});
 
 	function handleThemeChange(value: 'system' | 'light' | 'dark') {
-		theme = value;
+		themeOverride = value;
 		applyTheme(value);
 		saveThemePreference(value);
 	}
 
 	function toggleAutoScroll() {
-		autoScroll = !autoScroll;
-		saveAutoScroll(autoScroll);
+		autoScrollOverride = !autoScroll;
+		saveAutoScroll(!autoScroll);
 	}
 
 	function toggleMutedByDefault() {
-		mutedByDefault = !mutedByDefault;
-		globalMuted.set(mutedByDefault);
-		saveMutedByDefault(mutedByDefault);
+		mutedByDefaultOverride = !mutedByDefault;
+		globalMuted.set(!mutedByDefault);
+		saveMutedByDefault(!mutedByDefault);
 	}
 
 	async function togglePush() {
@@ -102,7 +110,7 @@
 	}
 
 	function handleAccentChange(key: AccentColorKey) {
-		currentAccent = key;
+		currentAccentOverride = key;
 		applyAccentColor(key);
 		saveAccentColor(key);
 	}
@@ -175,7 +183,12 @@
 							<span class="setting-name">Start muted</span>
 							<span class="setting-desc">Mute videos and songs by default</span>
 						</div>
-						<button class="toggle" class:active={mutedByDefault} onclick={toggleMutedByDefault}>
+						<button
+							class="toggle"
+							class:active={mutedByDefault}
+							onclick={toggleMutedByDefault}
+							aria-label="Toggle start muted"
+						>
 							<span class="toggle-thumb"></span>
 						</button>
 					</div>
@@ -184,7 +197,12 @@
 							<span class="setting-name">Auto-scroll</span>
 							<span class="setting-desc">Advance to next clip when current one ends</span>
 						</div>
-						<button class="toggle" class:active={autoScroll} onclick={toggleAutoScroll}>
+						<button
+							class="toggle"
+							class:active={autoScroll}
+							onclick={toggleAutoScroll}
+							aria-label="Toggle auto-scroll"
+						>
 							<span class="toggle-thumb"></span>
 						</button>
 					</div>
@@ -233,6 +251,10 @@
 				<div class="card">
 					<AccentColorPicker {currentAccent} onchange={handleAccentChange} />
 				</div>
+			</div>
+			<div class="settings-section">
+				<h3 class="section-title">Download Provider</h3>
+				<div class="card"><DownloadProviderManager /></div>
 			</div>
 			<div class="settings-section">
 				<h3 class="section-title">Members</h3>
