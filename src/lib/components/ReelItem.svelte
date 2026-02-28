@@ -4,6 +4,8 @@
 	import { onTapHold, isPointerFine, type TapHoldEvent } from '$lib/gestures';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
 	import { globalMuted } from '$lib/stores/mute';
+	import { globalPlaybackSpeed, cycleSpeed, stepSpeedUp, stepSpeedDown } from '$lib/stores/playbackSpeed';
+	import { connectNormalizer } from '$lib/audio/normalizer';
 	import ReelVideo from './ReelVideo.svelte';
 	import ReelMusic from './ReelMusic.svelte';
 	import ActionSidebar from './ActionSidebar.svelte';
@@ -35,6 +37,7 @@
 		watched: boolean;
 		favorited: boolean;
 		commentCount: number;
+		unreadCommentCount: number;
 		viewCount: number;
 		reactions: Record<string, { count: number; reacted: boolean }>;
 		createdAt: string;
@@ -78,9 +81,19 @@
 	let showMuteIndicator = $state(false);
 	let muteIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
 
+	// Playback speed
+	let speed = $state(get(globalPlaybackSpeed));
+	let showSpeedIndicator = $state(false);
+	let speedIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
+
 	// Sync with global mute store (other reels toggling mute updates us)
 	const unsubMute = globalMuted.subscribe((v) => {
 		muted = v;
+	});
+
+	// Sync with global speed store
+	const unsubSpeed = globalPlaybackSpeed.subscribe((v) => {
+		speed = v;
 	});
 
 	// Desktop detection
@@ -108,6 +121,8 @@
 	let showerY = $state(0);
 	let showShower = $state(false);
 	let showComments = $state(false);
+	let commentsAutoFocus = $state(false);
+	let localUnreadCount = $state(clip.unreadCommentCount);
 	let showViewers = $state(false);
 
 	// Watch percentage tracking
@@ -121,6 +136,7 @@
 	// Flush watch percentage on unmount (virtualization may remove this component)
 	onDestroy(() => {
 		unsubMute();
+		unsubSpeed();
 		if (maxPercent > 0) {
 			const pct = Math.round(maxPercent);
 			const body = JSON.stringify({ watchPercent: pct });
@@ -244,11 +260,26 @@
 
 	function toggleMute() {
 		globalMuted.set(!muted);
+		// Connect normalizer on unmute (user gesture guarantees AudioContext can resume)
+		if (videoEl) connectNormalizer(videoEl);
 		showMuteIndicator = true;
 		if (muteIndicatorTimer) clearTimeout(muteIndicatorTimer);
 		muteIndicatorTimer = setTimeout(() => {
 			showMuteIndicator = false;
 		}, 800);
+	}
+
+	function showSpeedChange() {
+		showSpeedIndicator = true;
+		if (speedIndicatorTimer) clearTimeout(speedIndicatorTimer);
+		speedIndicatorTimer = setTimeout(() => {
+			showSpeedIndicator = false;
+		}, 800);
+	}
+
+	function handleCycleSpeed() {
+		cycleSpeed();
+		showSpeedChange();
 	}
 
 	function seek(seconds: number) {
@@ -267,7 +298,10 @@
 		showerX = cx;
 		showerY = cy;
 		showShower = true;
-		onreaction(clip.id, '❤️');
+		// Only add — don't toggle off. Undo is via the reaction pills in the overlay.
+		if (!clip.reactions['❤️']?.reacted) {
+			onreaction(clip.id, '❤️');
+		}
 	}
 
 	function openPicker(cx: number, cy: number, drag: boolean) {
@@ -283,7 +317,9 @@
 		return !!(
 			target.closest('.action-sidebar') ||
 			target.closest('.reel-overlay') ||
-			target.closest('.progress-bar')
+			target.closest('.progress-bar') ||
+			target.closest('.speed-pill') ||
+			target.closest('.comment-prompt')
 		);
 	}
 
@@ -388,6 +424,14 @@
 				case 'M':
 					toggleMute();
 					break;
+				case '[':
+					stepSpeedDown();
+					showSpeedChange();
+					break;
+				case ']':
+					stepSpeedUp();
+					showSpeedChange();
+					break;
 			}
 
 			// Video-only shortcuts
@@ -419,7 +463,10 @@
 		showerX = pickerX;
 		showerY = pickerY;
 		showShower = true;
-		onreaction(clip.id, emoji);
+		// Only add — don't toggle off. Undo is via the reaction pills in the overlay.
+		if (!clip.reactions[emoji]?.reacted) {
+			onreaction(clip.id, emoji);
+		}
 	}
 
 	function _triggerReactionPicker() {
@@ -461,9 +508,25 @@
 	{/if}
 
 	{#if clip.contentType === 'music'}
-		<ReelMusic {clip} {active} {muted} {autoScroll} {onretry} {onended} />
+		<ReelMusic {clip} {active} {muted} {autoScroll} playbackRate={speed} {onretry} {onended} />
 	{:else}
-		<ReelVideo {clip} {active} {muted} {autoScroll} {onretry} {onended} bind:videoEl />
+		<ReelVideo {clip} {active} {muted} {autoScroll} playbackRate={speed} {onretry} {onended} bind:videoEl />
+	{/if}
+
+	<!-- Speed pill (visible when speed != 1x, tappable to cycle) -->
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="speed-pill"
+		class:visible={active}
+		class:highlight={speed !== 1}
+		onclick={(e) => { e.stopPropagation(); handleCycleSpeed(); }}
+	>
+		{speed}x
+	</div>
+
+	<!-- Speed indicator -->
+	{#if showSpeedIndicator}
+		<div class="speed-indicator">{speed}x</div>
 	{/if}
 
 	<!-- Mute indicator -->
@@ -549,14 +612,36 @@
 	<ActionSidebar
 		favorited={clip.favorited}
 		commentCount={clip.commentCount}
+		unreadCommentCount={localUnreadCount}
 		originalUrl={clip.originalUrl}
 		{muted}
 		onfavorite={() => onfavorited(clip.id)}
-		oncomment={() => (showComments = true)}
+		oncomment={() => { commentsAutoFocus = false; showComments = true; }}
 		onreaction={handleSidebarReactionTap}
 		onreactionhold={triggerReactionPickerHold}
 		onmute={toggleMute}
 	/>
+
+	<!-- Comment prompt bar (active reel only) -->
+	{#if active}
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div
+			class="comment-prompt"
+			onclick={(e) => { e.stopPropagation(); commentsAutoFocus = true; showComments = true; }}
+		>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+			</svg>
+			<span>Add a comment...</span>
+		</div>
+	{/if}
 </div>
 
 {#if showPicker}
@@ -579,7 +664,12 @@
 {/if}
 
 {#if showComments}
-	<CommentsSheet clipId={clip.id} {currentUserId} ondismiss={() => (showComments = false)} />
+	<CommentsSheet
+		clipId={clip.id}
+		{currentUserId}
+		autoFocus={commentsAutoFocus}
+		ondismiss={() => { showComments = false; localUnreadCount = 0; }}
+	/>
 {/if}
 
 {#if showViewers}
@@ -680,5 +770,112 @@
 	.play-indicator svg {
 		width: 24px;
 		height: 24px;
+	}
+
+	.speed-pill {
+		position: absolute;
+		top: max(60px, calc(env(safe-area-inset-top) + 52px));
+		right: var(--space-lg);
+		z-index: 6;
+		padding: 4px 10px;
+		border-radius: var(--radius-full);
+		background: rgba(255, 255, 255, 0.12);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		color: rgba(255, 255, 255, 0.6);
+		font-family: var(--font-display);
+		font-size: 0.75rem;
+		font-weight: 700;
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 0.2s ease, background 0.2s ease, color 0.2s ease;
+		pointer-events: none;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.speed-pill.visible {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.speed-pill.highlight {
+		background: rgba(255, 255, 255, 0.2);
+		color: #fff;
+	}
+
+	.speed-pill:active {
+		transform: scale(0.93);
+	}
+
+	.speed-indicator {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 10;
+		min-width: 56px;
+		height: 56px;
+		border-radius: var(--radius-full);
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #fff;
+		font-family: var(--font-display);
+		font-size: 1.125rem;
+		font-weight: 700;
+		padding: 0 16px;
+		animation: mute-fade 0.8s ease forwards;
+		pointer-events: none;
+	}
+
+	.comment-prompt {
+		position: absolute;
+		bottom: max(var(--space-lg), env(safe-area-inset-bottom));
+		left: var(--space-lg);
+		right: var(--space-lg);
+		z-index: 5;
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		border-radius: var(--radius-full);
+		background: rgba(255, 255, 255, 0.12);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		cursor: pointer;
+		transition: background 0.2s ease;
+		animation: comment-prompt-in 0.3s ease;
+	}
+
+	.comment-prompt:active {
+		background: rgba(255, 255, 255, 0.2);
+	}
+
+	.comment-prompt svg {
+		width: 18px;
+		height: 18px;
+		flex-shrink: 0;
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	.comment-prompt span {
+		font-size: 0.875rem;
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	@keyframes comment-prompt-in {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 </style>
