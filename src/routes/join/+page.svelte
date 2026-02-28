@@ -225,14 +225,10 @@
 							class="phone-input"
 						/>
 					</div>
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static files, not SvelteKit routes -->
 					<p class="sms-consent">
 						By tapping "Send Code," you agree to receive SMS messages from Scrolly, including
 						verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data
-						rates may apply. <a href="/legal/privacy.html" target="_blank" rel="noopener"
-							>Privacy Policy</a
-						>
-						&amp; <a href="/legal/terms.html" target="_blank" rel="noopener">Terms</a>.
+						rates may apply.
 					</p>
 					<button type="submit" class="btn-primary" disabled={loading || !phoneValid}>
 						{#if loading}
