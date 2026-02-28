@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+.output/
+/.svelte-kit/
+/build/
+/dist/
+
+# Runtime data (DB + videos)
+/data/
+
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.test
+*.pem
+*.key
+
+# Lock files (large, low signal)
+package-lock.json
+
+# Coverage & debug
+/coverage/
+/.codeql-db/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Editor
+.idea/
+.vscode/
+
+# Git internals
+.git/
+
+# Inspiration images (large binaries)
+docs/inspo/
