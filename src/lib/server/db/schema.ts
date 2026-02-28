@@ -70,6 +70,7 @@ export const comments = sqliteTable('comments', {
 		.references(() => users.id),
 	parentId: text('parent_id'),
 	text: text('text').notNull(),
+	gifUrl: text('gif_url'),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 
