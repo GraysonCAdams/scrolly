@@ -1,6 +1,8 @@
 services:
   scrolly:
-    image: ghcr.io/graysonadams/scrolly:latest
+    # Pin to a specific version for stability (e.g. 1.0.0, 1.0, or latest)
+    # See releases: https://github.com/GraysonCAdams/scrolly/releases
+    image: ghcr.io/graysoncadams/scrolly:latest
     # To build locally instead, comment out 'image' and uncomment:
     # build: .
     ports:
@@ -12,6 +14,21 @@ services:
     environment:
       - ORIGIN=${PUBLIC_APP_URL:-http://localhost:3000}
     restart: unless-stopped
+    # Optional: label for Watchtower auto-updates (uncomment to enable)
+    # labels:
+    #   - "com.centurylinklabs.watchtower.enable=true"
+
+  # Optional: auto-update container when new images are published
+  # Uncomment to enable automatic updates (checks daily)
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   environment:
+  #     - WATCHTOWER_CLEANUP=true
+  #     - WATCHTOWER_POLL_INTERVAL=86400
+  #     - WATCHTOWER_LABEL_ENABLE=true
+  #   restart: unless-stopped
 
 volumes:
   scrolly-data:

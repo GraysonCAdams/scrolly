@@ -61,20 +61,52 @@ npm run dev
 
 ## Self-Hosting with Docker
 
+### Install
+
 ```bash
-# Using Docker Compose
+# 1. Download the compose file and env template
+curl -LO https://raw.githubusercontent.com/GraysonCAdams/scrolly/main/docker-compose.yml
+curl -LO https://raw.githubusercontent.com/GraysonCAdams/scrolly/main/.env.example
 cp .env.example .env
-# Edit .env with production values
+
+# 2. Configure (edit .env — see comments for guidance)
+nano .env
+
+# 3. Start
 docker compose up -d
 ```
 
-Or pull the image directly:
+The app will be available at `http://localhost:3000`. Database migrations run automatically on every startup — no manual steps needed.
+
+### Upgrade
 
 ```bash
-docker pull ghcr.io/graysoncadams/scrolly:latest
+docker compose pull        # Pull the latest image
+docker compose up -d       # Restart with new version (migrations run automatically)
 ```
 
-See [docker-compose.yml](docker-compose.yml) for the full configuration.
+### Version Pinning
+
+Edit `docker-compose.yml` to control which version you run:
+
+```yaml
+image: ghcr.io/graysoncadams/scrolly:1.0.0   # Exact version
+image: ghcr.io/graysoncadams/scrolly:1.0      # Latest patch in 1.0.x
+image: ghcr.io/graysoncadams/scrolly:latest   # Always newest
+```
+
+All versions are listed on the [Releases](https://github.com/GraysonCAdams/scrolly/releases) page.
+
+### Auto-Updates (optional)
+
+Uncomment the Watchtower service in `docker-compose.yml` to automatically pull new images daily.
+
+### Backup
+
+```bash
+docker run --rm -v scrolly_scrolly-data:/data -v $(pwd):/backup alpine \
+  tar czf /backup/scrolly-backup-$(date +%Y%m%d).tar.gz -C / data
+```
 
 ## Scripts
 
