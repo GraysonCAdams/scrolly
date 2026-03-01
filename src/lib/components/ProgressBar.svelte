@@ -3,12 +3,14 @@
 		currentTime,
 		duration,
 		isDesktop,
-		onseek
+		onseek,
+		uiHidden = false
 	}: {
 		currentTime: number;
 		duration: number;
 		isDesktop: boolean;
 		onseek: (time: number) => void;
+		uiHidden?: boolean;
 	} = $props();
 
 	let barEl: HTMLDivElement | null = $state(null);
@@ -25,7 +27,6 @@
 	}
 
 	function handleMouseDown(e: MouseEvent) {
-		if (!isDesktop) return;
 		e.preventDefault();
 		e.stopPropagation();
 		scrubbing = true;
@@ -75,11 +76,11 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="progress-bar"
 	class:desktop={isDesktop}
 	class:scrubbing
+	class:ui-hidden={uiHidden}
 	bind:this={barEl}
 	onmousedown={handleMouseDown}
 	onmousemove={handleHover}
@@ -95,42 +96,46 @@
 	aria-valuemax={duration}
 >
 	<div class="progress-track">
-		{#if isDesktop && hoverProgress !== null}
+		{#if hoverProgress !== null}
 			<div class="progress-hover" style="width: {(hoverProgress / duration) * 100}%"></div>
 		{/if}
-		<div class="progress-fill" style="width: {progress}%"></div>
+		<div class="progress-fill" style="width: {progress}%">
+			<div class="progress-thumb"></div>
+		</div>
 	</div>
 </div>
 
 <style>
 	.progress-bar {
 		position: absolute;
-		bottom: 0;
+		bottom: calc(52px + env(safe-area-inset-bottom));
 		left: 0;
 		right: 0;
-		z-index: 4;
-		height: 14px;
+		z-index: 6;
+		height: 24px;
 		display: flex;
-		align-items: flex-end;
-		cursor: default;
+		align-items: center;
+		cursor: pointer;
 		padding: 0;
+		transition: opacity 0.3s ease;
 	}
 
-	.progress-bar.desktop {
-		cursor: pointer;
+	.progress-bar.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.progress-track {
 		width: 100%;
-		height: 2px;
+		height: 3px;
 		background: rgba(255, 255, 255, 0.2);
 		position: relative;
-		transition: height 0.15s ease;
+		transition: height 0.2s ease;
 	}
 
-	.progress-bar.desktop:hover .progress-track,
+	.progress-bar:hover .progress-track,
 	.progress-bar.scrubbing .progress-track {
-		height: 4px;
+		height: 6px;
 	}
 
 	.progress-fill {
@@ -141,6 +146,24 @@
 		left: 0;
 	}
 
+	.progress-thumb {
+		position: absolute;
+		right: -6px;
+		top: 50%;
+		transform: translateY(-50%) scale(0);
+		width: 12px;
+		height: 12px;
+		border-radius: var(--radius-full);
+		background: var(--reel-text);
+		box-shadow: 0 0 4px var(--reel-icon-shadow);
+		transition: transform 0.15s ease;
+	}
+
+	.progress-bar:hover .progress-thumb,
+	.progress-bar.scrubbing .progress-thumb {
+		transform: translateY(-50%) scale(1);
+	}
+
 	.progress-hover {
 		height: 100%;
 		background: rgba(255, 255, 255, 0.3);
@@ -148,19 +171,5 @@
 		top: 0;
 		left: 0;
 		pointer-events: none;
-	}
-
-	.progress-bar.desktop:hover .progress-fill::after,
-	.progress-bar.scrubbing .progress-fill::after {
-		content: '';
-		position: absolute;
-		right: -5px;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-		background: #fff;
-		box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 	}
 </style>
