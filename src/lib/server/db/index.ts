@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import * as schema from './schema';
 import { resolve } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync } from 'fs';
 import { createLogger } from '$lib/server/logger';
 
 const dataDir = resolve(process.env.DATA_DIR || 'data');
@@ -25,6 +25,24 @@ export const db = drizzle(sqlite, { schema });
 const migrationsFolder = existsSync(resolve('migrations'))
 	? resolve('migrations')
 	: resolve('src/lib/server/db/migrations');
+
+// Back up database before running migrations
+const dbPath = resolve(dataDir, 'scrolly.db');
+const backupDir = resolve(dataDir, 'backups');
+/* eslint-disable security/detect-non-literal-fs-filename */
+mkdirSync(backupDir, { recursive: true });
+
+if (existsSync(dbPath)) {
+	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+	const backupPath = resolve(backupDir, `scrolly-${timestamp}.db`);
+	try {
+		copyFileSync(dbPath, backupPath);
+		log.info({ backupPath }, 'Pre-migration backup created');
+	} catch (err) {
+		log.warn({ err }, 'Pre-migration backup failed — continuing without backup');
+	}
+}
+/* eslint-enable security/detect-non-literal-fs-filename */
 
 const startMs = Date.now();
 migrate(db, { migrationsFolder });
