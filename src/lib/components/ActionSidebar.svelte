@@ -14,6 +14,7 @@
 		originalUrl,
 		muted = true,
 		uiHidden = false,
+		isOwn = false,
 		onsave,
 		oncomment,
 		onreactionhold,
@@ -26,12 +27,17 @@
 		originalUrl: string;
 		muted?: boolean;
 		uiHidden?: boolean;
+		isOwn?: boolean;
 		onsave: () => void;
 		oncomment: () => void;
 		onreactionhold?: (x: number, y: number) => void;
 		onmute?: () => void;
 	} = $props();
 
+	const saveLabel = $derived.by(() => {
+		if (isOwn) return 'Cannot like own clip';
+		return favorited ? 'Unsave' : 'Save';
+	});
 	let saveBtnEl: HTMLButtonElement | null = $state(null);
 	let holdTimer: ReturnType<typeof setTimeout> | null = null;
 	let holdFired = false;
@@ -106,10 +112,12 @@
 	<button
 		class="sidebar-btn"
 		class:active={favorited}
+		class:disabled={isOwn}
 		bind:this={saveBtnEl}
-		onpointerdown={handleSaveDown}
-		onpointerup={handleSaveUp}
-		aria-label={favorited ? 'Unsave' : 'Save'}
+		onpointerdown={isOwn ? stop : handleSaveDown}
+		onpointerup={isOwn ? stop : handleSaveUp}
+		aria-label={saveLabel}
+		disabled={isOwn}
 	>
 		<span class="icon-circle" class:pop={justSaved}>
 			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_MAP.has(reactedEmoji)}
@@ -219,6 +227,19 @@
 
 	.sidebar-btn.active {
 		color: var(--accent-magenta);
+	}
+
+	.sidebar-btn.disabled {
+		opacity: 0.3;
+		cursor: not-allowed;
+	}
+
+	.sidebar-btn.disabled .icon-circle {
+		background: var(--reel-icon-circle-bg);
+	}
+
+	.sidebar-btn.disabled:active .icon-circle {
+		transform: none;
 	}
 
 	.unread-badge {
