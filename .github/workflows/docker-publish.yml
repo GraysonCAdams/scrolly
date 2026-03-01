@@ -1,11 +1,18 @@
-name: Build & Publish Docker Image
+name: Build & Publish Docker Image (Manual)
 
+# Manual fallback for Docker publishing.
+# Normally, Docker images are built automatically by the Release workflow.
+# Use this workflow_dispatch if a release was created but the image wasn't published.
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.2.0)'
+        required: true
+        type: string
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: docker-publish
   cancel-in-progress: false
 
 permissions:
@@ -38,18 +45,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from release tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}},value=${{ github.event.release.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.release.tag_name }}
+            type=raw,value=${{ inputs.version }}
             type=raw,value=latest
 
       - name: Build and push
@@ -61,7 +63,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            APP_VERSION=${{ steps.version.outputs.VERSION }}
+            APP_VERSION=${{ inputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -72,5 +74,3 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/orgs/312-dev/packages/container/scrolly" \
             -d '{"visibility":"public"}' || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
