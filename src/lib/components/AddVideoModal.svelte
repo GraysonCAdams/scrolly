@@ -7,6 +7,7 @@
 	import { addToast, toast, toasts } from '$lib/stores/toasts';
 	import { clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
 	import { dismissShortcutNudge } from '$lib/stores/shortcutNudge';
+	import { groupMembers } from '$lib/stores/members';
 
 	const { ondismiss, initialUrl }: { ondismiss: () => void; initialUrl?: string } = $props();
 
@@ -166,7 +167,12 @@
 
 		{#if phase === 'form'}
 			<div class="sheet-body">
-				<AddVideo bind:this={addVideoRef} onsubmitted={handleSubmitted} {initialUrl} />
+				<AddVideo
+					bind:this={addVideoRef}
+					onsubmitted={handleSubmitted}
+					{initialUrl}
+					members={$groupMembers}
+				/>
 			</div>
 		{:else}
 			<UploadStatus
