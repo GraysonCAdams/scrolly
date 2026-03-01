@@ -43,9 +43,10 @@
 	const isHost = $derived(group?.createdBy === user?.id);
 
 	let activeTab = $state<'me' | 'group'>('me');
-	let showAvatarCrop = $state(false);
+	let avatarCropImage = $state<string | null>(null);
 	let avatarOverride = $state<string | null | undefined>(undefined);
 	let avatarCacheBust = $state(0);
+	let avatarFileInput = $state<HTMLInputElement | null>(null);
 	const avatarPath = $derived(
 		avatarOverride !== undefined ? avatarOverride : (user?.avatarPath ?? null)
 	);
@@ -53,10 +54,20 @@
 		avatarPath ? `/api/profile/avatar/${avatarPath}?v=${avatarCacheBust}` : null
 	);
 
+	function handleAvatarFileSelect(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (file) {
+			avatarCropImage = URL.createObjectURL(file);
+		}
+		// Reset so the same file can be re-selected
+		input.value = '';
+	}
+
 	function handleAvatarUploaded(path: string) {
 		avatarOverride = path;
 		avatarCacheBust = Date.now();
-		showAvatarCrop = false;
+		avatarCropImage = null;
 	}
 
 	async function handleRemoveAvatar() {
@@ -98,8 +109,8 @@
 	});
 
 	onMount(async () => {
-		const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-		showShareCta = isMobile || import.meta.env.DEV;
+		const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+		showShareCta = isIos;
 
 		pushSupported = isPushSupported();
 		if (pushSupported) {
@@ -176,7 +187,14 @@
 	{#if activeTab === 'me'}
 		<div class="tab-content">
 			<div class="profile-header">
-				<button class="avatar-btn" onclick={() => (showAvatarCrop = true)}>
+				<input
+					bind:this={avatarFileInput}
+					type="file"
+					accept="image/*"
+					onchange={handleAvatarFileSelect}
+					style="position:absolute;opacity:0;pointer-events:none;"
+				/>
+				<button class="avatar-btn" onclick={() => avatarFileInput?.click()}>
 					{#if avatarUrl}
 						<img src={avatarUrl} alt="Profile" class="avatar-large avatar-img" />
 					{:else}
@@ -350,8 +368,17 @@
 		</div>
 	{/if}
 
-	{#if showAvatarCrop}
-		<AvatarCropModal ondismiss={() => (showAvatarCrop = false)} onuploaded={handleAvatarUploaded} />
+	{#if avatarCropImage}
+		<AvatarCropModal
+			imageUrl={avatarCropImage}
+			ondismiss={() => {
+				if (avatarCropImage) {
+					URL.revokeObjectURL(avatarCropImage);
+					avatarCropImage = null;
+				}
+			}}
+			onuploaded={handleAvatarUploaded}
+		/>
 	{/if}
 
 	<footer class="version-footer">
