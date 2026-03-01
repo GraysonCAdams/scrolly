@@ -4,6 +4,9 @@
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import SkeletonReel from '$lib/components/SkeletonReel.svelte';
+	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
+	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
+	import FilmSlateIcon from 'phosphor-svelte/lib/FilmSlateIcon';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
 	import { addToast, toast, clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
 	import { homeTapSignal } from '$lib/stores/homeTap';
@@ -526,18 +529,7 @@
 	{#if isDragging}
 		<div class="drop-overlay">
 			<div class="drop-zone">
-				<svg
-					class="drop-icon"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-					<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-				</svg>
+				<span class="drop-icon"><LinkIcon size={48} /></span>
 				<p class="drop-text">Drop link to add</p>
 			</div>
 		</div>
@@ -561,19 +553,9 @@
 			{#if isRefreshing}
 				<span class="pull-spinner"></span>
 			{:else}
-				<svg
-					class="pull-arrow"
-					class:ready={pullDistance >= PULL_THRESHOLD}
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="7 13 12 18 17 13" />
-					<line x1="12" y1="18" x2="12" y2="6" />
-				</svg>
+				<span class="pull-arrow" class:ready={pullDistance >= PULL_THRESHOLD}>
+					<ArrowDownIcon size={24} weight="bold" />
+				</span>
 			{/if}
 		</div>
 	{/if}
@@ -588,21 +570,7 @@
 			<SkeletonReel />
 		{:else if clips.length === 0}
 			<div class="reel-empty">
-				<svg
-					class="empty-icon"
-					viewBox="0 0 48 48"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<rect x="6" y="10" width="36" height="28" rx="4" />
-					<polygon points="20,18 20,34 33,26" fill="currentColor" stroke="none" opacity="0.25" />
-					<polygon points="20,18 20,34 33,26" />
-					<line x1="14" y1="4" x2="14" y2="10" />
-					<line x1="34" y1="4" x2="34" y2="10" />
-				</svg>
+				<span class="empty-icon"><FilmSlateIcon size={56} /></span>
 				<p class="empty-title">All caught up</p>
 				<p class="empty-sub">Drop a clip to kick things off</p>
 				<button class="empty-cta" onclick={() => addVideoModalOpen.set(true)}>
@@ -681,8 +649,7 @@
 		transition: opacity 0.15s ease;
 	}
 	.pull-arrow {
-		width: 24px;
-		height: 24px;
+		display: inline-flex;
 		color: rgba(255, 255, 255, 0.7);
 		transform: rotate(180deg);
 		transition:
@@ -758,8 +725,6 @@
 		}
 	}
 	.empty-icon {
-		width: 56px;
-		height: 56px;
 		color: var(--text-muted);
 		opacity: 0.5;
 		margin-bottom: var(--space-xs);
@@ -835,8 +800,6 @@
 		border-radius: var(--radius-xl);
 	}
 	.drop-icon {
-		width: 48px;
-		height: 48px;
 		color: var(--accent-primary);
 	}
 	.drop-text {
