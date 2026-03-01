@@ -37,7 +37,7 @@
 	}
 	.step-badge {
 		font-family: var(--font-display);
-		font-size: 0.6875rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
@@ -51,7 +51,7 @@
 		margin: 0;
 	}
 	.step-card :global(.step-desc) {
-		font-size: 0.875rem;
+		font-size: 1rem;
 		color: var(--text-secondary);
 		line-height: 1.6;
 		margin: 0 0 var(--space-md);
@@ -67,7 +67,7 @@
 		margin: 0 0 var(--space-xs);
 	}
 	.step-card :global(.setup-subtitle) {
-		font-size: 0.875rem;
+		font-size: 0.9375rem;
 		color: var(--text-muted);
 		margin: 0 0 var(--space-xl);
 		line-height: 1.5;
@@ -90,9 +90,9 @@
 		margin-top: 1px;
 	}
 	.step-card :global(.info-box span) {
-		font-size: 0.8125rem;
+		font-size: 0.9375rem;
 		color: var(--text-secondary);
-		line-height: 1.4;
+		line-height: 1.5;
 	}
 	.step-card :global(.url-display) {
 		display: flex;
@@ -106,7 +106,7 @@
 	}
 	.step-card :global(.url-display code) {
 		flex: 1;
-		font-size: 0.6875rem;
+		font-size: 0.8125rem;
 		color: var(--accent-primary);
 		word-break: break-all;
 		font-family: monospace;
@@ -114,7 +114,7 @@
 	.step-card :global(.url-display code.url-placeholder) {
 		color: var(--text-muted);
 		font-family: var(--font-body);
-		font-size: 0.75rem;
+		font-size: 0.8125rem;
 	}
 	.step-card :global(.copy-btn) {
 		flex-shrink: 0;
@@ -123,7 +123,7 @@
 		border: 1px solid var(--border);
 		border-radius: var(--radius-full);
 		color: var(--text-primary);
-		font-size: 0.6875rem;
+		font-size: 0.8125rem;
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -136,7 +136,7 @@
 		gap: var(--space-sm);
 	}
 	.step-card :global(.json-keys li) {
-		font-size: 0.8125rem;
+		font-size: 0.9375rem;
 		color: var(--text-secondary);
 		line-height: 1.5;
 		padding-left: var(--space-md);
@@ -154,7 +154,7 @@
 	}
 	.step-card :global(.key-name) {
 		font-family: 'SF Mono', 'Fira Code', monospace;
-		font-size: 0.75rem;
+		font-size: 0.8125rem;
 		background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
 		color: var(--accent-primary);
 		padding: 1px 6px;

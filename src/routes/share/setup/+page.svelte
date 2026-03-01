@@ -1,23 +1,58 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import { page } from '$app/stores';
 	import { resolve } from '$app/paths';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { toast } from '$lib/stores/toasts';
 	import SetupStepCard from '$lib/components/settings/SetupStepCard.svelte';
 	import SetupDoneState from '$lib/components/settings/SetupDoneState.svelte';
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
-	import InfoIcon from 'phosphor-svelte/lib/InfoIcon';
+	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 
-	const TEMPLATE_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/72a027bd24b448d983c31287a68603f1';
+	const TEMPLATE_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/bc2515f23aae48c597e5606689c9c32f';
+	const ICLOUD_SHORTCUT_RE = /^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}\/?$/;
 
 	const appUrl = $derived($page.data.appUrl as string);
+	const shortcutToken = $derived(($page.data.shortcutToken as string | null) ?? '???');
+	const hostPhone = $derived($page.data.hostPhone as string);
 
 	let currentStep = $state(0);
 	let completedSteps = new SvelteSet<number>();
+	let icloudLink = $state('');
+	let savingLink = $state(false);
+	let copiedField = $state<string | null>(null);
 
-	const totalSteps = 3;
+	// Validation state
+	let validating = $state(false);
+	let validationWarnings = $state<{ code: string; message: string }[]>([]);
+	let validated = $state(false);
+	let shortcutName = $state<string | null>(null);
+	let dismissedWarnings = new SvelteSet<number>();
+
+	const icloudLinkValid = $derived(ICLOUD_SHORTCUT_RE.test(icloudLink.trim()));
+	const icloudLinkError = $derived(
+		icloudLink.trim().length > 0 && !icloudLinkValid
+			? 'Must be an iCloud shortcut link (https://www.icloud.com/shortcuts/...)'
+			: ''
+	);
+	const hasWarnings = $derived(validated && validationWarnings.length > 0);
+	const isTemplateLink = $derived(
+		icloudLink.trim().replace(/\/$/, '') === TEMPLATE_SHORTCUT_URL.replace(/\/$/, '')
+	);
+
+	function toggleWarning(index: number) {
+		if (dismissedWarnings.has(index)) {
+			dismissedWarnings.delete(index);
+		} else {
+			dismissedWarnings.add(index);
+		}
+	}
+
+	const totalSteps = 4;
 	const isLastStep = $derived(currentStep === totalSteps - 1);
 	const allDone = $derived(currentStep === totalSteps);
 
@@ -35,6 +70,83 @@
 	function goToStep(step: number) {
 		if (step <= Math.max(...completedSteps, -1) + 1) {
 			currentStep = step;
+		}
+	}
+
+	async function copyValue(value: string, field: string) {
+		try {
+			await navigator.clipboard.writeText(value);
+			copiedField = field;
+			setTimeout(() => (copiedField = null), 2000);
+		} catch {
+			toast.error('Failed to copy');
+		}
+	}
+
+	async function runValidation(url: string) {
+		validating = true;
+		validated = false;
+		validationWarnings = [];
+		shortcutName = null;
+		dismissedWarnings = new SvelteSet();
+		try {
+			const res = await fetch('/api/group/shortcut/validate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ shortcutUrl: url })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				validationWarnings = data.warnings ?? [];
+				shortcutName = data.name ?? null;
+				validated = true;
+
+				// No warnings — auto-save
+				if (validationWarnings.length === 0) {
+					await doSave(url);
+				}
+			} else {
+				const data = await res.json();
+				toast.error(data.error || 'Validation failed');
+			}
+		} catch {
+			toast.error('Could not validate shortcut');
+		} finally {
+			validating = false;
+		}
+	}
+
+	async function validateAndSave() {
+		const trimmed = icloudLink.trim();
+		if (!trimmed || !icloudLinkValid) return;
+		await runValidation(trimmed);
+	}
+
+	async function skipAndSave() {
+		const trimmed = icloudLink.trim();
+		if (!trimmed || !icloudLinkValid) return;
+		await doSave(trimmed);
+	}
+
+	async function doSave(trimmed: string) {
+		savingLink = true;
+		try {
+			const res = await fetch('/api/group/shortcut', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ shortcutUrl: trimmed })
+			});
+			if (res.ok) {
+				toast.success('Shortcut link saved');
+				nextStep();
+			} else {
+				const data = await res.json();
+				toast.error(data.error || 'Failed to save');
+			}
+		} catch {
+			toast.error('Failed to save');
+		} finally {
+			savingLink = false;
 		}
 	}
 </script>
@@ -55,7 +167,16 @@
 	</nav>
 
 	<div class="setup-content">
+		<!-- Difficulty disclaimer -->
 		{#if !allDone}
+			<div class="warning-card">
+				<WarningIcon size={20} weight="fill" />
+				<p>
+					Setting up the Share Shortcut requires careful attention. If any step is done incorrectly,
+					your group members will get errors when they try to share clips. Follow each step exactly.
+				</p>
+			</div>
+
 			<!-- Progress dots -->
 			<div class="progress-dots">
 				{#each Array(totalSteps) as _, i (i)}
@@ -76,59 +197,202 @@
 		{/if}
 
 		<!-- Step cards -->
-		<SetupStepCard step={1} title="Download the template" visible={currentStep === 0 && !allDone}>
+		<SetupStepCard
+			step={1}
+			title="Install the template shortcut"
+			visible={currentStep === 0 && !allDone}
+		>
 			<h1 class="setup-title">Set up Share Shortcut</h1>
+			<span class="difficulty-badge">Difficulty: Intermediate</span>
 			<p class="setup-subtitle">
 				Create an iOS Shortcut so your group can share clips directly from TikTok, Instagram, and
-				other apps.
+				other apps — without opening scrolly.
 			</p>
 			<p class="step-desc">
-				Tap the button below to download the pre-built shortcut template. It has everything
-				configured — you just need to update the URL.
+				Tap the button below to install the template shortcut. When it opens, you'll be prompted
+				with setup questions — fill them in using the values from the next step.
 			</p>
-			<a href={TEMPLATE_SHORTCUT_URL} class="icloud-btn" target="_blank" rel="external noopener">
+			<a
+				href={TEMPLATE_SHORTCUT_URL}
+				class="icloud-btn"
+				target="_blank"
+				rel="external noopener"
+				onclick={nextStep}
+			>
 				<DownloadSimpleIcon size={22} />
 				Get Template Shortcut
 			</a>
 		</SetupStepCard>
 
-		<SetupStepCard step={2} title="Change the URL" visible={currentStep === 1 && !allDone}>
+		<SetupStepCard
+			step={2}
+			title="Fill in the setup prompts"
+			visible={currentStep === 1 && !allDone}
+		>
 			<p class="step-desc">
-				Open the shortcut you just downloaded in the Shortcuts app. You'll see two actions that
-				reference a URL — update both to your scrolly instance:
+				When you install the template, iOS will ask you to fill in setup questions. Copy and paste
+				each value exactly as shown:
 			</p>
-			<div class="url-display">
-				<code>{appUrl}</code>
+
+			<div class="setup-field">
+				<span class="field-label">Instance URL</span>
+				<p class="field-hint">Your scrolly server address — no trailing slash.</p>
+				<div class="url-display">
+					<code>{appUrl}</code>
+					<button class="copy-btn" onclick={() => copyValue(appUrl, 'url')}>
+						{#if copiedField === 'url'}
+							<CheckIcon size={14} weight="bold" />
+						{:else}
+							<CopyIcon size={14} />
+						{/if}
+						{copiedField === 'url' ? 'Copied' : 'Copy'}
+					</button>
+				</div>
 			</div>
+
+			<div class="setup-field">
+				<span class="field-label">Group Token</span>
+				<p class="field-hint">Unique to your group. Identifies where shared clips go.</p>
+				<div class="url-display">
+					<code>{shortcutToken}</code>
+					<button class="copy-btn" onclick={() => copyValue(shortcutToken, 'token')}>
+						{#if copiedField === 'token'}
+							<CheckIcon size={14} weight="bold" />
+						{:else}
+							<CopyIcon size={14} />
+						{/if}
+						{copiedField === 'token' ? 'Copied' : 'Copy'}
+					</button>
+				</div>
+			</div>
+
+			<div class="setup-field">
+				<span class="field-label">Your Phone Number</span>
+				<p class="field-hint">
+					Enter your number for now. Group members will enter theirs when they install.
+				</p>
+				<div class="url-display">
+					<code>{hostPhone}</code>
+					<button class="copy-btn" onclick={() => copyValue(hostPhone, 'phone')}>
+						{#if copiedField === 'phone'}
+							<CheckIcon size={14} weight="bold" />
+						{:else}
+							<CopyIcon size={14} />
+						{/if}
+						{copiedField === 'phone' ? 'Copied' : 'Copy'}
+					</button>
+				</div>
+			</div>
+
 			<p class="step-desc">
-				Look for the <strong>"Get Contents of URL"</strong> action and the
-				<strong>"Open URLs"</strong> action inside the "Otherwise" block. Replace the placeholder URL
-				in each with your URL above.
+				After filling in all prompts, tap <strong>"Add Shortcut"</strong> to finish installing.
 			</p>
-			<div class="info-box">
-				<InfoIcon size={18} />
+		</SetupStepCard>
+
+		<SetupStepCard
+			step={3}
+			title="Remove extra setup prompts"
+			visible={currentStep === 2 && !allDone}
+		>
+			<p class="step-desc">
+				This is the most important step. Your group members should <strong>only</strong> be asked for
+				their phone number when they install — not the URL or token.
+			</p>
+			<p class="step-desc">
+				In the Shortcuts app, long-press your new shortcut and tap the <strong>ⓘ</strong> icon (or
+				tap <strong>"Details"</strong>). Scroll down to the <strong>"Setup"</strong> section.
+			</p>
+			<p class="step-desc">
+				Delete every Import Question <strong>except</strong> the one for
+				<strong>phone number</strong>. The URL and token are already baked into the shortcut — only
+				the phone number needs to be asked on install.
+			</p>
+			<div class="info-box warn">
+				<WarningIcon size={18} weight="fill" />
 				<span>
-					The shortcut uses your browser's login session to identify who shared the clip. Group
-					members need to be logged into scrolly in Safari for it to work automatically.
+					If you skip this step, your group members will be asked for the URL and token when they
+					install — they won't know what to enter and the shortcut will break.
 				</span>
 			</div>
 		</SetupStepCard>
 
-		<SetupStepCard step={3} title="Share with your group" visible={currentStep === 2 && !allDone}>
+		<SetupStepCard step={4} title="Share with your group" visible={currentStep === 3 && !allDone}>
 			<p class="step-desc">
-				Long-press your customized shortcut and choose
+				Long-press your customized shortcut in the Shortcuts app and choose
 				<strong>"Share"</strong>, then <strong>"Copy iCloud Link"</strong>.
 			</p>
 			<p class="step-desc">
-				Go back to <strong>Settings → iOS Shortcut</strong> in scrolly and paste the iCloud link.
-				Once saved, your group members will see a <strong>"Get Shortcut"</strong> button in their settings
-				to install it with one tap.
+				Paste the iCloud link below. We'll check that it's configured correctly before saving.
 			</p>
+			<div class="icloud-input-group">
+				<input
+					type="url"
+					class="icloud-input"
+					class:invalid={icloudLinkError || isTemplateLink}
+					bind:value={icloudLink}
+					placeholder="https://www.icloud.com/shortcuts/..."
+					disabled={savingLink || validating}
+				/>
+				{#if icloudLinkError}
+					<p class="input-error">{icloudLinkError}</p>
+				{:else if isTemplateLink}
+					<p class="input-error">
+						This is the template shortcut link, not your customized one. Share your edited shortcut
+						from the Shortcuts app to get a new iCloud link.
+					</p>
+				{/if}
+			</div>
+
+			{#if !validated}
+				<button
+					class="save-link-btn"
+					onclick={validateAndSave}
+					disabled={!icloudLinkValid || validating || isTemplateLink}
+				>
+					{validating ? 'Validating…' : 'Validate & Save'}
+				</button>
+			{/if}
+
+			{#if hasWarnings}
+				<div class="validation-results">
+					{#if shortcutName}
+						<p class="shortcut-name">Shortcut: <strong>{shortcutName}</strong></p>
+					{/if}
+					<p class="checklist-hint">
+						Review each issue. Check off items you've addressed or want to skip:
+					</p>
+					{#each validationWarnings as warning, i (i)}
+						<label class="validation-warning-check" class:dismissed={dismissedWarnings.has(i)}>
+							<input
+								type="checkbox"
+								checked={dismissedWarnings.has(i)}
+								onchange={() => toggleWarning(i)}
+							/>
+							<WarningIcon size={16} weight="fill" />
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- server-generated, no user input -->
+							<span>{@html warning.message}</span>
+						</label>
+					{/each}
+				</div>
+
+				<div class="validation-actions">
+					<button
+						class="save-link-btn revalidate-btn"
+						onclick={validateAndSave}
+						disabled={validating}
+					>
+						{validating ? 'Validating…' : 'Re-validate'}
+					</button>
+					<button class="save-link-btn skip-btn" onclick={skipAndSave} disabled={savingLink}>
+						{savingLink ? 'Saving…' : 'Skip & Save'}
+					</button>
+				</div>
+			{/if}
 		</SetupStepCard>
 
 		<!-- Done state -->
 		{#if allDone}
-			<SetupDoneState settingsHref={resolve('/settings')} />
+			<SetupDoneState settingsHref={resolve('/settings')} shortcutUrl={icloudLink.trim()} />
 		{/if}
 
 		<!-- Navigation -->
@@ -142,12 +406,12 @@
 				{:else}
 					<div></div>
 				{/if}
-				<button class="nav-btn nav-next" onclick={nextStep}>
-					{isLastStep ? "I'm done" : 'Next'}
-					{#if !isLastStep}
+				{#if !isLastStep}
+					<button class="nav-btn nav-next" onclick={nextStep}>
+						Next
 						<CaretRightIcon size={18} />
-					{/if}
-				</button>
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -194,6 +458,27 @@
 		padding: var(--space-xl) var(--space-lg);
 		padding-bottom: calc(var(--space-3xl) + env(safe-area-inset-bottom, 0px));
 	}
+	.warning-card {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-sm);
+		padding: var(--space-md);
+		background: color-mix(in srgb, var(--warning) 10%, transparent);
+		border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--space-xl);
+	}
+	.warning-card :global(svg) {
+		flex-shrink: 0;
+		color: var(--warning);
+		margin-top: 1px;
+	}
+	.warning-card p {
+		font-size: 0.9375rem;
+		color: var(--text-secondary);
+		line-height: 1.5;
+		margin: 0;
+	}
 	.progress-dots {
 		display: flex;
 		gap: var(--space-sm);
@@ -229,18 +514,16 @@
 		height: 14px;
 		color: var(--bg-primary);
 	}
-	.setup-title {
-		font-family: var(--font-display);
-		font-size: 1.5rem;
-		font-weight: 800;
-		color: var(--text-primary);
-		margin: 0 0 var(--space-xs);
-	}
-	.setup-subtitle {
-		font-size: 0.875rem;
-		color: var(--text-muted);
-		margin: 0 0 var(--space-xl);
-		line-height: 1.5;
+	.difficulty-badge {
+		display: inline-flex;
+		align-self: flex-start;
+		padding: var(--space-xs) var(--space-md);
+		background: color-mix(in srgb, var(--warning) 12%, transparent);
+		color: var(--warning);
+		font-size: 0.75rem;
+		font-weight: 700;
+		border-radius: var(--radius-full);
+		margin-bottom: var(--space-md);
 	}
 	.icloud-btn {
 		display: flex;
@@ -301,5 +584,165 @@
 		color: var(--bg-primary);
 		font-weight: 700;
 		margin-left: auto;
+	}
+	.icloud-input-group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+	}
+	.icloud-input {
+		width: 100%;
+		padding: var(--space-sm) var(--space-md);
+		background: var(--bg-surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		color: var(--text-primary);
+		font-size: 0.9375rem;
+		outline: none;
+		transition: border-color 0.2s ease;
+		box-sizing: border-box;
+	}
+	.icloud-input::placeholder {
+		color: var(--text-muted);
+	}
+	.icloud-input:focus {
+		border-color: var(--accent-primary);
+	}
+	.icloud-input.invalid:not(:focus) {
+		border-color: var(--error);
+	}
+	.icloud-input:disabled {
+		opacity: 0.5;
+	}
+	.input-error {
+		font-size: 0.8125rem;
+		color: var(--error);
+		margin: 0;
+	}
+	.save-link-btn {
+		width: 100%;
+		margin-top: var(--space-md);
+		padding: var(--space-md) var(--space-xl);
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		border: none;
+		border-radius: var(--radius-full);
+		font-size: 1rem;
+		font-weight: 700;
+		font-family: var(--font-display);
+		cursor: pointer;
+		transition: transform 0.1s ease;
+	}
+	.save-link-btn:active:not(:disabled) {
+		transform: scale(0.97);
+	}
+	.save-link-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.setup-field {
+		margin-bottom: var(--space-lg);
+	}
+	.setup-field:last-of-type {
+		margin-bottom: var(--space-md);
+	}
+	.field-label {
+		font-family: var(--font-display);
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin-bottom: var(--space-xs);
+	}
+	.field-hint {
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+		margin: 0 0 var(--space-sm);
+		line-height: 1.4;
+	}
+	.validation-results {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-sm);
+		margin-top: var(--space-lg);
+	}
+	.shortcut-name {
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
+		margin: 0;
+	}
+	.shortcut-name strong {
+		color: var(--text-primary);
+	}
+	.checklist-hint {
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+		margin: 0;
+	}
+	.validation-warning-check {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		background: color-mix(in srgb, var(--warning) 8%, transparent);
+		border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition: opacity 0.2s ease;
+	}
+	.validation-warning-check input[type='checkbox'] {
+		flex-shrink: 0;
+		width: 16px;
+		height: 16px;
+		margin-top: 2px;
+		accent-color: var(--accent-primary);
+		cursor: pointer;
+	}
+	.validation-warning-check :global(svg) {
+		flex-shrink: 0;
+		color: var(--warning);
+		margin-top: 2px;
+		transition: opacity 0.2s ease;
+	}
+	.validation-warning-check span {
+		font-size: 0.9375rem;
+		color: var(--text-secondary);
+		line-height: 1.5;
+		transition: all 0.2s ease;
+	}
+	.validation-warning-check span :global(b) {
+		color: var(--text-primary);
+		font-weight: 600;
+	}
+	.validation-warning-check.dismissed {
+		opacity: 0.5;
+	}
+	.validation-warning-check.dismissed span {
+		text-decoration: line-through;
+		color: var(--text-muted);
+	}
+	.validation-actions {
+		display: flex;
+		gap: var(--space-sm);
+		margin-top: var(--space-md);
+	}
+	.validation-actions .save-link-btn {
+		flex: 1;
+		margin-top: 0;
+	}
+	.revalidate-btn {
+		background: var(--accent-primary) !important;
+		color: var(--bg-primary) !important;
+	}
+	.skip-btn {
+		background: var(--bg-surface) !important;
+		color: var(--text-primary) !important;
+		border: 1px solid var(--border) !important;
+	}
+	:global(.info-box.warn) {
+		background: color-mix(in srgb, var(--warning) 8%, transparent);
+		border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
+	}
+	:global(.info-box.warn svg) {
+		color: var(--warning);
 	}
 </style>

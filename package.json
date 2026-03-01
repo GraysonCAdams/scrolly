@@ -38,6 +38,7 @@
 	},
 	"dependencies": {
 		"better-sqlite3": "^12.6.2",
+		"bplist-parser": "^0.3.2",
 		"drizzle-orm": "^0.45.1",
 		"mrmime": "^2.0.1",
 		"pino": "^10.3.1",
