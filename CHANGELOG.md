@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.2.0...scrolly-v1.3.0) (2026-03-01)
+
+
+### Features
+
+* phone utils, dynamic icons, push deep-linking, username editing, UI polish ([#23](https://github.com/312-dev/scrolly/issues/23)) ([38ca8e6](https://github.com/312-dev/scrolly/commit/38ca8e652b18c4211f25e8909ee1e357695e45bd))
+
+
+### Bug Fixes
+
+* auto-trigger CI and Docker publish for release-please PRs ([#21](https://github.com/312-dev/scrolly/issues/21)) ([fb7ba4a](https://github.com/312-dev/scrolly/commit/fb7ba4a33b5179addf673e323171b8636562086c))
+
 ## [1.2.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.1.0...scrolly-v1.2.0) (2026-03-01)
 
 
