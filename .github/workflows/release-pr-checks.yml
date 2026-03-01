@@ -1,0 +1,102 @@
+# Runs CI and CodeQL on release-please PRs.
+#
+# Why this exists: release-please creates PRs using GITHUB_TOKEN, which does
+# NOT trigger other workflows (pull_request events). pull_request_target IS
+# triggered by GITHUB_TOKEN events because it runs in the base branch context.
+# Without this, release PRs have no status checks and can't be merged when
+# branch protection requires them.
+#
+# Security: restricted to release-please branches only. The checkout uses the
+# PR's HEAD SHA, which is safe because release-please PRs come from within the
+# same repository (not forks) and only modify version/changelog files.
+
+name: Release PR Checks
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions: read-all
+
+jobs:
+  # Gate: only run for release-please PRs
+  should-run:
+    if: startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Running CI for release-please PR"
+
+  lint-and-check:
+    needs: [should-run]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (ratcheted)
+        run: npm run lint:ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Tests with coverage
+        run: npm run test:coverage
+
+      - name: Production build
+        run: npm run build
+
+  ci:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint-and-check]
+    steps:
+      - name: Check CI status
+        run: |
+          if [[ "${{ needs.lint-and-check.result }}" == "failure" || "${{ needs.lint-and-check.result }}" == "cancelled" ]]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "CI passed"
+
+  codeql:
+    needs: [should-run]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          config-file: .github/codeql/codeql-config.yml
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'

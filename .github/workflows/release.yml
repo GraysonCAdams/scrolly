@@ -4,20 +4,10 @@ on:
   push:
     branches: [main]
 
-# TODO: Replace GITHUB_TOKEN with a GitHub App token to properly trigger
-# CI/Security workflows on release-please PRs and docker-publish on releases.
-# See: https://github.com/actions/create-github-app-token
-#
-# Once configured, add to this workflow:
-#   - name: Generate GitHub App token
-#     id: app-token
-#     uses: actions/create-github-app-token@v2
-#     with:
-#       app-id: ${{ vars.RELEASE_APP_ID }}
-#       private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-#
-# Then pass `token: ${{ steps.app-token.outputs.token }}` to release-please.
-# This eliminates all workarounds for GITHUB_TOKEN event limitations.
+# Note: release-please uses GITHUB_TOKEN, which doesn't trigger other workflows.
+# CI/CodeQL checks on release PRs are handled by release-pr-checks.yml using
+# pull_request_target. Docker publishing is handled by docker-publish.yml using
+# workflow_run on this workflow (to detect when a release is created).
 
 permissions:
   contents: write
