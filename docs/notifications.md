@@ -26,12 +26,14 @@ Real-time push notifications via the Web Push Protocol (VAPID).
 
 ### Notification Types
 
-| Event | Who gets notified | Preference key |
-|-------|-------------------|----------------|
-| New clip added (web or SMS) | All group members except poster (push only) | `newAdds` |
-| Reaction on a clip | Clip owner only (push + in-app) | `reactions` |
-| Comment on a clip | Clip owner only (push + in-app) | `comments` |
-| Daily reminder | Per-user opt-in | `dailyReminder` (not yet scheduled) |
+| Event | Who gets notified | When sent | Preference key |
+|-------|-------------------|-----------|----------------|
+| New clip added | All group members except poster (push only) | After download succeeds (`status: 'ready'`) | `newAdds` |
+| Reaction on a clip | Clip owner only (push + in-app) | Immediately after reaction is persisted | `reactions` |
+| Comment on a clip | Clip owner only (push + in-app) | Immediately after comment is persisted | `comments` |
+| Daily reminder | Per-user opt-in | — | `dailyReminder` (not yet scheduled) |
+
+**Timing rationale:** New clip notifications are deferred until the download pipeline finishes successfully. This avoids notifying users about clips that may fail to download. If a download fails, no notification is sent. Reactions and comments notify immediately since the action is already complete.
 
 ### Customization
 
@@ -76,7 +78,7 @@ VAPID_SUBJECT=mailto:you@example.com
 
 | Layer | File | Role |
 |-------|------|------|
-| Server push utility | `src/lib/server/push.ts` | VAPID init, `sendNotification()`, `sendGroupNotification()` |
+| Server push utility | `src/lib/server/push.ts` | VAPID init, `sendNotification()`, `sendGroupNotification()`, `notifyNewClip()` |
 | Subscribe API | `src/routes/api/push/subscribe/+server.ts` | POST/DELETE push subscriptions |
 | Notifications API | `src/routes/api/notifications/+server.ts` | GET notification feed |
 | Mark-read API | `src/routes/api/notifications/mark-read/+server.ts` | POST mark as read |

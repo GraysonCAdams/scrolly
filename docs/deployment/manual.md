@@ -57,15 +57,9 @@ scrolly.example.com {
 }
 ```
 
-## Twilio Webhook
+## Twilio
 
-Configure your Twilio phone number's webhook URL to point to your server:
-
-```
-https://your-domain.com/api/auth
-```
-
-This enables SMS-based video ingestion and phone verification.
+Twilio is used for phone verification (SMS codes during onboarding and login). Configure your Twilio Verify service SID and credentials in your `.env` file. See the [Configuration](/deployment/configuration) page for details.
 
 ## Updating
 
@@ -85,7 +79,7 @@ By operating a self-hosted instance, you are responsible for:
 
 - All content downloaded, stored, and shared on your instance
 - Compliance with data protection laws (GDPR, CCPA, etc.)
-- Compliance with telecommunications regulations if using SMS
+- Compliance with telecommunications regulations for SMS verification
 - Establishing your own terms of service and privacy policy
 - Securing your deployment and protecting user data
 - **Download providers:** Installing a provider is an explicit opt-in action. By doing so, you accept responsibility for compliance with applicable laws and the provider's own license terms. No download tools are bundled with or automatically installed by Scrolly.

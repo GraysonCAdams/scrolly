@@ -29,7 +29,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 |--------|------|-------|
 | id | text | PK, UUID |
 | username | text | Unique within group |
-| phone | text | Required, E.164 format (+1234567890). Used to match inbound SMS. Unique across system. |
+| phone | text | Required, E.164 format (+1234567890). Used for SMS verification and iOS Shortcut auth. Unique across system. |
 | group_id | text | FK → groups.id |
 | theme_preference | text | `'system'` / `'light'` / `'dark'`. Default `'system'`. |
 | auto_scroll | integer | Boolean (0/1). Default 0. |
@@ -48,7 +48,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | original_url | text | Source URL. Preserved even after video deletion. Unique per group. |
 | video_path | text | Nullable. Local filesystem path to downloaded video. |
 | thumbnail_path | text | Nullable. Path to thumbnail image. |
-| title | text | Caption from SMS, source metadata, or AI-generated. |
+| title | text | User-provided caption, source metadata, or AI-generated. |
 | duration_seconds | integer | Nullable |
 | platform | text | `'tiktok'` / `'instagram'` / `'youtube'` / etc. |
 | status | text | `'downloading'` / `'ready'` / `'failed'` / `'deleted'` |

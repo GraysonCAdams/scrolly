@@ -13,7 +13,7 @@ Scrolly is a lightweight monolith — a single Node.js process serving the front
 | **Disk** | 1 GB + video storage | ~500 MB for the app/dependencies, rest for media |
 | **OS** | Linux (x86_64 or arm64) | Ubuntu 22.04+, Debian 12+, or any Docker-capable host |
 | **Runtime** | Node.js 24+ | Included in Docker image |
-| **Network** | Public IP + HTTPS | Required for Twilio webhooks and push notifications |
+| **Network** | Public IP + HTTPS | Required for push notifications |
 
 ### Recommended
 
@@ -90,32 +90,23 @@ Push notifications won't work without these. The app will still function, but us
 
 ```mermaid
 sequenceDiagram
-  participant U as User's Phone
-  participant T as Twilio
+  participant C as Client
   participant S as Scrolly Server
+  participant T as Twilio
 
-  Note over U,S: SMS Video Ingestion
-  U->>T: Text a video link
-  T->>S: POST /api/auth (webhook)
-  S->>S: Download video
-  S-->>U: Clip appears in feed
-
-  Note over U,S: Phone Verification
+  Note over C,T: Phone Verification
+  C->>S: Request verification code
   S->>T: Send SMS code
-  T->>U: Deliver code
-  U->>S: Submit code
-  S-->>U: Verified
+  T->>C: SMS code delivered
+  C->>S: Submit code
+  S-->>C: Verified
 ```
 
 1. Create a [Twilio account](https://www.twilio.com)
 2. Create a Verify service in the Twilio console
-3. Get a phone number with SMS capability (for inbound video ingestion)
-4. Set the webhook URL for inbound messages to `https://your-domain.com/api/auth`
-5. Add the account SID, auth token, and Verify service SID to your `.env`
+3. Add the account SID, auth token, and Verify service SID to your `.env`
 
-Twilio is used for:
-- **Phone verification** — SMS codes during onboarding and login
-- **Video ingestion** — Users text links to the Scrolly number to add clips
+Twilio is used for **phone verification only** — SMS codes during onboarding and login. Clip sharing is handled in-app, via Android share target, or iOS Shortcut.
 
 ## Data Storage
 

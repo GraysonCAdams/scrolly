@@ -17,7 +17,7 @@ features:
   - title: TikTok-Style Feed
     details: Full-screen vertical reel with swipe navigation, inline playback, and reactions.
   - title: Video & Music Sharing
-    details: Share links via SMS or in-app. Videos downloaded via pluggable providers, music resolved across platforms via Odesli.
+    details: Share links in-app, via Android share sheet, or iOS Shortcut. Videos downloaded via pluggable providers, music resolved across platforms via Odesli.
   - title: Private Groups
     details: Invite-only access with customizable accent colors, group names, and host controls.
   - title: Push Notifications

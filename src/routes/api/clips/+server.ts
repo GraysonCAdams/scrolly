@@ -19,7 +19,6 @@ import {
 } from '$lib/url-validation';
 import { downloadVideo } from '$lib/server/video/download';
 import { downloadMusic } from '$lib/server/music/download';
-import { sendGroupNotification } from '$lib/server/push';
 import { normalizeUrl } from '$lib/server/download-lock';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { v4 as uuid } from 'uuid';
@@ -265,18 +264,7 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 		downloadVideo(clipId, videoUrl).catch(markFailedOnError);
 	}
 
-	// Notify group members
-	sendGroupNotification(
-		user.groupId,
-		{
-			title: 'New clip added',
-			body: `${user.username} shared a new ${contentType === 'music' ? 'song' : 'video'}`,
-			url: '/',
-			tag: 'new-clip'
-		},
-		'newAdds',
-		user.id
-	).catch((err) => log.error({ err }, 'push notification failed'));
+	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
 
 	return json({ clip: { id: clipId, status: 'downloading', contentType } }, { status: 201 });
 });

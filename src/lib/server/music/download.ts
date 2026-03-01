@@ -6,6 +6,7 @@ import { deduplicatedDownload } from '../download-lock';
 import { getActiveProvider } from '../providers/registry';
 import type { AudioDownloadResult } from '../providers/types';
 import { DATA_DIR, getMaxFileSize, cleanupClipFiles } from '$lib/server/download-utils';
+import { notifyNewClip } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('music');
@@ -113,6 +114,11 @@ async function finalizeMusicClip(
 			fileSizeBytes: fileSizeBytes || null
 		})
 		.where(eq(clips.id, clipId));
+
+	// Notify group now that the clip is actually ready
+	await notifyNewClip(clipId).catch((err) =>
+		log.error({ err, clipId }, 'push notification failed')
+	);
 }
 
 async function downloadMusicInner(clipId: string, url: string): Promise<void> {

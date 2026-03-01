@@ -10,7 +10,7 @@
 | Video downloads | Pluggable providers (subprocess) | Host-installed at runtime; supports TikTok, Instagram, YouTube, Facebook, and more |
 | Music resolution | Odesli | Cross-platform streaming link resolution (Spotify, Apple Music, YouTube Music) |
 | Video storage | Local filesystem | `data/videos/` on VPS |
-| SMS | Twilio | Inbound webhook for video/music ingestion, SMS verification codes |
+| SMS | Twilio | SMS verification codes for phone-based auth |
 | Push notifications | web-push (Node.js) | VAPID-based Web Push Protocol |
 | Containerization | Docker | Single-container deployment with docker-compose |
 | Language | TypeScript | End-to-end type safety |
@@ -33,7 +33,7 @@
 │                  (Drizzle) (videos) │
 ├─────────────────────────────────────┤
 │  Download provider (subprocess)     │
-│  Twilio (SMS inbound/verification)  │
+│  Twilio (SMS verification)          │
 │  web-push (notifications)           │
 │  Odesli (music link resolution)     │
 └─────────────────────────────────────┘
@@ -182,7 +182,7 @@ VPS (Ubuntu, e.g., DigitalOcean or Hetzner)
 4. Configure environment variables (see `.env` template in repo)
 5. Start app: `pm2 start build/index.js --name scrolly`
 6. Generate VAPID keys: `npx web-push generate-vapid-keys`
-7. Configure Twilio webhook URL: `https://your-domain.com/api/auth` (for SMS verification)
+7. Configure Twilio for SMS verification codes (see deployment docs)
 8. Set up a reverse proxy (Caddy, nginx, etc.) for HTTPS
 
 ## PWA Configuration

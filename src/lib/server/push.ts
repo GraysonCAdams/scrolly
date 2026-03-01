@@ -1,7 +1,7 @@
 import webpush from 'web-push';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
-import { pushSubscriptions, notificationPreferences, users } from '$lib/server/db/schema';
+import { clips, pushSubscriptions, notificationPreferences, users } from '$lib/server/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { createLogger } from '$lib/server/logger';
 
@@ -59,6 +59,36 @@ export async function sendNotification(
 				}
 			}
 		})
+	);
+}
+
+/**
+ * Send push notification to the group after a clip download succeeds.
+ * Called from the download pipeline — NOT from the API endpoint.
+ */
+export async function notifyNewClip(clipId: string): Promise<void> {
+	const clip = await db.query.clips.findFirst({
+		where: eq(clips.id, clipId)
+	});
+	if (!clip) return;
+
+	const uploader = await db.query.users.findFirst({
+		where: eq(users.id, clip.addedBy)
+	});
+	if (!uploader) return;
+
+	const label = clip.contentType === 'music' ? 'song' : 'video';
+
+	await sendGroupNotification(
+		clip.groupId,
+		{
+			title: 'New clip added',
+			body: `${uploader.username} shared a new ${label}`,
+			url: '/',
+			tag: 'new-clip'
+		},
+		'newAdds',
+		uploader.id
 	);
 }
 
