@@ -14,7 +14,7 @@ COPY . .
 ENV APP_VERSION=${APP_VERSION}
 
 RUN npm run build
-RUN HUSKY=0 npm ci --omit=dev
+RUN npm pkg delete scripts.prepare && npm ci --omit=dev
 
 
 # ----- Stage 2: Runtime -----
