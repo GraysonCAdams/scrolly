@@ -10,6 +10,10 @@
 	import { initAudioContext } from '$lib/audio/normalizer';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
+	import BellIcon from 'phosphor-svelte/lib/BellIcon';
+	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
 	const { children }: { children: Snippet } = $props();
 
 	const isFeed = $derived(page.url.pathname === '/');
@@ -78,17 +82,7 @@
 			class:ui-hidden={$feedUiHidden}
 			onclick={() => activitySheetOpen.set(true)}
 		>
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-				<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-			</svg>
+			<BellIcon size={24} />
 			{#if $unreadCount > 0}
 				<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 			{/if}
@@ -99,17 +93,7 @@
 			<span class="top-title">{pageTitle}</span>
 			{#if !isSettings}
 				<button class="top-bar-action" onclick={() => activitySheetOpen.set(true)}>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-						<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-					</svg>
+					<BellIcon size={22} />
 					{#if $unreadCount > 0}
 						<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 					{/if}
@@ -123,62 +107,12 @@
 	<nav class="bottom-tabs" class:overlay-mode={isFeed} class:ui-hidden={isFeed && $feedUiHidden}>
 		{#if isFeed}
 			<button class="tab active" onclick={() => homeTapSignal.update((n) => n + 1)}>
-				<span class="icon-wrap">
-					<svg
-						class="icon-filled"
-						class:hidden={!isFeed}
-						viewBox="0 0 24 24"
-						fill="currentColor"
-						stroke="none"
-					>
-						<path
-							d="M12.71 2.29a1 1 0 0 0-1.42 0l-9 9a1 1 0 0 0 1.42 1.42L4 12.41V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.59l.29.3a1 1 0 0 0 1.42-1.42l-9-9zM10 20v-6h4v6h-4z"
-						/>
-					</svg>
-					<svg
-						class="icon-outlined"
-						class:hidden={isFeed}
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-						<path d="M9 21V12h6v9" />
-					</svg>
-				</span>
+				<HouseIcon size={24} weight="fill" />
 				<span>Home</span>
 			</button>
 		{:else}
 			<a href="/" class="tab">
-				<span class="icon-wrap">
-					<svg
-						class="icon-filled"
-						class:hidden={!isFeed}
-						viewBox="0 0 24 24"
-						fill="currentColor"
-						stroke="none"
-					>
-						<path
-							d="M12.71 2.29a1 1 0 0 0-1.42 0l-9 9a1 1 0 0 0 1.42 1.42L4 12.41V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.59l.29.3a1 1 0 0 0 1.42-1.42l-9-9zM10 20v-6h4v6h-4z"
-						/>
-					</svg>
-					<svg
-						class="icon-outlined"
-						class:hidden={isFeed}
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-						<path d="M9 21V12h6v9" />
-					</svg>
-				</span>
+				<HouseIcon size={24} />
 				<span>Home</span>
 			</a>
 		{/if}
@@ -190,48 +124,12 @@
 			}}
 		>
 			<div class="add-icon">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M12 5v14M5 12h14" />
-				</svg>
+				<PlusIcon size={18} weight="bold" />
 			</div>
 			<span>Add</span>
 		</button>
 		<a href="/settings" class="tab" class:active={isSettings}>
-			<span class="icon-wrap">
-				<svg
-					class="icon-filled"
-					class:hidden={!isSettings}
-					viewBox="0 0 24 24"
-					fill="currentColor"
-					stroke="none"
-				>
-					<path
-						d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.26.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"
-					/>
-				</svg>
-				<svg
-					class="icon-outlined"
-					class:hidden={isSettings}
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="3" />
-					<path
-						d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-					/>
-				</svg>
-			</span>
+			<GearSixIcon size={24} weight={isSettings ? 'fill' : 'regular'} />
 			<span>Settings</span>
 		</a>
 	</nav>
@@ -273,7 +171,7 @@
 		pointer-events: none;
 	}
 
-	.feed-notif-btn svg {
+	.feed-notif-btn :global(svg) {
 		width: 24px;
 		height: 24px;
 	}
@@ -341,7 +239,7 @@
 		cursor: pointer;
 	}
 
-	.top-bar-action svg {
+	.top-bar-action :global(svg) {
 		width: 22px;
 		height: 22px;
 	}
@@ -417,25 +315,9 @@
 		color: var(--reel-text);
 	}
 
-	.tab svg {
+	.tab :global(svg) {
 		width: 24px;
 		height: 24px;
-	}
-
-	.icon-wrap {
-		position: relative;
-		width: 24px;
-		height: 24px;
-	}
-
-	.icon-wrap svg {
-		position: absolute;
-		inset: 0;
-		transition: opacity 150ms ease;
-	}
-
-	.icon-wrap svg.hidden {
-		opacity: 0;
 	}
 
 	.add-tab:active .add-icon {
@@ -454,7 +336,7 @@
 		color: var(--bg-primary);
 	}
 
-	.add-icon svg {
+	.add-icon :global(svg) {
 		width: 18px;
 		height: 18px;
 	}
