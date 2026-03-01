@@ -320,7 +320,6 @@
 		padding: var(--space-2xl);
 		margin: 0;
 	}
-
 	.comment {
 		display: flex;
 		gap: var(--space-sm);
@@ -378,11 +377,9 @@
 	.delete-btn:hover {
 		color: var(--error);
 	}
-
 	.comment-text {
 		font-size: 0.875rem;
 	}
-
 	.comment-gif,
 	.reply-gif {
 		display: block;
@@ -398,7 +395,6 @@
 		max-width: 160px;
 		max-height: 120px;
 	}
-
 	.comment-actions {
 		display: flex;
 		align-items: center;
@@ -471,7 +467,6 @@
 	.reply-text {
 		font-size: 0.8125rem;
 	}
-
 	.heart-btn.heart-pop :global(svg) {
 		animation: heart-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
