@@ -55,9 +55,10 @@ export const DELETE: RequestHandler = withAuth(async (_event, { user }) => {
 		return json({ error: 'Invalid path' }, { status: 400 });
 	}
 
+	// eslint-disable-next-line security/detect-non-literal-fs-filename
 	if (existsSync(filePath)) {
-		// eslint-disable-line security/detect-non-literal-fs-filename
-		unlinkSync(filePath); // eslint-disable-line security/detect-non-literal-fs-filename
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		unlinkSync(filePath);
 	}
 
 	await db.update(users).set({ avatarPath: null }).where(eq(users.id, user.id));
