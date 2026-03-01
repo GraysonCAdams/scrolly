@@ -83,7 +83,7 @@ Triggers the download pipeline via the active provider. Requires a download prov
 ### POST /api/clips/share
 Authenticated via `?token=` query parameter (iOS Shortcut token). Allows sharing clips without a session cookie.
 ```
-Request:  { "url": "https://tiktok.com/...", "phones": ["+1234567890"] }
+Request:  { "url": "https://tiktok.com/...", "phone": "+1234567890" }
 Response: { "ok": true, "clipId": "...", "status": "downloading" }   (201 Created)
 ```
 
