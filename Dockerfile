@@ -4,6 +4,8 @@ ARG APP_VERSION=dev
 # ----- Stage 1: Build -----
 FROM node:24-slim AS builder
 
+ARG APP_VERSION
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -19,6 +21,8 @@ RUN npm pkg delete scripts.prepare && npm ci --omit=dev
 
 # ----- Stage 2: Runtime -----
 FROM node:24-slim
+
+ARG APP_VERSION
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
