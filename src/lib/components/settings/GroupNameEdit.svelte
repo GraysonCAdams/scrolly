@@ -4,21 +4,28 @@
 
 	const { initialName }: { initialName: string } = $props();
 
-	let savedName = $state('');
-	let name = $state('');
-	let initialized = false;
-
-	$effect(() => {
-		if (!initialized) {
-			savedName = initialName;
-			name = initialName;
-			initialized = true;
-		}
-	});
+	let savedName = $state(initialName);
+	let name = $state(initialName);
 	let saving = $state(false);
 	let saved = $state(false);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let savedFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		return () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+			if (savedFeedbackTimer) clearTimeout(savedFeedbackTimer);
+		};
+	});
+
+	function debouncedSave() {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => save(), 800);
+	}
 
 	async function save() {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = null;
 		const trimmed = name.trim();
 		if (!trimmed || trimmed === savedName) {
 			name = savedName;
@@ -37,7 +44,7 @@
 				savedName = data.name;
 				name = data.name;
 				saved = true;
-				setTimeout(() => (saved = false), 2000);
+				savedFeedbackTimer = setTimeout(() => (saved = false), 2000);
 			} else {
 				name = savedName;
 				toast.error('Failed to save group name');
@@ -59,6 +66,7 @@
 		type="text"
 		bind:value={name}
 		onblur={save}
+		oninput={debouncedSave}
 		onkeydown={handleKeydown}
 		maxlength="50"
 		disabled={saving}

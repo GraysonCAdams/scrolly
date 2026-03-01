@@ -28,6 +28,9 @@
 	onMount(() => {
 		startPolling();
 		fetchGroupMembers();
+
+		// Tell fixed-position components (e.g. InstallBanner) about the bottom nav height
+		document.documentElement.style.setProperty('--bottom-nav-height', '80px');
 		// Initialize mute state from user preference
 		const user = page.data?.user;
 		if (user) {
@@ -56,6 +59,7 @@
 			stopPolling();
 			themeObserver.disconnect();
 			darkMq.removeEventListener('change', syncThemeColor);
+			document.documentElement.style.removeProperty('--bottom-nav-height');
 		};
 	});
 
@@ -306,7 +310,7 @@
 	}
 
 	.overlay-mode .tab {
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--reel-text-subtle);
 	}
 
 	.tab.active {
