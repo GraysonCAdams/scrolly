@@ -4,9 +4,9 @@
 		isSupportedUrl,
 		platformLabel,
 		detectPlatform,
-		isPlatformAllowed,
-		ALL_PLATFORMS
+		isPlatformAllowed
 	} from '$lib/url-validation';
+	import { addToast } from '$lib/stores/toasts';
 	import { page } from '$app/stores';
 
 	const {
@@ -27,13 +27,6 @@
 			? JSON.parse($page.data.group.platformFilterList as string)
 			: null
 	);
-	const allowedPlatformLabels = $derived.by(() => {
-		if (platformFilterMode === 'all') return null;
-		return ALL_PLATFORMS.filter((p) =>
-			isPlatformAllowed(p.key, platformFilterMode, platformFilterList)
-		).map((p) => p.label);
-	});
-
 	let url = $state('');
 	let error = $state('');
 	let loading = $state(false);
@@ -104,6 +97,16 @@
 				return;
 			}
 			url = '';
+			// Always create a processing toast — persists in global ToastStack
+			// even if modal is dismissed/destroyed. AddVideoModal removes it
+			// when UploadStatus takes over as the feedback mechanism.
+			addToast({
+				type: 'processing',
+				message: `Adding ${data.clip.contentType === 'music' ? 'song' : 'video'} to feed...`,
+				clipId: data.clip.id,
+				contentType: data.clip.contentType,
+				autoDismiss: 0
+			});
 			onsubmitted?.(data.clip, '');
 		} catch {
 			error = 'Something went wrong';
@@ -215,14 +218,6 @@
 			<p class="platform-blocked">{platformLabel(url.trim())} links aren't allowed in this group</p>
 		{/if}
 		<InlineError message={error} />
-		<p class="platforms">
-			{#if allowedPlatformLabels}
-				{allowedPlatformLabels.slice(0, 5).join(', ')}{#if allowedPlatformLabels.length > 5}&nbsp;& {allowedPlatformLabels.length -
-						5} more{/if}
-			{:else}
-				TikTok, YouTube, Instagram, X, Reddit, Spotify & more
-			{/if}
-		</p>
 	</form>
 {/if}
 
@@ -294,7 +289,7 @@
 	.suggestion-confirm {
 		padding: var(--space-xs) var(--space-md);
 		background: var(--accent-primary);
-		color: #000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 0.75rem;
@@ -379,9 +374,9 @@
 		align-items: center;
 		justify-content: center;
 		background: var(--accent-primary);
-		color: #000;
+		color: var(--bg-primary);
 		border: none;
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		cursor: pointer;
 		transition:
 			transform 0.1s ease,
@@ -406,8 +401,8 @@
 		width: 18px;
 		height: 18px;
 		border: 2.5px solid rgba(0, 0, 0, 0.15);
-		border-top-color: #000;
-		border-radius: 50%;
+		border-top-color: var(--bg-primary);
+		border-radius: var(--radius-full);
 		animation: spin 0.6s linear infinite;
 	}
 
@@ -422,14 +417,6 @@
 		font-size: 0.8125rem;
 		color: var(--error);
 		text-align: center;
-	}
-
-	.platforms {
-		margin: 0;
-		font-size: 0.8125rem;
-		color: var(--text-muted);
-		text-align: center;
-		letter-spacing: 0.01em;
 	}
 
 	.no-provider-state {

@@ -1,14 +1,16 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+	import { untrack } from 'svelte';
 	import AddVideo from './AddVideo.svelte';
 	import UploadStatus from './UploadStatus.svelte';
-	import { addToast, toast } from '$lib/stores/toasts';
+	import BaseSheet from './BaseSheet.svelte';
+	import { addToast, toast, toasts } from '$lib/stores/toasts';
 	import { clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
 	import { dismissShortcutNudge } from '$lib/stores/shortcutNudge';
 
 	const { ondismiss, initialUrl }: { ondismiss: () => void; initialUrl?: string } = $props();
 
 	let phase = $state<'form' | 'uploading' | 'done' | 'failed'>('form');
-	let visible = $state(false);
 	let clipId = $state('');
 	let clipContentType = $state('');
 	let caption = $state('');
@@ -19,32 +21,27 @@
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let savingCaption = $state(false);
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
-	let closedViaBack = false;
+	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
 
+	let timers: ReturnType<typeof setTimeout>[] = [];
+
+	function safeTimeout(fn: () => void, ms: number) {
+		const id = setTimeout(fn, ms);
+		timers.push(id);
+		return id;
+	}
+
+	// Focus URL input after sheet animates in
 	$effect(() => {
-		requestAnimationFrame(() => {
-			visible = true;
-		});
-		document.body.style.overflow = 'hidden';
-		// Focus URL input after sheet animates in
-		if (phase === 'form') {
-			setTimeout(() => addVideoRef?.focus(), 350);
+		if (untrack(() => phase) === 'form') {
+			safeTimeout(() => addVideoRef?.focus(), 350);
 		}
+	});
 
-		// Android back button / gesture support
-		history.pushState({ sheet: 'addVideo' }, '');
-		const handlePopState = () => {
-			closedViaBack = true;
-			ondismiss();
-		};
-		window.addEventListener('popstate', handlePopState);
-
-		return () => {
-			document.body.style.overflow = '';
-			if (pollTimer) clearInterval(pollTimer);
-			window.removeEventListener('popstate', handlePopState);
-			if (!closedViaBack) history.back();
-		};
+	// Clean up poll timer on unmount
+	onDestroy(() => {
+		if (pollTimer) clearInterval(pollTimer);
+		timers.forEach(clearTimeout);
 	});
 
 	function handleSubmitted(
@@ -54,6 +51,8 @@
 		clipId = clip.id;
 		clipContentType = clip.contentType;
 		caption = submittedCaption;
+		// Remove the processing toast AddVideo created — UploadStatus screen takes over
+		toasts.update((t) => t.filter((item) => item.clipId !== clip.id));
 		phase = 'uploading';
 		startPolling();
 	}
@@ -130,8 +129,7 @@
 				autoDismiss: 0
 			});
 		}
-		visible = false;
-		setTimeout(ondismiss, 300);
+		sheetRef?.dismiss();
 	}
 
 	async function handleSaveAndView() {
@@ -140,8 +138,7 @@
 		}
 		clipReadySignal.set(clipId);
 		viewClipSignal.set(clipId);
-		visible = false;
-		setTimeout(ondismiss, 300);
+		sheetRef?.dismiss();
 	}
 
 	function handleCaptionInput(e: Event) {
@@ -151,108 +148,64 @@
 
 	function handleDismissNudge() {
 		dismissShortcutNudge();
-		visible = false;
-		setTimeout(ondismiss, 300);
+		sheetRef?.dismiss();
 	}
 
 	const displayTitle = $derived(captionDirty ? caption : serverTitle || caption || '');
 </script>
 
-<div class="overlay" class:visible onclick={dismiss} role="presentation"></div>
+<div class="add-video-wrapper" class:fullscreen={phase !== 'form'}>
+	<BaseSheet bind:this={sheetRef} sheetId="addVideo" showHandle={phase === 'form'} {ondismiss}>
+		{#snippet header()}
+			{#if phase === 'form'}
+				<div class="add-header">
+					<span class="add-title">Add to feed</span>
+				</div>
+			{/if}
+		{/snippet}
 
-<div class="sheet" class:visible class:fullscreen={phase !== 'form'}>
-	{#if phase === 'form'}
-		<div
-			class="handle-bar"
-			onclick={dismiss}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') dismiss();
-			}}
-			role="button"
-			tabindex="-1"
-		>
-			<div class="handle"></div>
-		</div>
-		<div class="header">
-			<span class="title">Add to feed</span>
-		</div>
-		<div class="sheet-body">
-			<AddVideo bind:this={addVideoRef} onsubmitted={handleSubmitted} {initialUrl} />
-		</div>
-	{:else}
-		<UploadStatus
-			{phase}
-			{clipContentType}
-			{displayTitle}
-			{serverArtist}
-			{serverAlbumArt}
-			{savingCaption}
-			ondismiss={dismiss}
-			onretry={handleRetry}
-			onsaveandview={handleSaveAndView}
-			oncaptioninput={handleCaptionInput}
-			ondismissnudge={handleDismissNudge}
-		/>
-	{/if}
+		{#if phase === 'form'}
+			<div class="sheet-body">
+				<AddVideo bind:this={addVideoRef} onsubmitted={handleSubmitted} {initialUrl} />
+			</div>
+		{:else}
+			<UploadStatus
+				{phase}
+				{clipContentType}
+				{displayTitle}
+				{serverArtist}
+				{serverAlbumArt}
+				{savingCaption}
+				ondismiss={dismiss}
+				onretry={handleRetry}
+				onsaveandview={handleSaveAndView}
+				oncaptioninput={handleCaptionInput}
+				ondismissnudge={handleDismissNudge}
+			/>
+		{/if}
+	</BaseSheet>
 </div>
 
 <style>
-	.overlay {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		z-index: 99;
-		opacity: 0;
-		transition: opacity 300ms ease;
-	}
-	.overlay.visible {
-		opacity: 1;
-	}
-
-	.sheet {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		background: var(--bg-surface);
-		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-		z-index: 100;
-		display: flex;
-		flex-direction: column;
-		transform: translateY(100%);
+	/* Override BaseSheet styles for add-video look */
+	.add-video-wrapper :global(.base-sheet) {
+		max-height: 80vh;
 		transition:
 			transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
 			height 400ms cubic-bezier(0.32, 0.72, 0, 1),
 			border-radius 400ms ease;
-		max-height: 80vh;
 	}
-	.sheet.visible {
-		transform: translateY(0);
-	}
-	.sheet.fullscreen {
+	.add-video-wrapper.fullscreen :global(.base-sheet) {
 		top: 0;
 		max-height: none;
 		border-radius: 0;
-		background: #0a0a0a;
+		background: var(--bg-primary);
 	}
 
-	.handle-bar {
-		display: flex;
-		justify-content: center;
-		padding: var(--space-md);
-		cursor: pointer;
-	}
-	.handle {
-		width: 36px;
-		height: 4px;
-		background: var(--bg-subtle);
-		border-radius: 2px;
-	}
-
-	.header {
+	.add-header {
 		padding: 0 var(--space-lg) var(--space-sm);
 	}
-	.title {
+	.add-title {
 		font-family: var(--font-display);
 		font-size: 1.0625rem;
 		font-weight: 700;
