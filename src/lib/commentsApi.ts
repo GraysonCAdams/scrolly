@@ -10,18 +10,28 @@ export interface Comment {
 	parentId: string | null;
 	heartCount: number;
 	hearted: boolean;
+	heartUsers: string[];
+	canEdit: boolean;
 	createdAt: string;
 	replyCount?: number;
 	replies?: Comment[];
 }
 
-export async function fetchComments(clipId: string): Promise<Comment[]> {
+export interface ReactionEvent {
+	emoji: string;
+	username: string;
+	createdAt: string;
+}
+
+export async function fetchComments(
+	clipId: string
+): Promise<{ comments: Comment[]; reactionEvents: ReactionEvent[] }> {
 	const res = await fetch(`/api/clips/${clipId}/comments`);
 	if (res.ok) {
 		const data = await res.json();
-		return data.comments;
+		return { comments: data.comments ?? [], reactionEvents: data.reactionEvents ?? [] };
 	}
-	return [];
+	return { comments: [], reactionEvents: [] };
 }
 
 export async function postComment(
@@ -41,6 +51,26 @@ export async function postComment(
 	});
 
 	if (!res.ok) throw new Error('Failed to post comment');
+	const data = await res.json();
+	return data.comment;
+}
+
+export async function editComment(
+	clipId: string,
+	commentId: string,
+	text: string,
+	gifUrl?: string
+): Promise<{ text: string; gifUrl: string | null }> {
+	const body: { commentId: string; text: string; gifUrl?: string } = { commentId, text };
+	if (gifUrl) body.gifUrl = gifUrl;
+
+	const res = await fetch(`/api/clips/${clipId}/comments`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(body)
+	});
+
+	if (!res.ok) throw new Error('Failed to edit comment');
 	const data = await res.json();
 	return data.comment;
 }
