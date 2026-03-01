@@ -1,8 +1,14 @@
 import webpush from 'web-push';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
-import { clips, pushSubscriptions, notificationPreferences, users } from '$lib/server/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import {
+	clips,
+	pushSubscriptions,
+	notificationPreferences,
+	users,
+	watched
+} from '$lib/server/db/schema';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('push');
@@ -14,6 +20,21 @@ type NotificationPayload = {
 	url?: string;
 	tag?: string;
 };
+
+/** Get the number of unwatched ready clips for a user in their group. */
+async function getUnwatchedCount(userId: string, groupId: string): Promise<number> {
+	const [result] = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(clips)
+		.where(
+			and(
+				eq(clips.groupId, groupId),
+				eq(clips.status, 'ready'),
+				sql`${clips.id} NOT IN (SELECT ${watched.clipId} FROM ${watched} WHERE ${watched.userId} = ${userId})`
+			)
+		);
+	return result.count;
+}
 
 let initialized = false;
 
@@ -28,7 +49,7 @@ function ensureInitialized() {
 
 export async function sendNotification(
 	userId: string,
-	payload: NotificationPayload
+	payload: NotificationPayload & { badgeCount?: number }
 ): Promise<void> {
 	ensureInitialized();
 
@@ -38,7 +59,20 @@ export async function sendNotification(
 
 	if (subs.length === 0) return;
 
-	const payloadStr = JSON.stringify(payload);
+	// Auto-compute badge count if not provided by caller
+	let finalPayload = payload;
+	if (payload.badgeCount === undefined) {
+		const user = await db.query.users.findFirst({
+			where: eq(users.id, userId),
+			columns: { groupId: true }
+		});
+		if (user) {
+			const badgeCount = await getUnwatchedCount(userId, user.groupId);
+			finalPayload = { ...payload, badgeCount };
+		}
+	}
+
+	const payloadStr = JSON.stringify(finalPayload);
 
 	await Promise.allSettled(
 		subs.map(async (sub) => {
@@ -121,7 +155,8 @@ export async function sendGroupNotification(
 		targets.map(async (user) => {
 			const prefs = prefsMap.get(user.id);
 			if (prefs && !prefs[preferenceKey]) return;
-			await sendNotification(user.id, payload);
+			const badgeCount = await getUnwatchedCount(user.id, groupId);
+			await sendNotification(user.id, { ...payload, badgeCount });
 		})
 	);
 }
