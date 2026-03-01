@@ -123,8 +123,6 @@ jobs:
     timeout-minutes: 15
     needs: [changes]
     if: needs.changes.outputs.security_relevant == 'true' || github.event_name == 'schedule'
-    permissions:
-      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -138,19 +136,13 @@ jobs:
           load: true
 
       - name: Run Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.31.0
         with:
           image-ref: scrolly:security-scan
-          format: sarif
-          output: trivy-results.sarif
+          format: table
           severity: MEDIUM,HIGH,CRITICAL
           ignore-unfixed: true
-
-      - name: Upload Trivy SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
+          exit-code: 1
 
   semgrep:
     runs-on: ubuntu-latest
