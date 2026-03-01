@@ -15,6 +15,7 @@
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 
 	const shareUrl = $derived($page.data.shareUrl as string);
+	const fromShortcut = $derived($page.data.fromShortcut as boolean);
 	const platform = $derived(platformLabel(shareUrl));
 	const isValid = $derived(isSupportedUrl(shareUrl));
 	const detectedPlatform = $derived(shareUrl ? detectPlatform(shareUrl) : null);
@@ -108,7 +109,14 @@
 			<div class="icon-wrap">
 				<ExportIcon size={28} />
 			</div>
-			<h1 class="share-title">Add to feed</h1>
+			{#if fromShortcut}
+				<h1 class="share-title">Couldn't add automatically</h1>
+				<p class="share-desc">
+					The shortcut wasn't able to add this clip. Tap below to add it manually.
+				</p>
+			{:else}
+				<h1 class="share-title">Add to feed</h1>
+			{/if}
 			{#if platform}
 				<span class="platform-pill">{platform}</span>
 			{/if}

@@ -8,8 +8,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	return {
-		appUrl: env.PUBLIC_APP_URL || 'http://localhost:3000',
-		shortcutUrl: locals.group?.shortcutUrl || null,
-		shortcutToken: locals.group?.shortcutToken || null
+		appUrl: env.PUBLIC_APP_URL || 'http://localhost:3000'
 	};
 };
