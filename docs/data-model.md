@@ -13,7 +13,13 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | invite_code | text | Unique. Used to join the group. |
 | retention_days | integer | Nullable. Days before auto-delete. |
 | max_storage_mb | integer | Nullable. Storage cap for the group. |
+| max_file_size_mb | integer | Default 500. Per-file size limit in MB. |
 | accent_color | text | Default `'coral'`. Host-configurable group accent color. |
+| download_provider | text | Nullable. Active download provider ID. |
+| platform_filter_mode | text | Default `'all'`. `'all'` / `'allow'` / `'block'`. |
+| platform_filter_list | text | Nullable. Comma-separated list of platforms for allow/block filtering. |
+| shortcut_token | text | Nullable, unique. Token for iOS Shortcut clip sharing. |
+| shortcut_url | text | Nullable. URL for iOS Shortcut integration. |
 | created_by | text | FK → users.id (host/admin) |
 | created_at | integer | Unix timestamp |
 
@@ -67,6 +73,7 @@ Unique index on `(group_id, original_url)` — prevents duplicate URLs within a 
 | user_id | text | FK → users.id |
 | parent_id | text | Nullable. FK → comments.id for threaded replies. |
 | text | text | Comment body |
+| gif_url | text | Nullable. URL of attached GIF (via Giphy). |
 | created_at | integer | Unix timestamp |
 
 ### comment_hearts

@@ -60,6 +60,7 @@ Response: { "user": { ... }, "group": { ... } }
 |--------|------|-------------|
 | GET | `/api/clips` | List clips for the user's group |
 | POST | `/api/clips` | Submit a URL to download |
+| POST | `/api/clips/share` | Submit a URL via shortcut token |
 | GET | `/api/clips/[id]` | Single clip detail |
 | PATCH | `/api/clips/[id]` | Update clip title |
 | DELETE | `/api/clips/[id]` | Remove clip |
@@ -70,24 +71,31 @@ Response: { "user": { ... }, "group": { ... } }
 Query params: ?filter=unwatched|watched|favorites&limit=20&offset=0
 Response: { "clips": [...], "hasMore": true }
 ```
-Each clip includes: id, originalUrl, title, addedBy (username, avatarPath), status, durationSeconds, platform, contentType, createdAt, watched, favorited, reactionCounts, commentCount.
+Each clip includes: id, originalUrl, title, addedByUsername, addedByAvatar, status, durationSeconds, platform, contentType, createdAt, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers.
 
 ### POST /api/clips
 ```
 Request:  { "url": "https://tiktok.com/...", "title": "optional caption" }
-Response: { "clip": { "id", "status": "downloading" } }
+Response: { "clip": { "id", "status": "downloading", "contentType" } }   (201 Created)
 ```
 Triggers the download pipeline via the active provider. Requires a download provider to be configured (see Settings). Returns immediately with status `downloading`.
+
+### POST /api/clips/share
+Authenticated via `?token=` query parameter (iOS Shortcut token). Allows sharing clips without a session cookie.
+```
+Request:  { "url": "https://tiktok.com/...", "phones": ["+1234567890"] }
+Response: { "ok": true, "clipId": "...", "status": "downloading" }   (201 Created)
+```
 
 ### PATCH /api/clips/[id]
 ```
 Request:  { "title": "new caption" }
-Response: { "clip": { ... } }
+Response: { "title": "new caption" }
 ```
-Only allowed if no one else has watched the clip.
+Only allowed by the uploader, and only if no one else has watched the clip.
 
 ### DELETE /api/clips/[id]
-Only allowed if no one else has watched the clip. Host can always delete.
+Only allowed by the uploader, and only if no one else has watched the clip.
 
 ### GET /api/clips/unwatched-count
 ```
@@ -114,7 +122,7 @@ Response: { "count": 5 }
 ### POST /api/clips/[id]/watched
 ```
 Request:  { "watchPercent": 85 }   (optional, 0–100)
-Response: { "ok": true }
+Response: { "watched": true }
 ```
 
 ### POST /api/clips/[id]/favorite
@@ -168,8 +176,17 @@ Host-only endpoints (unless noted). Requires `createdBy === currentUser`.
 | PATCH | `/api/group/name` | Rename group |
 | PATCH | `/api/group/accent` | Change accent color |
 | PATCH | `/api/group/retention` | Set retention policy |
+| PATCH | `/api/group/max-file-size` | Set max file size limit |
+| PATCH | `/api/group/platforms` | Set platform filter |
+| GET | `/api/group/provider` | List download providers |
+| PATCH | `/api/group/provider` | Set active provider |
+| POST | `/api/group/provider/install` | Install a provider |
+| DELETE | `/api/group/provider/install` | Uninstall a provider |
 | POST | `/api/group/invite-code/regenerate` | Generate new invite code |
+| PATCH | `/api/group/shortcut` | Set iOS Shortcut URL |
+| POST | `/api/group/shortcut/regenerate-token` | Regenerate shortcut token |
 | GET | `/api/group/members` | List group members |
+| POST | `/api/group/members` | Add a member |
 | DELETE | `/api/group/members/[userId]` | Remove a member |
 | GET | `/api/group/clips` | List clips with storage info |
 | DELETE | `/api/group/clips` | Batch delete clips |
@@ -192,14 +209,67 @@ Request:  { "retentionDays": 30 }   (null, 7, 14, 30, 60, or 90)
 Response: { "retentionDays": 30 }
 ```
 
+### PATCH /api/group/max-file-size
+```
+Request:  { "maxFileSizeMb": 100 }   (null to remove limit)
+Response: { "maxFileSizeMb": 100 }
+```
+
+### PATCH /api/group/platforms
+```
+Request:  { "mode": "all", "platforms": [] }   (mode: "all" | "allow" | "block")
+Response: { "platformFilterMode": "all", "platformFilterList": null }
+```
+
+### GET /api/group/provider
+```
+Response: { "providers": [{ "id", "name", "installed", "version", ... }] }
+```
+
+### PATCH /api/group/provider
+```
+Request:  { "providerId": "yt-dlp" }   (null to unset)
+Response: { "downloadProvider": "yt-dlp" }
+```
+
+### POST /api/group/provider/install
+```
+Request:  { "providerId": "yt-dlp" }
+Response: { "installed": true, "version": "..." }   (201 Created)
+```
+
+### DELETE /api/group/provider/install
+```
+Request:  { "providerId": "yt-dlp" }
+Response: { "installed": false }
+```
+
 ### POST /api/group/invite-code/regenerate
 ```
 Response: { "inviteCode": "new-code-here" }
 ```
 
+### PATCH /api/group/shortcut
+```
+Request:  { "shortcutUrl": "https://..." }   (null to remove)
+Response: { "shortcutUrl": "https://..." }
+```
+
+### POST /api/group/shortcut/regenerate-token
+```
+Response: { "shortcutToken": "new-token-here" }
+```
+
 ### GET /api/group/members
 ```
 Response: [{ "id", "username", "avatarPath", "createdAt", "isHost" }]
+```
+
+### POST /api/group/members
+Host-only. Creates a new member in the group.
+```
+Request:  { "username": "jane", "phone": "+1234567890" }
+Response: { "member": { "id", "username", "avatarPath", "createdAt", "isHost" } }   (201 Created)
 ```
 
 ### DELETE /api/group/members/[userId]
@@ -233,8 +303,8 @@ Response: { "clipCount": 42, "memberCount": 8, "storageMb": 1200, "maxStorageMb"
 
 ### GET /api/notifications
 ```
-Query params: ?limit=20&offset=0
-Response: { "notifications": [{ "id", "type", "clip", "actor", "emoji", "commentPreview", "readAt", "createdAt" }], "hasMore": true }
+Query params: ?limit=30&offset=0
+Response: { "notifications": [{ "id", "type", "clipId", "emoji", "commentPreview", "actorUsername", "actorAvatar", "clipThumbnail", "clipTitle", "read", "createdAt" }] }
 ```
 
 ### POST /api/notifications/mark-read
@@ -259,6 +329,9 @@ Response: { "preferences": { ... } }
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/profile/preferences` | Update user preferences |
+| POST | `/api/profile/avatar` | Upload profile avatar |
+| DELETE | `/api/profile/avatar` | Delete profile avatar |
+| GET | `/api/profile/avatar/[filename]` | Serve avatar image |
 
 ### POST /api/profile/preferences
 ```
@@ -266,6 +339,33 @@ Request:  { "themePreference": "dark", "autoScroll": true, "mutedByDefault": fal
 Response: { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false }
 ```
 All fields optional — only provided fields are updated.
+
+### POST /api/profile/avatar
+Upload a profile picture as `multipart/form-data`.
+```
+Response: { "avatarPath": "abc123.jpg" }
+```
+
+### DELETE /api/profile/avatar
+```
+Response: { "ok": true }
+```
+
+### GET /api/profile/avatar/[filename]
+Serves the avatar image with JPEG content-type and cache headers.
+
+## GIFs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/gifs/search` | Search or list trending GIFs |
+
+### GET /api/gifs/search
+Requires `GIPHY_API_KEY` to be configured.
+```
+Query params: ?q=funny&limit=20&offset=0
+Response: { "gifs": [{ "id", "title", "url", "stillUrl", "width", "height" }] }
+```
 
 ## Push Notifications
 

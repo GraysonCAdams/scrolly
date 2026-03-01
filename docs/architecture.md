@@ -125,6 +125,7 @@ scrolly/
 │   │   ├── api/                     # REST API (see docs/api.md)
 │   │   │   ├── auth/
 │   │   │   ├── clips/
+│   │   │   ├── gifs/
 │   │   │   ├── group/
 │   │   │   ├── notifications/
 │   │   │   ├── profile/
@@ -134,7 +135,6 @@ scrolly/
 │   │   │   └── health/
 │   │   └── (app)/                   # Authenticated route group
 │   │       ├── +page.svelte         # Feed (TikTok-style reel)
-│   │       ├── activity/+page.svelte # Notification feed
 │   │       └── settings/+page.svelte # User + group settings
 │   ├── service-worker.ts           # PWA caching, offline support
 │   └── app.html

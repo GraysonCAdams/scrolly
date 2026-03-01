@@ -4,6 +4,31 @@ All API routes are SvelteKit `+server.ts` files under `src/routes/api/`. Authent
 
 ## Auth
 
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as Server
+  participant T as Twilio
+
+  Note over C,T: New User Onboarding
+  C->>S: POST /api/auth {action: "join", inviteCode}
+  S-->>C: userId, group, needsOnboarding: true
+  C->>S: POST /api/auth {action: "send-code", phone}
+  S->>T: Send SMS
+  T-->>C: SMS code delivered
+  C->>S: POST /api/auth {action: "verify-code", phone, code}
+  S-->>C: verified: true
+  C->>S: POST /api/auth {action: "onboard", username, phone}
+  S-->>C: user + group (session set)
+
+  Note over C,T: Returning User Login
+  C->>S: POST /api/auth {action: "login-send-code", phone}
+  S->>T: Send SMS
+  T-->>C: SMS code delivered
+  C->>S: POST /api/auth {action: "login-verify-code", phone, code}
+  S-->>C: userId + group (session set)
+```
+
 ### `GET /api/auth`
 
 Returns the current user and group info.
@@ -48,7 +73,15 @@ Submit a URL to download.
 { "url": "https://tiktok.com/...", "title": "optional caption" }
 ```
 
-Returns `{ "clip": { "id", "status": "downloading" } }`.
+Returns `{ "clip": { "id", "status": "downloading", "contentType" } }` (201 Created).
+
+### `POST /api/clips/share`
+
+Submit a URL via iOS Shortcut token (`?token=`). No session cookie needed.
+
+```json
+{ "url": "https://tiktok.com/...", "phones": ["+1234567890"] }
+```
 
 ### `GET /api/clips/[id]`
 
@@ -56,11 +89,11 @@ Single clip detail.
 
 ### `PATCH /api/clips/[id]`
 
-Update clip title. Only allowed if no one else has watched the clip.
+Update clip title. Only allowed by the uploader, and only if no one else has watched the clip. Returns `{ "title": "..." }`.
 
 ### `DELETE /api/clips/[id]`
 
-Remove a clip. Only allowed if no one else has watched, or by the group host.
+Remove a clip. Only allowed by the uploader, and only if no one else has watched.
 
 ### `GET /api/clips/unwatched-count`
 
@@ -140,13 +173,49 @@ Change the group accent color.
 
 Set retention policy (`null`, `7`, `14`, `30`, `60`, or `90` days).
 
+### `PATCH /api/group/max-file-size`
+
+Set max file size limit for clips (`null` to remove limit).
+
+### `PATCH /api/group/platforms`
+
+Set platform filter mode (`all`, `allow`, or `block`) and platform list.
+
+### `GET /api/group/provider`
+
+List available download providers with installation status.
+
+### `PATCH /api/group/provider`
+
+Set the active download provider.
+
+### `POST /api/group/provider/install`
+
+Install a download provider binary.
+
+### `DELETE /api/group/provider/install`
+
+Uninstall a download provider binary.
+
 ### `POST /api/group/invite-code/regenerate`
 
 Generate a new invite code, invalidating the old one.
 
+### `PATCH /api/group/shortcut`
+
+Set iOS Shortcut integration URL.
+
+### `POST /api/group/shortcut/regenerate-token`
+
+Regenerate the iOS Shortcut authentication token.
+
 ### `GET /api/group/members`
 
 List group members with roles.
+
+### `POST /api/group/members`
+
+Add a new member to the group (host-only).
 
 ### `DELETE /api/group/members/[userId]`
 
@@ -199,6 +268,24 @@ Update user preferences. All fields optional:
 ```json
 { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false }
 ```
+
+### `POST /api/profile/avatar`
+
+Upload a profile picture as `multipart/form-data`.
+
+### `DELETE /api/profile/avatar`
+
+Delete the user's profile avatar.
+
+### `GET /api/profile/avatar/[filename]`
+
+Serve an avatar image.
+
+## GIFs
+
+### `GET /api/gifs/search`
+
+Search or list trending GIFs (requires `GIPHY_API_KEY`). Query params: `q`, `limit`, `offset`.
 
 ## Push Notifications
 

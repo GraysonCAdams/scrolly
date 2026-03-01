@@ -4,12 +4,11 @@ Scrolly has two notification systems: an **in-app activity feed** and **web push
 
 ## In-App Activity Feed
 
-The activity page (`/activity`) shows a chronological feed of notifications. Users see:
-- New clips added to the group
+The in-app activity feed shows a chronological list of notifications via the `ActivitySheet` component. Users see:
 - Reactions on their clips
 - Comments on their clips
 
-Notifications are stored in the `notifications` table with read/unread tracking. The bottom navigation shows an unread badge count.
+New clip notifications are **push-only** — they are not stored in the `notifications` database table. Reaction and comment notifications are stored in the `notifications` table with read/unread tracking. The bottom navigation shows an unread badge count.
 
 ### API Endpoints
 
@@ -29,9 +28,9 @@ Real-time push notifications via the Web Push Protocol (VAPID).
 
 | Event | Who gets notified | Preference key |
 |-------|-------------------|----------------|
-| New clip added (web or SMS) | All group members except poster | `newAdds` |
-| Reaction on a clip | Clip owner only | `reactions` |
-| Comment on a clip | Clip owner only | `comments` |
+| New clip added (web or SMS) | All group members except poster (push only) | `newAdds` |
+| Reaction on a clip | Clip owner only (push + in-app) | `reactions` |
+| Comment on a clip | Clip owner only (push + in-app) | `comments` |
 | Daily reminder | Per-user opt-in | `dailyReminder` (not yet scheduled) |
 
 ### Customization
@@ -87,7 +86,7 @@ VAPID_SUBJECT=mailto:you@example.com
 | Client helpers | `src/lib/push.ts` | Permission request, subscribe/unsubscribe |
 | Notification store | `src/lib/stores/notifications.ts` | Client-side polling and unread count |
 | Settings UI | `src/routes/(app)/settings/+page.svelte` | Push toggle and preference controls |
-| Activity page | `src/routes/(app)/activity/+page.svelte` | In-app notification feed |
+| Activity sheet | `src/lib/components/ActivitySheet.svelte` | In-app notification feed (bottom sheet) |
 
 ### Database Tables
 
