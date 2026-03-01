@@ -23,79 +23,91 @@
 {#if !pushSupported}
 	<p class="hint">Install scrolly to your home screen to enable push notifications.</p>
 {:else}
-	<div class="setting-row">
+	<div class="setting-row last">
 		<div class="setting-label">
 			<span class="setting-name">Push notifications</span>
 			<span class="setting-desc">Receive alerts on this device</span>
 		</div>
-		<button class="toggle" class:active={pushEnabled} disabled={pushLoading} onclick={onTogglePush}>
+		<button
+			class="toggle"
+			class:active={pushEnabled}
+			disabled={pushLoading}
+			onclick={onTogglePush}
+			aria-label="Toggle push notifications"
+		>
 			<span class="toggle-thumb"></span>
 		</button>
 	</div>
 
-	{#if pushEnabled}
-		<div class="divider"></div>
-		<h4 class="sub-heading">Notify me about</h4>
+	<div class="divider"></div>
+	<h4 class="sub-heading">Notify me about</h4>
 
-		{#if prefsLoading}
-			<p class="hint">Loading...</p>
-		{:else}
-			<div class="setting-row">
-				<div class="setting-label">
-					<span class="setting-name">New clips</span>
-					<span class="setting-desc">When someone adds a video or song</span>
-				</div>
-				<button
-					class="toggle"
-					class:active={prefs.newAdds}
-					onclick={() => onUpdatePref('newAdds', !prefs.newAdds)}
-				>
-					<span class="toggle-thumb"></span>
-				</button>
+	{#if prefsLoading}
+		<p class="hint">Loading...</p>
+	{:else}
+		<div class="setting-row">
+			<div class="setting-label">
+				<span class="setting-name">New clips</span>
+				<span class="setting-desc">When someone adds a video or song</span>
 			</div>
+			<button
+				class="toggle"
+				class:active={prefs.newAdds && pushEnabled}
+				disabled={!pushEnabled}
+				onclick={() => onUpdatePref('newAdds', !prefs.newAdds)}
+				aria-label="Toggle new clips notifications"
+			>
+				<span class="toggle-thumb"></span>
+			</button>
+		</div>
 
-			<div class="setting-row">
-				<div class="setting-label">
-					<span class="setting-name">Reactions</span>
-					<span class="setting-desc">When someone reacts to your clip</span>
-				</div>
-				<button
-					class="toggle"
-					class:active={prefs.reactions}
-					onclick={() => onUpdatePref('reactions', !prefs.reactions)}
-				>
-					<span class="toggle-thumb"></span>
-				</button>
+		<div class="setting-row">
+			<div class="setting-label">
+				<span class="setting-name">Reactions</span>
+				<span class="setting-desc">When someone reacts to your clip</span>
 			</div>
+			<button
+				class="toggle"
+				class:active={prefs.reactions && pushEnabled}
+				disabled={!pushEnabled}
+				onclick={() => onUpdatePref('reactions', !prefs.reactions)}
+				aria-label="Toggle reaction notifications"
+			>
+				<span class="toggle-thumb"></span>
+			</button>
+		</div>
 
-			<div class="setting-row">
-				<div class="setting-label">
-					<span class="setting-name">Comments</span>
-					<span class="setting-desc">When someone comments on your clip</span>
-				</div>
-				<button
-					class="toggle"
-					class:active={prefs.comments}
-					onclick={() => onUpdatePref('comments', !prefs.comments)}
-				>
-					<span class="toggle-thumb"></span>
-				</button>
+		<div class="setting-row">
+			<div class="setting-label">
+				<span class="setting-name">Comments</span>
+				<span class="setting-desc">When someone comments on your clip</span>
 			</div>
+			<button
+				class="toggle"
+				class:active={prefs.comments && pushEnabled}
+				disabled={!pushEnabled}
+				onclick={() => onUpdatePref('comments', !prefs.comments)}
+				aria-label="Toggle comment notifications"
+			>
+				<span class="toggle-thumb"></span>
+			</button>
+		</div>
 
-			<div class="setting-row last">
-				<div class="setting-label">
-					<span class="setting-name">Daily reminder</span>
-					<span class="setting-desc">Nudge to check unwatched clips</span>
-				</div>
-				<button
-					class="toggle"
-					class:active={prefs.dailyReminder}
-					onclick={() => onUpdatePref('dailyReminder', !prefs.dailyReminder)}
-				>
-					<span class="toggle-thumb"></span>
-				</button>
+		<div class="setting-row last">
+			<div class="setting-label">
+				<span class="setting-name">Daily reminder</span>
+				<span class="setting-desc">Nudge to check unwatched clips</span>
 			</div>
-		{/if}
+			<button
+				class="toggle"
+				class:active={prefs.dailyReminder && pushEnabled}
+				disabled={!pushEnabled}
+				onclick={() => onUpdatePref('dailyReminder', !prefs.dailyReminder)}
+				aria-label="Toggle daily reminder"
+			>
+				<span class="toggle-thumb"></span>
+			</button>
+		</div>
 	{/if}
 {/if}
 
@@ -176,8 +188,8 @@
 		left: 2px;
 		width: 22px;
 		height: 22px;
-		border-radius: 50%;
-		background: #fff;
+		border-radius: var(--radius-full);
+		background: var(--constant-white);
 		transition: transform 0.2s;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}

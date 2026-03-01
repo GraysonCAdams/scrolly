@@ -2,12 +2,14 @@
 	const { currentMaxFileSizeMb }: { currentMaxFileSizeMb: number | null } = $props();
 
 	const STEPS = [
-		{ mb: 25, label: '25 MB', duration: '~15 seconds' },
-		{ mb: 50, label: '50 MB', duration: '~30 seconds' },
-		{ mb: 100, label: '100 MB', duration: '~1 minute' },
-		{ mb: 200, label: '200 MB', duration: '~2 minutes' },
-		{ mb: 500, label: '500 MB', duration: '~5 minutes' },
-		{ mb: null, label: '\u221E', duration: 'No limit' }
+		{ mb: 25, label: '25 MB', tick: '25', duration: '~15 seconds' },
+		{ mb: 50, label: '50 MB', tick: '50', duration: '~30 seconds' },
+		{ mb: 100, label: '100 MB', tick: '100', duration: '~1 minute' },
+		{ mb: 200, label: '200 MB', tick: '200', duration: '~2 minutes' },
+		{ mb: 500, label: '500 MB', tick: '500', duration: '~5 minutes' },
+		{ mb: 750, label: '750 MB', tick: '750', duration: '~8 minutes' },
+		{ mb: 1000, label: '1 GB', tick: '1K', duration: '~10 minutes' },
+		{ mb: null, label: '\u221E', tick: '\u221E', duration: 'No limit' }
 	];
 
 	function mbToIndex(mb: number | null): number {
@@ -15,7 +17,8 @@
 		return idx >= 0 ? idx : STEPS.length - 1;
 	}
 
-	let sliderIndex = $state(mbToIndex(currentMaxFileSizeMb));
+	const initialIndex = mbToIndex(currentMaxFileSizeMb);
+	let sliderIndex = $state(initialIndex);
 	let saving = $state(false);
 	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -83,7 +86,7 @@
 					aria-label="Set max size to {step.label}"
 				>
 					<div class="tick-mark"></div>
-					<span class="tick-label">{step.mb ?? '\u221E'}</span>
+					<span class="tick-label">{step.tick}</span>
 				</button>
 			{/each}
 		</div>
@@ -238,8 +241,8 @@
 		display: flex;
 		justify-content: space-between;
 		position: absolute;
-		left: 0;
-		right: 0;
+		left: 13px;
+		right: 13px;
 		top: 22px;
 		pointer-events: auto;
 	}

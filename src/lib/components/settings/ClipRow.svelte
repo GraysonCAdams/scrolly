@@ -114,7 +114,7 @@
 	.checkbox svg {
 		width: 12px;
 		height: 12px;
-		color: #000;
+		color: var(--bg-primary);
 	}
 
 	.clip-thumb {

@@ -1,16 +1,26 @@
 <script lang="ts">
 	import { toast } from '$lib/stores/toasts';
 
-	let { initialName }: { initialName: string } = $props();
+	const { initialName }: { initialName: string } = $props();
 
-	let name = $state(initialName);
+	let savedName = $state('');
+	let name = $state('');
+	let initialized = false;
+
+	$effect(() => {
+		if (!initialized) {
+			savedName = initialName;
+			name = initialName;
+			initialized = true;
+		}
+	});
 	let saving = $state(false);
 	let saved = $state(false);
 
 	async function save() {
 		const trimmed = name.trim();
-		if (!trimmed || trimmed === initialName) {
-			name = initialName;
+		if (!trimmed || trimmed === savedName) {
+			name = savedName;
 			return;
 		}
 
@@ -23,12 +33,12 @@
 			});
 			if (res.ok) {
 				const data = await res.json();
-				initialName = data.name;
+				savedName = data.name;
 				name = data.name;
 				saved = true;
 				setTimeout(() => (saved = false), 2000);
 			} else {
-				name = initialName;
+				name = savedName;
 				toast.error('Failed to save group name');
 			}
 		} finally {

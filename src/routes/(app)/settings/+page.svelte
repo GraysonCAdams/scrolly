@@ -31,6 +31,7 @@
 	import AccentColorPicker from '$lib/components/settings/AccentColorPicker.svelte';
 	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
 	import PlatformFilter from '$lib/components/settings/PlatformFilter.svelte';
+	import ShortcutManager from '$lib/components/settings/ShortcutManager.svelte';
 	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
 
 	const vapidPublicKey = $derived($page.data.vapidPublicKey as string);
@@ -316,6 +317,18 @@
 					<AccentColorPicker {currentAccent} onchange={handleAccentChange} />
 				</div>
 			</div>
+
+			<div class="settings-section">
+				<h3 class="section-title">Members</h3>
+				<div class="card">
+					<MemberList groupId={group.id} hostId={group.createdBy} currentUserId={user.id} />
+				</div>
+			</div>
+			<div class="settings-section">
+				<h3 class="section-title">Invite Link</h3>
+				<div class="card"><InviteLink inviteCode={group.inviteCode} /></div>
+			</div>
+
 			<div class="settings-section">
 				<h3 class="section-title">Download Provider</h3>
 				<div class="card"><DownloadProviderManager /></div>
@@ -331,16 +344,15 @@
 					/>
 				</div>
 			</div>
-			<div class="settings-section">
-				<h3 class="section-title">Members</h3>
-				<div class="card">
-					<MemberList groupId={group.id} hostId={group.createdBy} currentUserId={user.id} />
+			{#if group.shortcutToken}
+				<div class="settings-section">
+					<h3 class="section-title">iOS Shortcut</h3>
+					<div class="card">
+						<ShortcutManager shortcutToken={group.shortcutToken} shortcutUrl={group.shortcutUrl} />
+					</div>
 				</div>
-			</div>
-			<div class="settings-section">
-				<h3 class="section-title">Invite Link</h3>
-				<div class="card"><InviteLink inviteCode={group.inviteCode} /></div>
-			</div>
+			{/if}
+
 			<div class="settings-section">
 				<h3 class="section-title">Max Clip Size</h3>
 				<div class="card">
@@ -689,8 +701,8 @@
 		left: 2px;
 		width: 22px;
 		height: 22px;
-		border-radius: 50%;
-		background: #fff;
+		border-radius: var(--radius-full);
+		background: var(--constant-white);
 		transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}

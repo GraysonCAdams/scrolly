@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import ClipRow from './ClipRow.svelte';
 	import { confirm } from '$lib/stores/confirm';
@@ -20,13 +20,12 @@
 	let selected = new SvelteSet<string>();
 	let _deleting = $state(false);
 	let sentinel = $state<HTMLDivElement | null>(null);
-	let prevSort = $state(sortBy);
+	let prevSort = $state<'largest' | 'newest'>('largest');
 
 	const monthGroups = $derived(() => groupClipsByMonth(clips));
 
-	async function loadInitial() {
-		loading = true;
-		clips = [];
+	async function loadInitial(showLoading = true) {
+		if (showLoading) loading = true;
 		selected.clear();
 		const data = await fetchClipsList(sortBy, PAGE_SIZE, 0);
 		if (data) {
@@ -49,15 +48,15 @@
 		loadingMore = false;
 	}
 
-	onMount(() => {
-		loadInitial();
+	$effect(() => {
+		untrack(() => loadInitial());
 	});
 
 	// Re-fetch when sort changes (skip initial run)
 	$effect(() => {
 		if (sortBy !== prevSort) {
 			prevSort = sortBy;
-			loadInitial();
+			loadInitial(false);
 		}
 	});
 
@@ -411,7 +410,7 @@
 	.checkbox svg {
 		width: 12px;
 		height: 12px;
-		color: #000;
+		color: var(--bg-primary);
 	}
 
 	/* Load more */
@@ -463,7 +462,7 @@
 		border-radius: var(--radius-full);
 		border: none;
 		background: var(--error);
-		color: #fff;
+		color: var(--text-primary);
 		font-size: 0.8125rem;
 		font-weight: 700;
 		cursor: pointer;

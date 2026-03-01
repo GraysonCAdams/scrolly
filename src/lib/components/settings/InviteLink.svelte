@@ -2,9 +2,7 @@
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
 
-	const { inviteCode: initialCode }: { inviteCode: string } = $props();
-
-	let code = $state(initialCode);
+	let { inviteCode: code }: { inviteCode: string } = $props();
 	let copied = $state(false);
 	let regenerating = $state(false);
 
@@ -163,12 +161,12 @@
 
 	.btn-copy {
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 	}
 
-	.btn-regen {
+	.invite-actions .btn-regen {
 		background: var(--bg-surface);
 		color: var(--text-primary);
-		border: 1px solid var(--border) !important;
+		border: 1px solid var(--border);
 	}
 </style>

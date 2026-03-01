@@ -75,7 +75,7 @@
 	.color-swatch svg {
 		width: 16px;
 		height: 16px;
-		color: #000000;
+		color: var(--bg-primary);
 		animation: check-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 
