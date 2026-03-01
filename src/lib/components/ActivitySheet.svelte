@@ -118,7 +118,8 @@
 		visible = false;
 		setTimeout(() => {
 			ondismiss();
-			goto(resolve(`/?clip=${clipId}`));
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- query params appended to resolved base
+			goto(`${resolve('/')}?clip=${clipId}`);
 		}, 300);
 	}
 
@@ -179,7 +180,7 @@
 					<div class="notification-list">
 						{#each section.items as n, i (n.id)}
 							<a
-								href={resolve(`/?clip=${n.clipId}`)}
+								href="{resolve('/')}?clip={n.clipId}"
 								class="notification-item"
 								class:unread={!n.read}
 								style="animation-delay: {Math.min(i, 15) * 30}ms"
