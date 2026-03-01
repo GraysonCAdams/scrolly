@@ -3,6 +3,8 @@
 	import { resolve } from '$app/paths';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { toast } from '$lib/stores/toasts';
+	import SetupStepCard from '$lib/components/settings/SetupStepCard.svelte';
+	import SetupDoneState from '$lib/components/settings/SetupDoneState.svelte';
 
 	const appUrl = $derived($page.data.appUrl as string);
 	const shortcutUrl = $derived($page.data.shortcutUrl as string | null);
@@ -132,41 +134,33 @@
 		{/if}
 
 		<!-- Step cards -->
-		<div class="step-card" class:hidden={currentStep !== 0 || allDone}>
+		<SetupStepCard step={1} title="Open the Shortcuts app" visible={currentStep === 0 && !allDone}>
 			{#if !(shortcutUrl && completedSteps.size === 0)}
 				<h1 class="setup-title">Share from other apps</h1>
 				<p class="setup-subtitle">
 					Set up an iOS Shortcut to share clips directly from TikTok, Instagram, and other apps.
 				</p>
 			{/if}
-			<div class="step-header">
-				<span class="step-badge">Step 1</span>
-				<h2>Open the Shortcuts app</h2>
-			</div>
 			<p class="step-desc">
 				It's pre-installed on all iPhones. If you deleted it, re-download it from the App Store.
 			</p>
 			<p class="step-desc">
 				Look for the blue and pink icon that looks like two overlapping squares.
 			</p>
-		</div>
+		</SetupStepCard>
 
-		<div class="step-card" class:hidden={currentStep !== 1 || allDone}>
-			<div class="step-header">
-				<span class="step-badge">Step 2</span>
-				<h2>Create a new shortcut</h2>
-			</div>
+		<SetupStepCard step={2} title="Create a new shortcut" visible={currentStep === 1 && !allDone}>
 			<p class="step-desc">
 				Tap the <strong>+</strong> button in the top right corner, then tap
 				<strong>Add Action</strong>.
 			</p>
-		</div>
+		</SetupStepCard>
 
-		<div class="step-card" class:hidden={currentStep !== 2 || allDone}>
-			<div class="step-header">
-				<span class="step-badge">Step 3</span>
-				<h2>Receive from Share Sheet</h2>
-			</div>
+		<SetupStepCard
+			step={3}
+			title="Receive from Share Sheet"
+			visible={currentStep === 2 && !allDone}
+		>
 			<p class="step-desc">
 				Search for <strong>"Receive"</strong> and select
 				<strong>"Receive input from Share Sheet"</strong>.
@@ -175,13 +169,9 @@
 				Then tap on <strong>"Any"</strong> and change it to accept <strong>"URLs"</strong> only. This
 				ensures the shortcut only fires when sharing links.
 			</p>
-		</div>
+		</SetupStepCard>
 
-		<div class="step-card" class:hidden={currentStep !== 3 || allDone}>
-			<div class="step-header">
-				<span class="step-badge">Step 4</span>
-				<h2>Get your phone number</h2>
-			</div>
+		<SetupStepCard step={4} title="Get your phone number" visible={currentStep === 3 && !allDone}>
 			<p class="step-desc">
 				Add another action. Search for <strong>"Phone Number"</strong> and select
 				<strong>"Phone Number"</strong> under Contacts.
@@ -205,13 +195,9 @@
 				</svg>
 				<span>Your phone number must match the one you signed up with in scrolly.</span>
 			</div>
-		</div>
+		</SetupStepCard>
 
-		<div class="step-card" class:hidden={currentStep !== 4 || allDone}>
-			<div class="step-header">
-				<span class="step-badge">Step 5</span>
-				<h2>Send it to scrolly</h2>
-			</div>
+		<SetupStepCard step={5} title="Send it to scrolly" visible={currentStep === 4 && !allDone}>
 			<p class="step-desc">
 				Add another action. Search for <strong>"Get Contents of URL"</strong> and add it. Set the URL
 				to:
@@ -244,13 +230,9 @@
 					<strong>Phone Numbers</strong> from step 4
 				</li>
 			</ul>
-		</div>
+		</SetupStepCard>
 
-		<div class="step-card" class:hidden={currentStep !== 5 || allDone}>
-			<div class="step-header">
-				<span class="step-badge">Step 6</span>
-				<h2>Add a notification</h2>
-			</div>
+		<SetupStepCard step={6} title="Add a notification" visible={currentStep === 5 && !allDone}>
 			<p class="step-desc">
 				Add one more action. Search for <strong>"Show Notification"</strong> and add it.
 			</p>
@@ -258,13 +240,9 @@
 				Set the title to <strong>"Added to scrolly!"</strong> and the body to the
 				<strong>Shortcut Input</strong>. This gives you a confirmation when a clip is shared.
 			</p>
-		</div>
+		</SetupStepCard>
 
-		<div class="step-card" class:hidden={currentStep !== 6 || allDone}>
-			<div class="step-header">
-				<span class="step-badge">Step 7</span>
-				<h2>Name it & save</h2>
-			</div>
+		<SetupStepCard step={7} title="Name it & save" visible={currentStep === 6 && !allDone}>
 			<p class="step-desc">
 				Tap the name at the top of the shortcut, rename it to <strong>"scrolly"</strong>, then tap
 				<strong>Done</strong>.
@@ -272,30 +250,11 @@
 			<p class="step-desc">
 				This makes it easy to find when you use the Share button in other apps.
 			</p>
-		</div>
+		</SetupStepCard>
 
 		<!-- Done state -->
 		{#if allDone}
-			<div class="done-state">
-				<div class="done-icon">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polyline points="20 6 9 17 4 12" />
-					</svg>
-				</div>
-				<h1 class="done-title">You're all set!</h1>
-				<p class="done-desc">
-					Now when you tap <strong>Share</strong> in any app and choose your shortcut, the clip will be
-					added to scrolly in the background.
-				</p>
-				<a href={resolve('/settings')} class="done-btn">Back to Settings</a>
-			</div>
+			<SetupDoneState settingsHref={resolve('/settings')} />
 		{/if}
 
 		<!-- Navigation -->
@@ -472,131 +431,6 @@
 		color: var(--text-muted);
 		white-space: nowrap;
 	}
-	.step-card {
-		min-height: 200px;
-	}
-	.step-card.hidden {
-		display: none;
-	}
-	.step-header {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-		margin-bottom: var(--space-md);
-	}
-	.step-badge {
-		font-family: var(--font-display);
-		font-size: 0.6875rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--accent-primary);
-	}
-	.step-header h2 {
-		font-family: var(--font-display);
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: var(--text-primary);
-		margin: 0;
-	}
-	.step-desc {
-		font-size: 0.875rem;
-		color: var(--text-secondary);
-		line-height: 1.6;
-		margin: 0 0 var(--space-md);
-	}
-	.step-desc:last-child {
-		margin-bottom: 0;
-	}
-	.info-box {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-sm);
-		padding: var(--space-md);
-		background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
-		border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
-		border-radius: var(--radius-sm);
-		margin-top: var(--space-md);
-	}
-	.info-box svg {
-		width: 18px;
-		height: 18px;
-		flex-shrink: 0;
-		color: var(--accent-primary);
-		margin-top: 1px;
-	}
-	.info-box span {
-		font-size: 0.8125rem;
-		color: var(--text-secondary);
-		line-height: 1.4;
-	}
-	.url-display {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		background: var(--bg-surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		padding: var(--space-sm) var(--space-md);
-		margin: var(--space-sm) 0 var(--space-md);
-	}
-	.url-display code {
-		flex: 1;
-		font-size: 0.6875rem;
-		color: var(--accent-primary);
-		word-break: break-all;
-		font-family: monospace;
-	}
-	.url-display code.url-placeholder {
-		color: var(--text-muted);
-		font-family: var(--font-body);
-		font-size: 0.75rem;
-	}
-	.copy-btn {
-		flex-shrink: 0;
-		padding: var(--space-xs) var(--space-md);
-		background: var(--bg-elevated);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-full);
-		color: var(--text-primary);
-		font-size: 0.6875rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-	.json-keys {
-		list-style: none;
-		padding: 0;
-		margin: var(--space-sm) 0 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-	}
-	.json-keys li {
-		font-size: 0.8125rem;
-		color: var(--text-secondary);
-		line-height: 1.5;
-		padding-left: var(--space-md);
-		position: relative;
-	}
-	.json-keys li::before {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 0.55em;
-		width: 5px;
-		height: 5px;
-		border-radius: var(--radius-full);
-		background: var(--text-muted);
-	}
-	.key-name {
-		font-family: 'SF Mono', 'Fira Code', monospace;
-		font-size: 0.75rem;
-		background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-		color: var(--accent-primary);
-		padding: 1px 6px;
-		border-radius: 4px;
-		font-weight: 600;
-	}
 	.step-nav {
 		display: flex;
 		justify-content: space-between;
@@ -632,56 +466,5 @@
 		color: var(--bg-primary);
 		font-weight: 700;
 		margin-left: auto;
-	}
-	.done-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		padding: var(--space-3xl) 0;
-	}
-	.done-icon {
-		width: 64px;
-		height: 64px;
-		border-radius: var(--radius-full);
-		background: var(--accent-primary);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: var(--space-xl);
-	}
-	.done-icon svg {
-		width: 32px;
-		height: 32px;
-		color: var(--bg-primary);
-	}
-	.done-title {
-		font-family: var(--font-display);
-		font-size: 1.5rem;
-		font-weight: 800;
-		color: var(--text-primary);
-		margin: 0 0 var(--space-sm);
-	}
-	.done-desc {
-		font-size: 0.875rem;
-		color: var(--text-secondary);
-		line-height: 1.5;
-		margin: 0 0 var(--space-xl);
-		max-width: 320px;
-	}
-	.done-btn {
-		display: inline-flex;
-		padding: var(--space-sm) var(--space-xl);
-		background: var(--bg-surface);
-		color: var(--text-primary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-full);
-		font-size: 0.875rem;
-		font-weight: 600;
-		text-decoration: none;
-		transition: transform 0.1s ease;
-	}
-	.done-btn:active {
-		transform: scale(0.97);
 	}
 </style>
