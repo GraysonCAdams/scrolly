@@ -5,7 +5,9 @@
 	import CommentInput from './CommentInput.svelte';
 	import GifPicker from './GifPicker.svelte';
 	import BaseSheet from './BaseSheet.svelte';
+	import MentionText from './MentionText.svelte';
 	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
+	import type { GroupMember } from '$lib/types';
 	import {
 		type Comment,
 		fetchComments,
@@ -20,12 +22,14 @@
 		currentUserId,
 		gifEnabled = false,
 		autoFocus = false,
+		members = [],
 		ondismiss
 	}: {
 		clipId: string;
 		currentUserId: string;
 		gifEnabled?: boolean;
 		autoFocus?: boolean;
+		members?: GroupMember[];
 		ondismiss: () => void;
 	} = $props();
 
@@ -178,7 +182,7 @@
 								{/if}
 							</div>
 							{#if comment.text}
-								<p class="comment-text">{comment.text}</p>
+								<p class="comment-text"><MentionText text={comment.text} /></p>
 							{/if}
 							{#if comment.gifUrl}
 								<img class="comment-gif" src={comment.gifUrl} alt="GIF" loading="lazy" />
@@ -217,7 +221,7 @@
 													{/if}
 												</div>
 												{#if reply.text}
-													<p class="reply-text">{reply.text}</p>
+													<p class="reply-text"><MentionText text={reply.text} /></p>
 												{/if}
 												{#if reply.gifUrl}
 													<img class="reply-gif" src={reply.gifUrl} alt="GIF" loading="lazy" />
@@ -264,6 +268,7 @@
 			{submitting}
 			{gifEnabled}
 			{attachedGif}
+			{members}
 			onsubmit={handleSubmit}
 			oncancelreply={() => {
 				replyingTo = null;

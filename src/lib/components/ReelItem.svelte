@@ -13,6 +13,7 @@
 	} from '$lib/reelInteractions';
 	import { trackVideoTime, sendWatchPercent, flashIndicator } from '$lib/reelPlayback';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import { groupMembers } from '$lib/stores/members';
 	import ReelVideo from './ReelVideo.svelte';
 	import ReelMusic from './ReelMusic.svelte';
 	import ActionSidebar from './ActionSidebar.svelte';
@@ -415,6 +416,7 @@
 		{currentUserId}
 		{gifEnabled}
 		autoFocus={commentsAutoFocus}
+		members={$groupMembers}
 		ondismiss={() => {
 			showComments = false;
 			unreadOverride = 0;
