@@ -12,7 +12,7 @@ ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
 
 RUN npm run build
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 
 # ----- Stage 2: Runtime -----
