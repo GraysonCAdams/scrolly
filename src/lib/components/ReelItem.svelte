@@ -4,12 +4,7 @@
 	import { isPointerFine } from '$lib/gestures';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
 	import { globalMuted } from '$lib/stores/mute';
-	import {
-		globalPlaybackSpeed,
-		cycleSpeed,
-		stepSpeedUp,
-		stepSpeedDown
-	} from '$lib/stores/playbackSpeed';
+	import { globalPlaybackSpeed, stepSpeedUp, stepSpeedDown } from '$lib/stores/playbackSpeed';
 	import { connectNormalizer } from '$lib/audio/normalizer';
 	import {
 		setupDesktopGestures,
@@ -29,7 +24,8 @@
 	import ViewBadge from './ViewBadge.svelte';
 	import ViewersSheet from './ViewersSheet.svelte';
 	import ReelIndicators from './ReelIndicators.svelte';
-	import PlatformIcon from './PlatformIcon.svelte';
+	import MusicDisc from './MusicDisc.svelte';
+	import SpeedPill from './SpeedPill.svelte';
 	import type { FeedClip } from '$lib/types';
 
 	const {
@@ -108,15 +104,11 @@
 		Object.entries(clip.reactions).find(([, v]) => v.reacted)?.[0] ?? null
 	);
 	let showViewers = $state(false);
-	let showMusicLinks = $state(false);
 	let maxPercent = $state(0);
 	let wasActive = $state(false);
 	const SCRUBBER_IDLE_TIMEOUT = 3000;
 	let scrubberTimerId: ReturnType<typeof setTimeout> | null = null;
 	let scrubberHidden = $state(false);
-	const hasMusicLinks = $derived(
-		clip.contentType === 'music' && (clip.spotifyUrl || clip.appleMusicUrl || clip.youtubeMusicUrl)
-	);
 
 	onMount(() => {
 		isDesktop = isPointerFine();
@@ -238,10 +230,6 @@
 	function showSpeedChange() {
 		speedIndicatorTimer = flashIndicator((v) => (showSpeedIndicator = v), speedIndicatorTimer);
 	}
-	function handleCycleSpeed() {
-		cycleSpeed();
-		showSpeedChange();
-	}
 	function seekMedia(time: number, relative = false) {
 		const el = videoEl ?? audioEl;
 		if (el)
@@ -306,19 +294,7 @@
 		{#if clip.viewCount > 0}
 			<ViewBadge viewCount={clip.viewCount} ontap={() => (showViewers = true)} />
 		{/if}
-		<button
-			type="button"
-			class="speed-pill"
-			class:visible={active}
-			class:highlight={speed !== 1}
-			onclick={(e) => {
-				e.stopPropagation();
-				handleCycleSpeed();
-			}}
-			aria-label="Change playback speed"
-		>
-			{speed}x
-		</button>
+		<SpeedPill {active} onspeedchange={showSpeedChange} />
 	</div>
 
 	{#if clip.contentType === 'music'}
@@ -403,62 +379,15 @@
 		/>
 
 		{#if clip.contentType === 'music' && clip.albumArt}
-			<div class="music-disc-area" class:ui-hidden={uiHidden}>
-				{#if showMusicLinks && hasMusicLinks}
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<div
-						class="music-links-popout"
-						onclick={(e) => e.stopPropagation()}
-						onkeydown={(e) => e.stopPropagation()}
-					>
-						{#if clip.spotifyUrl}
-							<a
-								href={clip.spotifyUrl}
-								target="_blank"
-								rel="external noopener"
-								class="music-link-pill"
-								aria-label="Spotify"
-							>
-								<PlatformIcon platform="spotify" size={16} />
-							</a>
-						{/if}
-						{#if clip.appleMusicUrl}
-							<a
-								href={clip.appleMusicUrl}
-								target="_blank"
-								rel="external noopener"
-								class="music-link-pill"
-								aria-label="Apple Music"
-							>
-								<PlatformIcon platform="apple_music" size={16} />
-							</a>
-						{/if}
-						{#if clip.youtubeMusicUrl}
-							<a
-								href={clip.youtubeMusicUrl}
-								target="_blank"
-								rel="external noopener"
-								class="music-link-pill"
-								aria-label="YouTube Music"
-							>
-								<PlatformIcon platform="youtube" size={16} />
-							</a>
-						{/if}
-					</div>
-				{/if}
-				<button
-					type="button"
-					class="music-disc"
-					class:spinning={active && !paused && !showMusicLinks}
-					onclick={(e) => {
-						e.stopPropagation();
-						if (hasMusicLinks) showMusicLinks = !showMusicLinks;
-					}}
-					aria-label={showMusicLinks ? 'Close music links' : 'Open music links'}
-				>
-					<img src={clip.albumArt} alt="" class="music-disc-img" />
-				</button>
-			</div>
+			<MusicDisc
+				albumArt={clip.albumArt}
+				spotifyUrl={clip.spotifyUrl}
+				appleMusicUrl={clip.appleMusicUrl}
+				youtubeMusicUrl={clip.youtubeMusicUrl}
+				{active}
+				{paused}
+				{uiHidden}
+			/>
 		{/if}
 	</div>
 </div>
@@ -543,113 +472,5 @@
 	.top-left-row.ui-hidden {
 		opacity: 0;
 		pointer-events: none;
-	}
-	.speed-pill {
-		padding: 4px 10px;
-		border: none;
-		border-radius: var(--radius-full);
-		background: rgba(255, 255, 255, 0.12);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		color: rgba(255, 255, 255, 0.6);
-		font-family: var(--font-display);
-		font-size: 0.75rem;
-		font-weight: 700;
-		cursor: pointer;
-		opacity: 0;
-		transition:
-			opacity 0.2s ease,
-			background 0.2s ease,
-			color 0.2s ease;
-		pointer-events: none;
-		user-select: none;
-		-webkit-user-select: none;
-	}
-	.speed-pill.visible {
-		opacity: 1;
-		pointer-events: auto;
-	}
-	.speed-pill.highlight {
-		background: rgba(255, 255, 255, 0.2);
-		color: var(--reel-text);
-	}
-	.speed-pill:active {
-		transform: scale(0.93);
-	}
-	.music-disc-area {
-		position: absolute;
-		right: var(--space-lg);
-		bottom: calc(90px + env(safe-area-inset-bottom));
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		z-index: 5;
-		transition: opacity 0.3s ease;
-	}
-	.music-disc-area.ui-hidden {
-		opacity: 0;
-		pointer-events: none;
-	}
-	.music-disc {
-		width: 44px;
-		height: 44px;
-		border-radius: var(--radius-full);
-		overflow: hidden;
-		box-shadow: 0 2px 8px var(--reel-icon-shadow);
-		border: 2px solid rgba(255, 255, 255, 0.2);
-		padding: 0;
-		background: none;
-		cursor: pointer;
-		flex-shrink: 0;
-	}
-	.music-disc.spinning {
-		animation: spin-disc 4s linear infinite;
-	}
-	.music-disc-img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-	}
-	.music-links-popout {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		animation: links-slide-in 200ms cubic-bezier(0.32, 0.72, 0, 1);
-	}
-	@keyframes links-slide-in {
-		from {
-			opacity: 0;
-			transform: translateX(12px);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(0);
-		}
-	}
-	.music-link-pill {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		border-radius: var(--radius-full);
-		background: var(--reel-icon-circle-bg);
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
-		color: var(--reel-text);
-		text-decoration: none;
-		transition:
-			background 0.15s ease,
-			transform 0.1s ease;
-	}
-	.music-link-pill:active {
-		transform: scale(0.93);
-		background: var(--reel-icon-circle-active);
-	}
-	@keyframes spin-disc {
-		to {
-			transform: rotate(360deg);
-		}
 	}
 </style>
