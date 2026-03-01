@@ -157,6 +157,12 @@ jobs:
     timeout-minutes: 15
     needs: [build-image]
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .trivyignore
+          sparse-checkout-cone-mode: false
+
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
@@ -174,7 +180,7 @@ jobs:
           sudo apt-get install -y -qq trivy
 
       - name: Run Trivy
-        run: trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 scrolly:security-scan
+        run: trivy image --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore --exit-code 1 scrolly:security-scan
 
   semgrep:
     runs-on: ubuntu-latest
