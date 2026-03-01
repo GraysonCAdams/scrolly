@@ -35,6 +35,22 @@ Real-time push notifications via the Web Push Protocol (VAPID).
 
 **Timing rationale:** New clip notifications are deferred until the download pipeline finishes successfully. This avoids notifying users about clips that may fail to download. If a download fails, no notification is sent. Reactions and comments notify immediately since the action is already complete.
 
+### Push Notification Payload
+
+All push notifications include these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| title | string | Notification title |
+| body | string | Notification body text |
+| icon | string? | Icon URL |
+| url | string? | Deep link target (defaults to '/') |
+| tag | string? | Notification grouping tag |
+| image | string? | Image URL for rich notifications |
+| badgeCount | number? | Unwatched clip count for app badge |
+
+The `badgeCount` is computed server-side per user/group and used by the service worker to call `navigator.setAppBadge()` on supported platforms.
+
 ### Customization
 
 Users can toggle each notification type on/off in Settings. Preferences are stored in the `notification_preferences` table (created automatically on onboarding).

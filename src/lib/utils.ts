@@ -1,3 +1,4 @@
+/** Extract the filename from a file path. */
 export function basename(filepath: string): string {
 	return filepath.split('/').pop() || filepath;
 }

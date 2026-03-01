@@ -90,12 +90,15 @@ scrolly/
 │   │   │   ├── ProgressBar.svelte
 │   │   │   ├── InlineError.svelte
 │   │   │   ├── FilterBar.svelte     # Feed filter tabs
+│   │   │   ├── ShortcutGuideSheet.svelte # iOS Shortcut setup guide
 │   │   │   └── settings/
 │   │   │       ├── GroupNameEdit.svelte
 │   │   │       ├── InviteLink.svelte
 │   │   │       ├── MemberList.svelte
 │   │   │       ├── RetentionPicker.svelte
-│   │   │       └── ClipsManager.svelte
+│   │   │       ├── ClipsManager.svelte
+│   │   │       ├── GettingStartedChecklist.svelte
+│   │   │       └── SetupDoneState.svelte
 │   │   ├── stores/
 │   │   │   ├── notifications.ts     # Notification polling + unread count
 │   │   │   ├── mute.ts              # Global mute state
