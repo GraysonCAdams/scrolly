@@ -95,6 +95,7 @@
 	const localUnreadCount = $derived(
 		unreadOverride !== null ? unreadOverride : clip.unreadCommentCount
 	);
+	const isOwn = $derived(clip.addedBy === currentUserId);
 	const reactedEmoji = $derived(
 		Object.entries(clip.reactions).find(([, v]) => v.reacted)?.[0] ?? null
 	);
@@ -240,6 +241,7 @@
 			el.currentTime = Math.max(0, Math.min(relative ? el.currentTime + time : time, duration));
 	}
 	function fireHeartReaction(cx: number, cy: number) {
+		if (isOwn) return;
 		showerEmoji = '❤️';
 		showerX = cx;
 		showerY = cy;
@@ -277,6 +279,7 @@
 
 	function handlePickEmoji(emoji: string) {
 		showPicker = false;
+		if (isOwn) return;
 		showerEmoji = emoji;
 		showerX = pickerX;
 		showerY = pickerY;
@@ -285,6 +288,7 @@
 		if (!clip.favorited) onfavorited(clip.id);
 	}
 	function triggerReactionPickerHold(bx: number, by: number) {
+		if (isOwn) return;
 		pickerX = bx;
 		pickerY = by;
 		pickerDragMode = true;
@@ -373,6 +377,7 @@
 			originalUrl={clip.originalUrl}
 			{muted}
 			{uiHidden}
+			{isOwn}
 			onsave={() => onfavorited(clip.id)}
 			oncomment={() => {
 				commentsAutoFocus = false;

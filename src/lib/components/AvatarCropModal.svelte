@@ -3,18 +3,18 @@
 	import Cropper from 'svelte-easy-crop';
 
 	const {
+		imageUrl,
 		ondismiss,
 		onuploaded
 	}: {
+		imageUrl: string;
 		ondismiss: () => void;
 		onuploaded: (avatarPath: string) => void;
 	} = $props();
 
 	let visible = $state(false);
-	let imageUrl = $state<string | null>(null);
 	let uploading = $state(false);
 	let closedViaBack = false;
-	let fileInput = $state<HTMLInputElement | null>(null);
 
 	let crop = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
@@ -25,9 +25,6 @@
 			visible = true;
 		});
 		document.body.style.overflow = 'hidden';
-
-		// Open file picker immediately
-		setTimeout(() => fileInput?.click(), 100);
 
 		pushState('', { sheet: 'avatarCrop' });
 		const handlePopState = () => {
@@ -40,20 +37,8 @@
 			document.body.style.overflow = '';
 			window.removeEventListener('popstate', handlePopState);
 			if (!closedViaBack) history.back();
-			if (imageUrl) URL.revokeObjectURL(imageUrl);
 		};
 	});
-
-	function handleFileSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) {
-			// User cancelled file picker
-			ondismiss();
-			return;
-		}
-		imageUrl = URL.createObjectURL(file);
-	}
 
 	function handleCropComplete(e: {
 		pixels: { x: number; y: number; width: number; height: number };
@@ -90,7 +75,7 @@
 	}
 
 	async function handleSave() {
-		if (!imageUrl || !croppedPixels || uploading) return;
+		if (!croppedPixels || uploading) return;
 		uploading = true;
 
 		try {
@@ -116,58 +101,38 @@
 	}
 </script>
 
-<input
-	bind:this={fileInput}
-	type="file"
-	accept="image/*"
-	class="file-input"
-	onchange={handleFileSelect}
-/>
-
 <div class="overlay" class:visible onclick={dismiss} role="presentation"></div>
 
 <div class="modal" class:visible>
-	{#if imageUrl}
-		<div class="crop-header">
-			<button class="header-btn cancel" onclick={dismiss}>Cancel</button>
-			<span class="header-title">Move and scale</span>
-			<button class="header-btn save" onclick={handleSave} disabled={uploading}>
-				{uploading ? 'Saving...' : 'Save'}
-			</button>
-		</div>
+	<div class="crop-header">
+		<button class="header-btn cancel" onclick={dismiss}>Cancel</button>
+		<span class="header-title">Move and scale</span>
+		<button class="header-btn save" onclick={handleSave} disabled={uploading}>
+			{uploading ? 'Saving...' : 'Save'}
+		</button>
+	</div>
 
-		<div class="crop-area">
-			<Cropper
-				image={imageUrl}
-				bind:crop
-				bind:zoom
-				aspect={1}
-				cropShape="round"
-				showGrid={false}
-				minZoom={1}
-				maxZoom={5}
-				restrictPosition={true}
-				oncropcomplete={handleCropComplete}
-			/>
-		</div>
+	<div class="crop-area">
+		<Cropper
+			image={imageUrl}
+			bind:crop
+			bind:zoom
+			aspect={1}
+			cropShape="round"
+			showGrid={false}
+			minZoom={1}
+			maxZoom={5}
+			restrictPosition={true}
+			oncropcomplete={handleCropComplete}
+		/>
+	</div>
 
-		<div class="zoom-controls">
-			<input type="range" min={1} max={5} step={0.01} bind:value={zoom} class="zoom-slider" />
-		</div>
-	{:else}
-		<div class="loading-state">
-			<span class="loading-text">Select a photo...</span>
-		</div>
-	{/if}
+	<div class="zoom-controls">
+		<input type="range" min={1} max={5} step={0.01} bind:value={zoom} class="zoom-slider" />
+	</div>
 </div>
 
 <style>
-	.file-input {
-		position: absolute;
-		opacity: 0;
-		pointer-events: none;
-	}
-
 	.overlay {
 		position: fixed;
 		inset: 0;
@@ -252,17 +217,5 @@
 		width: 100%;
 		accent-color: var(--accent-primary);
 		height: 4px;
-	}
-
-	.loading-state {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.loading-text {
-		color: var(--text-muted);
-		font-size: 0.875rem;
 	}
 </style>

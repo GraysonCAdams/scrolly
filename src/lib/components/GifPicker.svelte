@@ -1,9 +1,12 @@
 <script lang="ts">
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
+
 	interface GifResult {
 		id: string;
 		title: string;
 		url: string;
 		stillUrl: string;
+		shareUrl: string;
 		width: number;
 		height: number;
 	}
@@ -20,6 +23,21 @@
 	let gifs = $state<GifResult[]>([]);
 	let loading = $state(false);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let gridEl = $state<HTMLDivElement | null>(null);
+	let colCount = $state(2);
+
+	// Distribute GIFs across N columns by shortest-column-first
+	let columns = $derived.by(() => {
+		const cols: GifResult[][] = Array.from({ length: colCount }, () => []);
+		const heights = new Array(colCount).fill(0);
+		for (const gif of gifs) {
+			const ratio = gif.height / gif.width;
+			const shortest = heights.indexOf(Math.min(...heights));
+			cols[shortest].push(gif);
+			heights[shortest] += ratio;
+		}
+		return cols;
+	});
 
 	$effect(() => {
 		loadGifs();
@@ -29,7 +47,6 @@
 	});
 
 	$effect(() => {
-		// Debounced search on query change
 		const q = query;
 		if (debounceTimer) clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
@@ -37,10 +54,44 @@
 		}, 300);
 	});
 
+	// Observe grid width to set column count
+	$effect(() => {
+		if (!gridEl) return;
+		const ro = new ResizeObserver((entries) => {
+			const w = entries[0].contentRect.width;
+			if (w >= 480) colCount = 3;
+			else colCount = 2;
+		});
+		ro.observe(gridEl);
+		return () => ro.disconnect();
+	});
+
+	// IntersectionObserver: auto-play visible GIFs, show stills for off-screen
+	$effect(() => {
+		if (!gridEl) return;
+		const io = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					const img = entry.target as HTMLImageElement;
+					const animatedUrl = img.dataset.animated;
+					const stillUrl = img.dataset.still;
+					if (!animatedUrl || !stillUrl) continue;
+					img.src = entry.isIntersecting ? animatedUrl : stillUrl;
+				}
+			},
+			{ root: gridEl, rootMargin: '100px 0px' }
+		);
+
+		const imgs = gridEl.querySelectorAll<HTMLImageElement>('img[data-animated]');
+		imgs.forEach((img) => io.observe(img));
+
+		return () => io.disconnect();
+	});
+
 	async function loadGifs(q?: string) {
 		loading = true;
 		try {
-			const searchParams = q?.trim() ? `q=${encodeURIComponent(q.trim())}&limit=20` : 'limit=20';
+			const searchParams = q?.trim() ? `q=${encodeURIComponent(q.trim())}&limit=30` : 'limit=30';
 			const res = await fetch(`/api/gifs/search?${searchParams}`);
 			if (res.ok) {
 				const data = await res.json();
@@ -55,37 +106,38 @@
 
 <div class="gif-picker">
 	<div class="picker-header">
-		<input type="text" bind:value={query} placeholder="Search GIFs..." inputmode="search" />
+		<div class="search-field">
+			<MagnifyingGlassIcon size={16} weight="bold" />
+			<input type="text" bind:value={query} placeholder="Search GIPHY" inputmode="search" />
+		</div>
 		<button class="close-btn" onclick={ondismiss}>&times;</button>
 	</div>
 
-	<div class="gif-grid">
+	<div class="gif-grid" bind:this={gridEl}>
 		{#if loading && gifs.length === 0}
-			<p class="status">Loading...</p>
+			<div class="status-wrap">
+				<p class="status">Loading...</p>
+			</div>
 		{:else if gifs.length === 0}
-			<p class="status">No GIFs found</p>
+			<div class="status-wrap">
+				<p class="status">No GIFs found</p>
+			</div>
 		{:else}
-			{#each gifs as gif (gif.id)}
-				<button
-					class="gif-item"
-					onclick={() => onselect(gif)}
-					style="aspect-ratio: {gif.width}/{gif.height}"
-				>
-					<img
-						src={gif.stillUrl}
-						alt={gif.title}
-						loading="lazy"
-						onmouseenter={(e) => {
-							(e.currentTarget as HTMLImageElement).src = gif.url;
-						}}
-						onmouseleave={(e) => {
-							(e.currentTarget as HTMLImageElement).src = gif.stillUrl;
-						}}
-						ontouchstart={(e) => {
-							(e.currentTarget as HTMLImageElement).src = gif.url;
-						}}
-					/>
-				</button>
+			{#each columns as col, i (i)}
+				<div class="masonry-col">
+					{#each col as gif (gif.id)}
+						<button class="gif-item" onclick={() => onselect(gif)}>
+							<img
+								src={gif.stillUrl}
+								data-animated={gif.url}
+								data-still={gif.stillUrl}
+								alt={gif.title}
+								loading="lazy"
+								style="aspect-ratio: {gif.width}/{gif.height}"
+							/>
+						</button>
+					{/each}
+				</div>
 			{/each}
 		{/if}
 	</div>
@@ -104,26 +156,37 @@
 
 	.picker-header {
 		display: flex;
+		align-items: center;
 		gap: var(--space-sm);
 		padding: var(--space-sm) var(--space-md);
 		flex-shrink: 0;
 	}
 
-	.picker-header input {
+	.search-field {
 		flex: 1;
-		padding: var(--space-xs) var(--space-md);
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-full);
 		background: var(--bg-surface);
+		color: var(--text-muted);
+		transition: border-color 0.2s ease;
+	}
+	.search-field:focus-within {
+		border-color: var(--accent-primary);
+	}
+	.search-field input {
+		flex: 1;
+		background: none;
+		border: none;
 		color: var(--text-primary);
 		font-size: 0.875rem;
 		outline: none;
-		transition: border-color 0.2s ease;
+		padding: 0;
 	}
-	.picker-header input:focus {
-		border-color: var(--accent-primary);
-	}
-	.picker-header input::placeholder {
+	.search-field input::placeholder {
 		color: var(--text-muted);
 	}
 
@@ -142,20 +205,30 @@
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-xs);
+		display: flex;
+		gap: 3px;
 		padding: 0 var(--space-sm) var(--space-sm);
-		align-content: start;
 	}
 
+	.status-wrap {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
 	.status {
-		grid-column: 1 / -1;
 		text-align: center;
 		color: var(--text-muted);
 		font-size: 0.875rem;
 		padding: var(--space-xl);
 		margin: 0;
+	}
+
+	.masonry-col {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
 	}
 
 	.gif-item {
@@ -166,13 +239,14 @@
 		cursor: pointer;
 		padding: 0;
 		transition: transform 0.1s ease;
+		display: block;
 	}
 	.gif-item:active {
 		transform: scale(0.97);
 	}
 	.gif-item img {
 		width: 100%;
-		height: 100%;
+		height: auto;
 		object-fit: cover;
 		display: block;
 	}

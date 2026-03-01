@@ -70,4 +70,9 @@
 	.speed-pill:active {
 		transform: scale(0.93);
 	}
+	@media (max-width: 768px) {
+		.speed-pill {
+			display: none;
+		}
+	}
 </style>

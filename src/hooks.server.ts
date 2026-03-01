@@ -57,7 +57,7 @@ function setSecurityHeaders(response: Response): void {
 			"script-src 'self' 'unsafe-inline'",
 			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 			"font-src 'self' https://fonts.gstatic.com",
-			"img-src 'self' blob: data: https://i.scdn.co",
+			"img-src 'self' blob: data: https://i.scdn.co https://*.giphy.com",
 			"media-src 'self' blob:",
 			"connect-src 'self'",
 			"frame-ancestors 'none'"

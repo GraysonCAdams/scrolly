@@ -81,6 +81,7 @@
 			loop={!autoScroll}
 			muted
 			class="reel-video"
+			oncontextmenu={(e) => e.preventDefault()}
 			onended={() => {
 				if (autoScroll) onended();
 			}}

@@ -46,6 +46,8 @@ RUN mkdir -p /app/data && chown -R scrolly:scrolly /app
 ENV APP_VERSION=${APP_VERSION}
 ENV NODE_ENV=production
 ENV PORT=3000
+# SvelteKit CSRF protection — must match the public URL when behind a reverse proxy.
+# docker-compose.yml overrides this with PUBLIC_APP_URL or DOMAIN.
 ENV ORIGIN=http://localhost:3000
 
 VOLUME /app/data

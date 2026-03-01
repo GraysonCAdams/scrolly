@@ -17,7 +17,7 @@
 		replyingTo: { id: string; username: string } | null;
 		submitting: boolean;
 		gifEnabled?: boolean;
-		attachedGif: { url: string; stillUrl: string } | null;
+		attachedGif: { url: string; stillUrl: string; shareUrl?: string } | null;
 		members?: GroupMember[];
 		onsubmit: (text: string, gifUrl?: string) => void;
 		oncancelreply: () => void;
@@ -42,7 +42,7 @@
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!canSubmit || submitting) return;
-		onsubmit(text.trim(), attachedGif?.url);
+		onsubmit(text.trim(), attachedGif?.shareUrl || attachedGif?.url);
 	}
 </script>
 
@@ -83,7 +83,8 @@
 			text = t;
 		}}
 		onsubmit={() => {
-			if (canSubmit && !submitting) onsubmit(text.trim(), attachedGif?.url);
+			if (canSubmit && !submitting)
+				onsubmit(text.trim(), attachedGif?.shareUrl || attachedGif?.url);
 		}}
 	/>
 	<button type="submit" disabled={!canSubmit || submitting}>Send</button>
