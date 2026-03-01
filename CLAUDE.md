@@ -17,7 +17,7 @@ Private video-sharing PWA for friend groups. SvelteKit + SQLite + Twilio.
 - **Backend:** SvelteKit adapter-node (monolith)
 - **Database:** SQLite via Drizzle ORM
 - **Styling:** Scoped `<style>` blocks (no CSS framework)
-- **SMS:** Twilio for video ingestion + VCF delivery
+- **SMS:** Twilio for phone verification (auth codes)
 - **Push:** web-push with VAPID keys
 
 ## Code Conventions

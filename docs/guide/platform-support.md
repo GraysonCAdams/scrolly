@@ -14,7 +14,7 @@ Scrolly is a PWA (Progressive Web App). Feature support varies by platform.
 
 ## iOS Limitations
 
-- **No share target** — PWAs cannot register as share targets on iOS. Use SMS or paste links in-app.
+- **No share target** — PWAs cannot register as share targets on iOS. Use the iOS Shortcut integration or paste links in-app.
 - **Push notifications** — Only work when the PWA is installed to the Home Screen (not from Safari). Text-only, no images. Requires iOS 16.4+.
 - **No silent push** — Push notifications require a visible, user-facing notification.
 - **No background sync** — The app cannot sync data in the background.

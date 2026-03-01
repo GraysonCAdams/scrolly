@@ -7,17 +7,17 @@ Share links from TikTok, Instagram, YouTube, Facebook, and more. Videos are down
 ```mermaid
 flowchart LR
   A["Share a link"] --> B{"How?"}
-  B --> C["SMS to Scrolly number"]
   B --> D["Paste URL in-app"]
   B --> E["Android share sheet"]
-  C & D & E --> F["Server downloads video"]
-  F --> G["Appears in group feed"]
+  B --> F["iOS Shortcut"]
+  D & E & F --> G["Server downloads video"]
+  G --> H["Appears in group feed"]
 ```
 
 **How to share:**
-- **SMS** — Text links to your group's Scrolly phone number (Twilio). Any extra text becomes the caption.
 - **In-app** — Paste a URL into the add-video modal.
 - **Android share sheet** — Share directly from any app (PWA share target).
+- **iOS Shortcut** — Use the iOS Shortcut integration to share from any app.
 
 Failed downloads can be retried from the UI.
 
