@@ -180,10 +180,23 @@ VPS (Ubuntu, e.g., DigitalOcean or Hetzner)
 2. Clone repo, `npm install`, `npm run build`
 3. Create `data/videos/` directory
 4. Configure environment variables (see `.env` template in repo)
-5. Start app: `pm2 start build/index.js --name scrolly`
+5. Start app: `ORIGIN=https://your-domain.com pm2 start build/index.js --name scrolly`
 6. Generate VAPID keys: `npx web-push generate-vapid-keys`
 7. Configure Twilio for SMS verification codes (see deployment docs)
 8. Set up a reverse proxy (Caddy, nginx, etc.) for HTTPS
+
+### ORIGIN and CSRF Protection
+
+SvelteKit has built-in CSRF protection that checks the `Origin` header on form submissions. Behind a reverse proxy, SvelteKit can't determine the correct origin on its own and will reject requests with a **silent 403** — the rejection happens before the request reaches app-level logging, so nothing appears in `docker logs` or application output.
+
+**Set the `ORIGIN` environment variable** to your public URL (e.g., `ORIGIN=https://scrolly.example.com`):
+
+- **Docker:** `docker-compose.yml` sets this automatically from `PUBLIC_APP_URL`. The Caddy overlay sets it from `DOMAIN`.
+- **Manual:** Set `ORIGIN` in your shell environment or process manager config.
+
+This only affects form submissions (SvelteKit form actions). API endpoints (`/api/*` routes via `+server.ts`) are not subject to CSRF origin checks.
+
+**Troubleshooting:** If you see unexplained 403 errors on POST requests that don't appear in your app logs, check that `ORIGIN` matches the URL users access in their browser (protocol + domain, no trailing slash).
 
 ## PWA Configuration
 
