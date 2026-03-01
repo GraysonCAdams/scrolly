@@ -1,0 +1,73 @@
+import { getAccentColor } from '$lib/colors';
+
+// SVG path data for the scrolly glyph (extracted from src/lib/assets/favicon.svg)
+const GLYPH_PATHS =
+	'<path d="M28100 51040 c-1050 -220 -1860 -680 -2710 -1530 -840 -840 -1280 -1610 -1540 -2720 -440 -1890 140 -3880 1550 -5290 1110 -1110 2330 -1600 4000 -1600 1610 0 2790 500 3960 1660 1730 1710 2140 4270 1070 6520 -350 740 -1690 2100 -2410 2460 -1200 610 -2610 790 -3920 500z"/>' +
+	'<path d="M22910 39350 c-1430 -400 -2850 -1590 -3580 -3010 -670 -1300 -1580 -4350 -1970 -6660 -500 -2890 -360 -7860 280 -9690 680 -1970 1960 -3000 4090 -3280 470 -70 2980 -110 6280 -110 3020 0 5490 -30 5490 -70 0 -570 1350 -12920 1450 -13290 410 -1470 2100 -2480 3580 -2150 810 180 1550 670 1990 1310 710 1020 710 660 -210 9650 -590 5700 -880 8200 -1020 8690 -170 590 -290 780 -770 1260 -980 970 -720 940 -6960 980l-5390 30 70 1120c40 620 130 1590 200 2170 100 790 110 1090 20 1220 -60 90 -1180 1430 -2490 2970 -1300 1540 -2470 2970 -2600 3180 -180 310 -220 530 -220 1190 0 720 30 860 300 1290 430 690 1070 1060 1960 1130 830 60 1370 -120 1890 -610 190 -190 1500 -1700 2890 -3360 1400 -1660 2590 -3000 2650 -2970 60 20 1800 750 3860 1610 2060 860 3940 1590 4170 1620 230 30 550 10 710 -50 270 -90 330 -70 600 210 160 180 350 430 420 570 180 340 170 1290 -20 1650 -480 910 -1560 1360 -2480 1030 -180 -60 -1050 -650 -1930 -1300 -880 -660 -2280 -1710 -3130 -2330l-1530 -1140 -2480 3350c-2370 3200 -2500 3360 -3030 3620 -470 230 -700 270 -1550 290 -660 20 -1180 -20 -1540 -120z"/>' +
+	'<path d="M23300 36810 c-1020 -210 -1700 -1020 -1700 -2010 0 -620 200 -980 1170 -2110 490 -570 1990 -2340 3330 -3940 1340 -1590 2510 -2960 2590 -3030 370 -290 740 -430 1240 -440 460 -10 1030 200 5320 1980 3260 1350 4910 2090 5140 2290 420 370 710 970 710 1500 0 1160 -1190 2200 -2290 2000 -200 -40 -2130 -810 -4300 -1710 -2170 -910 -3950 -1630 -3960 -1620 -170 260 -5030 5980 -5390 6360 -370 390 -640 570 -1000 670 -270 80 -500 140 -500 140 -10 -10 -170 -40 -360 -80z"/>' +
+	'<path d="M42380 35030 l-1870 -1870 370 -410c200 -230 420 -490 470 -590 90 -140 390 120 2080 1820 1280 1290 1970 2050 1970 2190 0 370 -380 730 -780 730 -330 0 -490 -130 -2240 -1870z"/>' +
+	'<path d="M6750 25260 c-370 -160 -700 -520 -840 -890 -80 -200 -110 -4040 -110 -12330l0 -12040 9520 20 9510 30 720 3450c400 1900 770 3700 840 4010 120 570 120 570 590 690 1790 450 3460 1520 4220 2700 460 730 600 1380 600 2820l0 1280 -8570 0 -8580 0 -490 280c-950 520 -900 270 -960 4900 -60 4640 -40 4560 -900 5000 -420 210 -550 220 -2850 220 -1780 -10 -2480 -40 -2700 -140z"/>';
+
+/**
+ * Generate an SVG icon with the scrolly glyph in the given accent color.
+ */
+export function generateIconSvg(
+	accentHex: string,
+	options: { maskable?: boolean; monochrome?: boolean } = {}
+): string {
+	const { maskable = false, monochrome = false } = options;
+
+	if (monochrome) {
+		return [
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">',
+			'<g transform="translate(0,512) scale(0.01,-0.01)" fill="#FFFFFF" stroke="none">',
+			GLYPH_PATHS,
+			'</g></svg>'
+		].join('');
+	}
+
+	const rx = maskable ? '' : ' rx="96"';
+
+	// For maskable, scale the glyph to 70% centered for the safe zone
+	const glyphContent = maskable
+		? '<g transform="translate(256,256) scale(0.7) translate(-256,-256)">' +
+			`<g transform="translate(56,476) scale(0.0078,-0.0078)" fill="${accentHex}" stroke="none">` +
+			GLYPH_PATHS +
+			'</g></g>'
+		: `<g transform="translate(56,476) scale(0.0078,-0.0078)" fill="${accentHex}" stroke="none">` +
+			GLYPH_PATHS +
+			'</g>';
+
+	return (
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
+		`<rect width="512" height="512"${rx} fill="#000"/>` +
+		glyphContent +
+		'</svg>'
+	);
+}
+
+/**
+ * Generate a data URL for the favicon SVG with the given accent color.
+ */
+export function generateFaviconDataUrl(accentHex: string): string {
+	return `data:image/svg+xml,${encodeURIComponent(generateIconSvg(accentHex))}`;
+}
+
+/**
+ * Resolve the accent hex from a color key string.
+ */
+export function resolveAccentHex(accentColorKey: string | null | undefined): string {
+	return getAccentColor(accentColorKey).hex;
+}
+
+/**
+ * Update the dynamic favicon link element with a new accent color.
+ * Call this client-side when the accent color changes.
+ */
+export function updateFavicon(accentHex: string): void {
+	if (typeof document === 'undefined') return;
+	const link = document.getElementById('dynamic-favicon') as HTMLLinkElement | null;
+	if (link) {
+		link.href = generateFaviconDataUrl(accentHex);
+	}
+}

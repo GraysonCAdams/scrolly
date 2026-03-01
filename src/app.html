@@ -16,11 +16,11 @@
 		<meta property="og:image" content="/icons/icon-512.png" />
 		<link rel="manifest" href="/manifest.json" />
 		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+		<link rel="icon" id="dynamic-favicon" type="image/svg+xml" href="/icon/favicon.svg" />
 		<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
-		<link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@400;600;700;800&family=Unbounded:wght@800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+		<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet" />
 		%sveltekit.head%
 		<script>
 			(function() {
@@ -32,8 +32,10 @@
 				if (a) {
 					try {
 						var c = JSON.parse(decodeURIComponent(a[1]));
-						document.documentElement.style.setProperty('--accent-primary', c.hex);
-						document.documentElement.style.setProperty('--accent-primary-dark', c.dark);
+						if (/^#[0-9a-fA-F]{3,8}$/.test(c.hex) && /^#[0-9a-fA-F]{3,8}$/.test(c.dark)) {
+							document.documentElement.style.setProperty('--accent-primary', c.hex);
+							document.documentElement.style.setProperty('--accent-primary-dark', c.dark);
+						}
 					} catch(e) { /* ignore malformed cookie */ }
 				}
 			})();

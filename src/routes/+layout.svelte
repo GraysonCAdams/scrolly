@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import favicon from '$lib/assets/favicon.svg?url';
+	import { updateFavicon } from '$lib/iconSvg';
 	import ToastStack from '$lib/components/ToastStack.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import InstallBanner from '$lib/components/InstallBanner.svelte';
@@ -18,12 +18,14 @@
 		isStandalone.set(detectStandaloneMode());
 		initInstallPrompt();
 		initSwUpdateListener();
+
+		// Set dynamic favicon with the current accent color
+		const accent = getComputedStyle(document.documentElement)
+			.getPropertyValue('--accent-primary')
+			.trim();
+		if (accent) updateFavicon(accent);
 	});
 </script>
-
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
 
 {@render children()}
 <ToastStack />
