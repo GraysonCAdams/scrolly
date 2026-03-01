@@ -167,7 +167,7 @@ The container includes Node.js and FFmpeg. Download providers are installed at r
 
 ```
 VPS (Ubuntu, e.g., DigitalOcean or Hetzner)
-├── Node.js 20+   → runs SvelteKit build
+├── Node.js 24+   → runs SvelteKit build
 ├── FFmpeg         → for video/audio processing
 ├── Python 3       → required by some download providers
 ├── data/          → SQLite DB + video files + provider binaries
@@ -176,7 +176,7 @@ VPS (Ubuntu, e.g., DigitalOcean or Hetzner)
 
 **Setup:**
 
-1. Provision VPS (Ubuntu 22.04+), install Node.js 20+, FFmpeg, Python 3
+1. Provision VPS (Ubuntu 22.04+), install Node.js 24+, FFmpeg, Python 3
 2. Clone repo, `npm install`, `npm run build`
 3. Create `data/videos/` directory
 4. Configure environment variables (see `.env` template in repo)

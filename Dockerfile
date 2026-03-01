@@ -1,5 +1,5 @@
 # ----- Stage 1: Build -----
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN npm pkg delete scripts.prepare && npm ci --omit=dev
 
 
 # ----- Stage 2: Runtime -----
-FROM node:20-slim
+FROM node:24-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
