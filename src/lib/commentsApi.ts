@@ -78,7 +78,9 @@ export function markCommentsRead(clipId: string): void {
 			body: JSON.stringify({ clipId, type })
 		})
 			.then(() => fetchUnreadCount())
-			.catch(() => {});
+			.catch((err) => console.warn('[mark-comments-read]', err));
 	}
-	fetch(`/api/clips/${clipId}/comments/viewed`, { method: 'POST' }).catch(() => {});
+	fetch(`/api/clips/${clipId}/comments/viewed`, { method: 'POST' }).catch((err) =>
+		console.warn('[mark-comments-viewed]', err)
+	);
 }

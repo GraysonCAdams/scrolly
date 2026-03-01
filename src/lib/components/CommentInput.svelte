@@ -2,6 +2,7 @@
 	const {
 		replyingTo,
 		submitting,
+		gifEnabled = false,
 		attachedGif = null,
 		onsubmit,
 		oncancelreply,
@@ -10,6 +11,7 @@
 	}: {
 		replyingTo: { id: string; username: string } | null;
 		submitting: boolean;
+		gifEnabled?: boolean;
 		attachedGif: { url: string; stillUrl: string } | null;
 		onsubmit: (text: string, gifUrl?: string) => void;
 		oncancelreply: () => void;
@@ -52,6 +54,36 @@
 {/if}
 
 <form class="input-bar" onsubmit={handleSubmit}>
+	<button
+		type="button"
+		class="gif-btn"
+		class:active={!!attachedGif}
+		disabled={!gifEnabled}
+		onclick={ongiftoggle}
+		aria-label={gifEnabled ? 'Attach GIF' : 'GIFs not available — host must configure GIPHY'}
+		title={gifEnabled ? '' : 'Host must configure GIPHY API key'}
+	>
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.8"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<rect x="2" y="4" width="20" height="16" rx="3" />
+			<text
+				x="12"
+				y="14.5"
+				text-anchor="middle"
+				font-size="7.5"
+				font-weight="800"
+				fill="currentColor"
+				stroke="none"
+				font-family="system-ui, sans-serif">GIF</text
+			>
+		</svg>
+	</button>
 	<input
 		type="text"
 		bind:value={text}
@@ -60,9 +92,6 @@
 		maxlength={500}
 		disabled={submitting}
 	/>
-	<button type="button" class="gif-btn" class:active={!!attachedGif} onclick={ongiftoggle}
-		>GIF</button
-	>
 	<button type="submit" disabled={!canSubmit || submitting}>Send</button>
 </form>
 
@@ -159,29 +188,39 @@
 	}
 
 	.gif-btn {
-		padding: var(--space-xs) var(--space-sm);
-		background: var(--bg-elevated);
-		color: var(--text-secondary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		font-size: 0.6875rem;
-		font-weight: 700;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		background: none;
+		color: var(--text-muted);
+		border: none;
+		border-radius: var(--radius-full);
 		cursor: pointer;
-		transition: all 0.2s ease;
-		letter-spacing: 0.02em;
+		transition: color 0.2s ease;
 	}
-	.gif-btn:active {
-		transform: scale(0.97);
+	.gif-btn svg {
+		width: 26px;
+		height: 26px;
+	}
+	.gif-btn:active:not(:disabled) {
+		transform: scale(0.93);
 	}
 	.gif-btn.active {
 		color: var(--accent-primary);
-		border-color: var(--accent-primary);
+	}
+	.gif-btn:disabled {
+		opacity: 0.3;
+		cursor: not-allowed;
 	}
 
 	.input-bar button[type='submit'] {
 		padding: var(--space-sm) var(--space-lg);
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 0.8125rem;

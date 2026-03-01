@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { relativeTime } from '$lib/utils';
 	import { toast } from '$lib/stores/toasts';
+	import { onDestroy } from 'svelte';
 	import CommentInput from './CommentInput.svelte';
 	import GifPicker from './GifPicker.svelte';
+	import BaseSheet from './BaseSheet.svelte';
 	import {
 		type Comment,
 		fetchComments,
@@ -15,11 +17,13 @@
 	const {
 		clipId,
 		currentUserId,
+		gifEnabled = false,
 		autoFocus = false,
 		ondismiss
 	}: {
 		clipId: string;
 		currentUserId: string;
+		gifEnabled?: boolean;
 		autoFocus?: boolean;
 		ondismiss: () => void;
 	} = $props();
@@ -27,7 +31,6 @@
 	let comments = $state<Comment[]>([]);
 	let loading = $state(true);
 	let submitting = $state(false);
-	let visible = $state(false);
 	let replyingTo = $state<{ id: string; username: string } | null>(null);
 	let commentInput: ReturnType<typeof CommentInput> | null = $state(null);
 	let showGifPicker = $state(false);
@@ -41,30 +44,19 @@
 
 	const totalCount = $derived(comments.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0));
 
-	let closedViaBack = false;
 	let justHeartedIds = $state(new Set<string>());
 	let justPostedId = $state<string | null>(null);
+	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
 
-	// Animate in
-	$effect(() => {
-		requestAnimationFrame(() => {
-			visible = true;
-		});
-		document.body.style.overflow = 'hidden';
+	let timers: ReturnType<typeof setTimeout>[] = [];
 
-		history.pushState({ sheet: 'comments' }, '');
-		const handlePopState = () => {
-			closedViaBack = true;
-			ondismiss();
-		};
-		window.addEventListener('popstate', handlePopState);
+	function safeTimeout(fn: () => void, ms: number) {
+		const id = setTimeout(fn, ms);
+		timers.push(id);
+		return id;
+	}
 
-		return () => {
-			document.body.style.overflow = '';
-			window.removeEventListener('popstate', handlePopState);
-			if (!closedViaBack) history.back();
-		};
-	});
+	onDestroy(() => timers.forEach(clearTimeout));
 
 	// Load comments
 	$effect(() => {
@@ -76,7 +68,7 @@
 		comments = await fetchComments(clipId);
 		loading = false;
 		markCommentsRead(clipId);
-		if (autoFocus) setTimeout(() => commentInput?.focus(), 350);
+		if (autoFocus) safeTimeout(() => commentInput?.focus(), 350);
 	}
 
 	async function handleSubmit(text: string, gifUrl?: string) {
@@ -95,7 +87,7 @@
 			} else {
 				comments = [{ ...newComment, replyCount: 0, replies: [] }, ...comments];
 				justPostedId = newComment.id;
-				setTimeout(() => {
+				safeTimeout(() => {
 					justPostedId = null;
 				}, 300);
 			}
@@ -132,7 +124,7 @@
 
 		if (!wasHearted) {
 			justHeartedIds = new Set([...justHeartedIds, comment.id]);
-			setTimeout(() => {
+			safeTimeout(() => {
 				justHeartedIds = new Set([...justHeartedIds].filter((id) => id !== comment.id));
 			}, 300);
 		}
@@ -152,225 +144,169 @@
 		replyingTo = { id: comment.id, username: comment.username };
 		requestAnimationFrame(() => commentInput?.focus());
 	}
-
-	function dismiss() {
-		visible = false;
-		setTimeout(ondismiss, 300);
-	}
 </script>
 
-<div class="overlay" class:visible onclick={dismiss} role="presentation"></div>
-
-<div class="sheet" class:visible>
-	<div
-		class="handle-bar"
-		onclick={dismiss}
-		onkeydown={(e) => {
-			if (e.key === 'Enter' || e.key === ' ') dismiss();
-		}}
-		role="button"
-		tabindex="-1"
+<div class="comments-sheet-wrapper">
+	<BaseSheet
+		bind:this={sheetRef}
+		title="Comments{totalCount > 0 ? ` (${totalCount})` : ''}"
+		sheetId="comments"
+		{ondismiss}
 	>
-		<div class="handle"></div>
-	</div>
+		<div class="comments-list" role="list" aria-label="Comments">
+			{#if loading}
+				<p class="empty">Loading...</p>
+			{:else if comments.length === 0}
+				<p class="empty">No comments yet</p>
+			{:else}
+				{#each comments as comment (comment.id)}
+					<div class="comment" class:just-posted={comment.id === justPostedId} role="listitem">
+						<div class="comment-avatar">
+							<span>{comment.username.charAt(0).toUpperCase()}</span>
+						</div>
+						<div class="comment-body">
+							<div class="comment-header">
+								<span class="comment-username">{comment.username}</span>
+								<span class="comment-time">{relativeTime(comment.createdAt)}</span>
+								{#if comment.userId === currentUserId}
+									<button
+										class="delete-btn"
+										onclick={() => handleDelete(comment.id)}
+										aria-label="Delete comment by {comment.username}">&times;</button
+									>
+								{/if}
+							</div>
+							{#if comment.text}
+								<p class="comment-text">{comment.text}</p>
+							{/if}
+							{#if comment.gifUrl}
+								<img class="comment-gif" src={comment.gifUrl} alt="GIF" loading="lazy" />
+							{/if}
+							<div class="comment-actions">
+								<button class="reply-btn" onclick={() => startReply(comment)}>Reply</button>
+								<button
+									class="heart-btn"
+									class:hearted={comment.hearted}
+									class:heart-pop={justHeartedIds.has(comment.id)}
+									onclick={() => toggleHeart(comment)}
+								>
+									<svg
+										width="14"
+										height="14"
+										viewBox="0 0 24 24"
+										fill={comment.hearted ? 'currentColor' : 'none'}
+										stroke="currentColor"
+										stroke-width="2"
+									>
+										<path
+											d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+										/>
+									</svg>
+									{#if comment.heartCount > 0}<span class="heart-count">{comment.heartCount}</span
+										>{/if}
+								</button>
+							</div>
 
-	<div class="header">
-		<span class="title">Comments{totalCount > 0 ? ` (${totalCount})` : ''}</span>
-	</div>
-
-	<div class="comments-list">
-		{#if loading}
-			<p class="empty">Loading...</p>
-		{:else if comments.length === 0}
-			<p class="empty">No comments yet</p>
-		{:else}
-			{#each comments as comment (comment.id)}
-				<div class="comment" class:just-posted={comment.id === justPostedId}>
-					<div class="comment-avatar">
-						<span>{comment.username.charAt(0).toUpperCase()}</span>
-					</div>
-					<div class="comment-body">
-						<div class="comment-header">
-							<span class="comment-username">{comment.username}</span>
-							<span class="comment-time">{relativeTime(comment.createdAt)}</span>
-							{#if comment.userId === currentUserId}
-								<button class="delete-btn" onclick={() => handleDelete(comment.id)}>&times;</button>
+							{#if comment.replies && comment.replies.length > 0}
+								<div class="replies" role="list" aria-label="Replies to {comment.username}">
+									{#each comment.replies as reply (reply.id)}
+										<div class="reply" role="listitem">
+											<div class="reply-avatar">
+												<span>{reply.username.charAt(0).toUpperCase()}</span>
+											</div>
+											<div class="reply-body">
+												<div class="comment-header">
+													<span class="reply-username">{reply.username}</span>
+													<span class="comment-time">{relativeTime(reply.createdAt)}</span>
+													{#if reply.userId === currentUserId}
+														<button
+															class="delete-btn"
+															onclick={() => handleDelete(reply.id)}
+															aria-label="Delete reply by {reply.username}">&times;</button
+														>
+													{/if}
+												</div>
+												{#if reply.text}
+													<p class="reply-text">{reply.text}</p>
+												{/if}
+												{#if reply.gifUrl}
+													<img class="reply-gif" src={reply.gifUrl} alt="GIF" loading="lazy" />
+												{/if}
+												<div class="comment-actions">
+													<button
+														class="heart-btn"
+														class:hearted={reply.hearted}
+														class:heart-pop={justHeartedIds.has(reply.id)}
+														onclick={() => toggleHeart(reply)}
+													>
+														<svg
+															width="12"
+															height="12"
+															viewBox="0 0 24 24"
+															fill={reply.hearted ? 'currentColor' : 'none'}
+															stroke="currentColor"
+															stroke-width="2"
+														>
+															<path
+																d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+															/>
+														</svg>
+														{#if reply.heartCount > 0}<span class="heart-count"
+																>{reply.heartCount}</span
+															>{/if}
+													</button>
+												</div>
+											</div>
+										</div>
+									{/each}
+								</div>
 							{/if}
 						</div>
-						{#if comment.text}
-							<p class="comment-text">{comment.text}</p>
-						{/if}
-						{#if comment.gifUrl}
-							<img class="comment-gif" src={comment.gifUrl} alt="GIF" loading="lazy" />
-						{/if}
-						<div class="comment-actions">
-							<button class="reply-btn" onclick={() => startReply(comment)}>Reply</button>
-							<button
-								class="heart-btn"
-								class:hearted={comment.hearted}
-								class:heart-pop={justHeartedIds.has(comment.id)}
-								onclick={() => toggleHeart(comment)}
-							>
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill={comment.hearted ? 'currentColor' : 'none'}
-									stroke="currentColor"
-									stroke-width="2"
-								>
-									<path
-										d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-									/>
-								</svg>
-								{#if comment.heartCount > 0}<span class="heart-count">{comment.heartCount}</span
-									>{/if}
-							</button>
-						</div>
-
-						{#if comment.replies && comment.replies.length > 0}
-							<div class="replies">
-								{#each comment.replies as reply (reply.id)}
-									<div class="reply">
-										<div class="reply-avatar">
-											<span>{reply.username.charAt(0).toUpperCase()}</span>
-										</div>
-										<div class="reply-body">
-											<div class="comment-header">
-												<span class="reply-username">{reply.username}</span>
-												<span class="comment-time">{relativeTime(reply.createdAt)}</span>
-												{#if reply.userId === currentUserId}
-													<button class="delete-btn" onclick={() => handleDelete(reply.id)}
-														>&times;</button
-													>
-												{/if}
-											</div>
-											{#if reply.text}
-												<p class="reply-text">{reply.text}</p>
-											{/if}
-											{#if reply.gifUrl}
-												<img class="reply-gif" src={reply.gifUrl} alt="GIF" loading="lazy" />
-											{/if}
-											<div class="comment-actions">
-												<button
-													class="heart-btn"
-													class:hearted={reply.hearted}
-													class:heart-pop={justHeartedIds.has(reply.id)}
-													onclick={() => toggleHeart(reply)}
-												>
-													<svg
-														width="12"
-														height="12"
-														viewBox="0 0 24 24"
-														fill={reply.hearted ? 'currentColor' : 'none'}
-														stroke="currentColor"
-														stroke-width="2"
-													>
-														<path
-															d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-														/>
-													</svg>
-													{#if reply.heartCount > 0}<span class="heart-count"
-															>{reply.heartCount}</span
-														>{/if}
-												</button>
-											</div>
-										</div>
-									</div>
-								{/each}
-							</div>
-						{/if}
 					</div>
-				</div>
-			{/each}
-		{/if}
-	</div>
+				{/each}
+			{/if}
+		</div>
 
-	{#if showGifPicker}
-		<GifPicker
-			onselect={(gif) => {
-				attachedGif = gif;
-				showGifPicker = false;
+		{#if showGifPicker}
+			<GifPicker
+				onselect={(gif) => {
+					attachedGif = gif;
+					showGifPicker = false;
+				}}
+				ondismiss={() => {
+					showGifPicker = false;
+				}}
+			/>
+		{/if}
+
+		<CommentInput
+			bind:this={commentInput}
+			{replyingTo}
+			{submitting}
+			{gifEnabled}
+			{attachedGif}
+			onsubmit={handleSubmit}
+			oncancelreply={() => {
+				replyingTo = null;
 			}}
-			ondismiss={() => {
-				showGifPicker = false;
+			ongiftoggle={() => {
+				showGifPicker = !showGifPicker;
+			}}
+			onremovegif={() => {
+				attachedGif = null;
 			}}
 		/>
-	{/if}
-
-	<CommentInput
-		bind:this={commentInput}
-		{replyingTo}
-		{submitting}
-		{attachedGif}
-		onsubmit={handleSubmit}
-		oncancelreply={() => {
-			replyingTo = null;
-		}}
-		ongiftoggle={() => {
-			showGifPicker = !showGifPicker;
-		}}
-		onremovegif={() => {
-			attachedGif = null;
-		}}
-	/>
+	</BaseSheet>
 </div>
 
 <style>
-	.overlay {
-		position: fixed;
-		inset: 0;
+	.comments-sheet-wrapper :global(.base-overlay) {
 		background: transparent;
-		z-index: 99;
-		opacity: 0;
-		transition: opacity 300ms ease;
 	}
-	.overlay.visible {
-		opacity: 1;
-	}
-
-	.sheet {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
+	.comments-sheet-wrapper :global(.base-sheet) {
 		height: 70vh;
 		background: rgba(0, 0, 0, 0.93);
-		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-		z-index: 100;
-		display: flex;
-		flex-direction: column;
-		transform: translateY(100%);
-		transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
-	.sheet.visible {
-		transform: translateY(0);
-	}
-
-	.handle-bar {
-		display: flex;
-		justify-content: center;
-		padding: var(--space-md);
-		cursor: pointer;
-	}
-	.handle {
-		width: 36px;
-		height: 4px;
-		background: var(--bg-subtle);
-		border-radius: 2px;
-	}
-
-	.header {
-		padding: 0 var(--space-lg) var(--space-md);
-		border-bottom: 1px solid var(--border);
-	}
-	.title {
-		font-family: var(--font-display);
-		font-size: 0.9375rem;
-		font-weight: 600;
-		color: var(--text-primary);
-	}
-
 	.comments-list {
 		flex: 1;
 		overflow-y: auto;
@@ -482,7 +418,6 @@
 	.reply-btn:active {
 		transform: scale(0.97);
 	}
-
 	.heart-btn {
 		background: none;
 		border: none;
@@ -537,7 +472,7 @@
 		font-size: 0.8125rem;
 	}
 
-	.heart-btn.heart-pop svg {
+	.heart-btn.heart-pop :global(svg) {
 		animation: heart-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 	@keyframes heart-pop {
