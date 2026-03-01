@@ -1,4 +1,5 @@
 import type { FeedClip } from '$lib/types';
+import { fetchUnwatchedCount } from '$lib/stores/notifications';
 
 export type FeedFilter = 'all' | 'unwatched' | 'watched' | 'favorites';
 
@@ -47,6 +48,7 @@ export async function fetchMoreClips(
 
 export async function markClipWatched(clipId: string): Promise<void> {
 	await fetch(`/api/clips/${clipId}/watched`, { method: 'POST' });
+	fetchUnwatchedCount();
 }
 
 export async function toggleClipFavorite(clipId: string): Promise<{ favorited: boolean } | null> {

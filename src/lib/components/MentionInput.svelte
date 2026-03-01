@@ -190,6 +190,7 @@
 				bind:this={inputEl}
 				bind:value={text}
 				type="text"
+				autocomplete="off"
 				class="overlay-input"
 				{placeholder}
 				{maxlength}
@@ -205,6 +206,7 @@
 			<textarea
 				bind:this={inputEl}
 				bind:value={text}
+				autocomplete="off"
 				class="overlay-input"
 				{placeholder}
 				{maxlength}

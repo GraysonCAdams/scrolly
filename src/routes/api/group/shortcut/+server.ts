@@ -5,6 +5,8 @@ import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { withHost, parseBody, isResponse } from '$lib/server/api-utils';
 
+const ICLOUD_SHORTCUT_RE = /^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}\/?$/;
+
 export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => {
 	const body = await parseBody<{ shortcutUrl?: string | null }>(request);
 	if (isResponse(body)) return body;
@@ -17,8 +19,11 @@ export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => 
 
 	const trimmed = typeof shortcutUrl === 'string' ? shortcutUrl.trim() : '';
 
-	if (trimmed && !trimmed.startsWith('https://www.icloud.com/shortcuts/')) {
-		return json({ error: 'Must be an iCloud shortcut link' }, { status: 400 });
+	if (trimmed && !ICLOUD_SHORTCUT_RE.test(trimmed)) {
+		return json(
+			{ error: 'Must be a valid iCloud shortcut link (https://www.icloud.com/shortcuts/...)' },
+			{ status: 400 }
+		);
 	}
 
 	await db

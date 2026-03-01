@@ -11,7 +11,7 @@
 	import { type AccentColorKey } from '$lib/colors';
 	import { globalMuted } from '$lib/stores/mute';
 	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
-	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
+
 	import {
 		applyTheme,
 		saveThemePreference,
@@ -34,8 +34,14 @@
 	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
 	import PlatformFilter from '$lib/components/settings/PlatformFilter.svelte';
 	import ShortcutManager from '$lib/components/settings/ShortcutManager.svelte';
+	import GettingStartedChecklist from '$lib/components/settings/GettingStartedChecklist.svelte';
 	import UsernameEdit from '$lib/components/settings/UsernameEdit.svelte';
 	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
+	import ShortcutGuideSheet from '$lib/components/ShortcutGuideSheet.svelte';
+	import AppleLogoIcon from 'phosphor-svelte/lib/AppleLogoIcon';
+	import AndroidLogoIcon from 'phosphor-svelte/lib/AndroidLogoIcon';
+	import { isStandalone } from '$lib/stores/pwa';
+	import { groupMembers } from '$lib/stores/members';
 
 	const vapidPublicKey = $derived(page.data.vapidPublicKey as string);
 	const user = $derived(page.data.user);
@@ -43,6 +49,7 @@
 	const isHost = $derived(group?.createdBy === user?.id);
 
 	let activeTab = $state<'me' | 'group'>('me');
+	let showShortcutGuide = $state(false);
 	let avatarCropImage = $state<string | null>(null);
 	let avatarOverride = $state<string | null | undefined>(undefined);
 	let avatarCacheBust = $state(0);
@@ -95,7 +102,7 @@
 		return 2;
 	});
 
-	let showShareCta = $state(false);
+	let platform = $state<'ios' | 'macos' | 'android' | 'other'>('other');
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
 	let pushLoading = $state(false);
@@ -109,8 +116,11 @@
 	});
 
 	onMount(async () => {
-		const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-		showShareCta = isIos;
+		const ua = navigator.userAgent;
+		if (/iPhone|iPad|iPod/i.test(ua)) platform = 'ios';
+		else if (/Android/i.test(ua)) platform = 'android';
+		else if (/Macintosh/i.test(ua)) platform = 'macos';
+		else platform = 'other';
 
 		pushSupported = isPushSupported();
 		if (pushSupported) {
@@ -165,6 +175,15 @@
 		prefs = { ...prefs, [key]: value };
 		updateNotificationPref(key, value);
 	}
+
+	const checklistMemberCount = $derived($groupMembers.length);
+
+	function scrollToSection(sectionId: string) {
+		const el = document.getElementById(sectionId);
+		if (el) {
+			el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+	}
 </script>
 
 <svelte:head>
@@ -216,15 +235,27 @@
 				{/if}
 			</div>
 
-			{#if showShareCta && group?.shortcutUrl}
-				<a href={group.shortcutUrl} class="share-cta" target="_blank" rel="external noopener">
-					<ExportIcon size={18} class="share-cta-icon" />
+			{#if (platform === 'ios' || platform === 'macos') && group?.shortcutUrl}
+				<button class="share-cta" onclick={() => (showShortcutGuide = true)}>
+					<AppleLogoIcon size={20} class="share-cta-icon" />
 					<div class="share-cta-content">
 						<span class="share-cta-title">Share from other apps</span>
-						<span class="share-cta-desc">Install the iOS Shortcut to share clips directly</span>
+						<span class="share-cta-desc"
+							>Install the {platform === 'ios' ? 'iOS' : 'macOS'} Shortcut to share clips directly</span
+						>
 					</div>
 					<span class="share-cta-btn">Get</span>
-				</a>
+				</button>
+			{:else if platform === 'android'}
+				<div class="share-cta android-cta">
+					<AndroidLogoIcon size={20} class="share-cta-icon" />
+					<div class="share-cta-content">
+						<span class="share-cta-title">Share from other apps</span>
+						<span class="share-cta-desc"
+							>scrolly appears in your share sheet automatically — just tap Share on any video</span
+						>
+					</div>
+				</div>
 			{/if}
 
 			<div class="settings-section">
@@ -304,18 +335,25 @@
 
 	{#if activeTab === 'group' && isHost}
 		<div class="tab-content">
-			<div class="settings-section">
+			<GettingStartedChecklist
+				{group}
+				isStandaloneMode={$isStandalone}
+				memberCount={checklistMemberCount}
+				onscrollto={scrollToSection}
+			/>
+
+			<div class="settings-section" id="section-group-name">
 				<h3 class="section-title">Group Name</h3>
 				<div class="card"><GroupNameEdit initialName={group.name} /></div>
 			</div>
-			<div class="settings-section">
+			<div class="settings-section" id="section-accent-color">
 				<h3 class="section-title">Accent Color</h3>
 				<div class="card">
 					<AccentColorPicker {currentAccent} onchange={handleAccentChange} />
 				</div>
 			</div>
 
-			<div class="settings-section">
+			<div class="settings-section" id="section-members">
 				<h3 class="section-title">Members</h3>
 				<div class="card">
 					<MemberList groupId={group.id} hostId={group.createdBy} currentUserId={user.id} />
@@ -341,10 +379,10 @@
 					/>
 				</div>
 			</div>
-			<div class="settings-section">
-				<h3 class="section-title">iOS Shortcut</h3>
+			<div class="settings-section" id="section-share-from-apps">
+				<h3 class="section-title">Share from Apps</h3>
 				<div class="card">
-					<ShortcutManager shortcutUrl={group.shortcutUrl} />
+					<ShortcutManager shortcutUrl={group.shortcutUrl} shortcutToken={group.shortcutToken} />
 				</div>
 			</div>
 
@@ -375,6 +413,13 @@
 				}
 			}}
 			onuploaded={handleAvatarUploaded}
+		/>
+	{/if}
+
+	{#if showShortcutGuide && group?.shortcutUrl}
+		<ShortcutGuideSheet
+			shortcutUrl={group.shortcutUrl}
+			ondismiss={() => (showShortcutGuide = false)}
 		/>
 	{/if}
 
@@ -634,7 +679,10 @@
 		border-radius: var(--radius-lg);
 		padding: var(--space-lg);
 		margin: var(--space-lg) 0;
-		text-decoration: none;
+		width: 100%;
+		border: none;
+		cursor: pointer;
+		text-align: left;
 		transition: all 0.2s ease;
 	}
 
@@ -665,6 +713,14 @@
 	.share-cta-desc {
 		font-size: 0.8125rem;
 		color: var(--text-secondary);
+	}
+
+	.share-cta.android-cta {
+		cursor: default;
+	}
+
+	.share-cta.android-cta:active {
+		transform: none;
 	}
 
 	.share-cta-btn {

@@ -84,7 +84,7 @@ sw.addEventListener('push', (event) => {
 	if (!event.data) return;
 
 	const data = event.data.json();
-	const { title, body, icon, url, tag, image } = data;
+	const { title, body, icon, url, tag, image, badgeCount } = data;
 
 	const notificationOptions: NotificationOptions & { image?: string } = {
 		body: body || '',
@@ -98,9 +98,14 @@ sw.addEventListener('push', (event) => {
 	event.waitUntil(
 		Promise.all([
 			sw.registration.showNotification(title || 'scrolly', notificationOptions),
-			// Set app badge indicator on push (Badging API not in standard TS types)
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(sw.navigator as any).setAppBadge?.()?.catch?.(() => {})
+			// Set app badge with unwatched count from server payload
+			typeof badgeCount === 'number'
+				? (sw.navigator as unknown as { setAppBadge?: (n: number) => Promise<void> })
+						.setAppBadge?.(badgeCount)
+						?.catch?.(() => {})
+				: (sw.navigator as unknown as { setAppBadge?: () => Promise<void> })
+						.setAppBadge?.()
+						?.catch?.(() => {})
 		])
 	);
 });
@@ -108,23 +113,39 @@ sw.addEventListener('push', (event) => {
 sw.addEventListener('notificationclick', (event) => {
 	event.notification.close();
 
-	// Clear app badge when user taps a notification (Badging API not in standard TS types)
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(sw.navigator as any).clearAppBadge?.()?.catch?.(() => {});
-
 	const url = event.notification.data?.url || '/';
 
 	event.waitUntil(
-		sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-			for (const client of clients) {
-				if (client.url.includes(sw.location.origin) && 'focus' in client) {
-					client.focus();
-					client.navigate(url);
-					return;
+		Promise.all([
+			// Refresh badge with actual unwatched count instead of blindly clearing
+			fetch('/api/clips/unwatched-count')
+				.then((res) => (res.ok ? res.json() : null))
+				.then((data) => {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const nav = sw.navigator as any;
+					if (data && data.count > 0) {
+						nav.setAppBadge?.(data.count)?.catch?.(() => {});
+					} else {
+						nav.clearAppBadge?.()?.catch?.(() => {});
+					}
+				})
+				.catch(() => {
+					// Offline or fetch failed — clear badge as fallback
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(sw.navigator as any).clearAppBadge?.()?.catch?.(() => {});
+				}),
+			// Focus or open the app
+			sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+				for (const client of clients) {
+					if (client.url.includes(sw.location.origin) && 'focus' in client) {
+						client.focus();
+						client.navigate(url);
+						return;
+					}
 				}
-			}
-			return sw.clients.openWindow(url);
-		})
+				return sw.clients.openWindow(url);
+			})
+		])
 	);
 });
 
