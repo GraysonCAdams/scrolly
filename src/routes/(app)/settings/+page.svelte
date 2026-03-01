@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import {
@@ -7,13 +8,33 @@
 		subscribeToPush,
 		unsubscribeFromPush
 	} from '$lib/push';
-	import { ACCENT_COLORS, type AccentColorKey } from '$lib/colors';
+	import { type AccentColorKey } from '$lib/colors';
 	import { globalMuted } from '$lib/stores/mute';
+	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
+	import {
+		applyTheme,
+		saveThemePreference,
+		saveAutoScroll,
+		saveMutedByDefault,
+		applyAccentColor,
+		saveAccentColor,
+		fetchNotificationPrefs,
+		updateNotificationPref,
+		type NotificationPrefs
+	} from '$lib/settingsApi';
 	import MemberList from '$lib/components/settings/MemberList.svelte';
 	import InviteLink from '$lib/components/settings/InviteLink.svelte';
 	import GroupNameEdit from '$lib/components/settings/GroupNameEdit.svelte';
 	import RetentionPicker from '$lib/components/settings/RetentionPicker.svelte';
+	import MaxFileSizePicker from '$lib/components/settings/MaxFileSizePicker.svelte';
 	import ClipsManager from '$lib/components/settings/ClipsManager.svelte';
+	import NotificationSettings from '$lib/components/settings/NotificationSettings.svelte';
+	import AccentColorPicker from '$lib/components/settings/AccentColorPicker.svelte';
+	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
+	import PlatformFilter from '$lib/components/settings/PlatformFilter.svelte';
+	import ShortcutManager from '$lib/components/settings/ShortcutManager.svelte';
+	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
 
 	const vapidPublicKey = $derived($page.data.vapidPublicKey as string);
 	const user = $derived($page.data.user);
@@ -21,21 +42,53 @@
 	const isHost = $derived(group?.createdBy === user?.id);
 
 	let activeTab = $state<'me' | 'group'>('me');
-
-	let theme = $state<'system' | 'light' | 'dark'>(
-		(user?.themePreference as 'system' | 'light' | 'dark') ?? 'system'
+	let showAvatarCrop = $state(false);
+	let avatarOverride = $state<string | null | undefined>(undefined);
+	let avatarCacheBust = $state(0);
+	const avatarPath = $derived(
+		avatarOverride !== undefined ? avatarOverride : (user?.avatarPath ?? null)
+	);
+	const avatarUrl = $derived(
+		avatarPath ? `/api/profile/avatar/${avatarPath}?v=${avatarCacheBust}` : null
 	);
 
-	let autoScroll = $state(user?.autoScroll ?? false);
-	let mutedByDefault = $state(user?.mutedByDefault ?? true);
-	let currentAccent = $state<AccentColorKey>((group?.accentColor as AccentColorKey) ?? 'coral');
+	function handleAvatarUploaded(path: string) {
+		avatarOverride = path;
+		avatarCacheBust = Date.now();
+		showAvatarCrop = false;
+	}
 
+	async function handleRemoveAvatar() {
+		const res = await fetch('/api/profile/avatar', { method: 'DELETE' });
+		if (res.ok) {
+			avatarOverride = null;
+		}
+	}
+	let themeOverride = $state<'system' | 'light' | 'dark' | null>(null);
+	let autoScrollOverride = $state<boolean | null>(null);
+	let mutedByDefaultOverride = $state<boolean | null>(null);
+	let currentAccentOverride = $state<AccentColorKey | null>(null);
+
+	const theme = $derived(
+		themeOverride ?? (user?.themePreference as 'system' | 'light' | 'dark') ?? 'system'
+	);
+	const autoScroll = $derived(autoScrollOverride ?? user?.autoScroll ?? false);
+	const mutedByDefault = $derived(mutedByDefaultOverride ?? user?.mutedByDefault ?? true);
+	const currentAccent = $derived(
+		currentAccentOverride ?? (group?.accentColor as AccentColorKey) ?? 'coral'
+	);
+	const themeIndex = $derived.by(() => {
+		if (theme === 'system') return 0;
+		if (theme === 'light') return 1;
+		return 2;
+	});
+
+	let showShareCta = $state(false);
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
 	let pushLoading = $state(false);
 	let prefsLoading = $state(true);
-
-	let prefs = $state({
+	let prefs = $state<NotificationPrefs>({
 		newAdds: true,
 		reactions: true,
 		comments: true,
@@ -43,55 +96,33 @@
 	});
 
 	onMount(async () => {
-		pushSupported = isPushSupported();
+		const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+		showShareCta = isMobile || import.meta.env.DEV;
 
+		pushSupported = isPushSupported();
 		if (pushSupported) {
 			const sub = await getExistingSubscription();
 			pushEnabled = !!sub;
 		}
-
-		const res = await fetch('/api/notifications/preferences');
-		if (res.ok) {
-			prefs = await res.json();
-		}
+		prefs = await fetchNotificationPrefs();
 		prefsLoading = false;
 	});
 
 	function handleThemeChange(value: 'system' | 'light' | 'dark') {
-		theme = value;
-
-		if (value === 'system') {
-			document.documentElement.removeAttribute('data-theme');
-		} else {
-			document.documentElement.dataset.theme = value;
-		}
-
-		document.cookie = `scrolly_theme=${value};path=/;max-age=31536000;SameSite=Lax`;
-
-		fetch('/api/profile/preferences', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ themePreference: value })
-		});
+		themeOverride = value;
+		applyTheme(value);
+		saveThemePreference(value);
 	}
 
 	function toggleAutoScroll() {
-		autoScroll = !autoScroll;
-		fetch('/api/profile/preferences', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ autoScroll })
-		});
+		autoScrollOverride = !autoScroll;
+		saveAutoScroll(!autoScroll);
 	}
 
 	function toggleMutedByDefault() {
-		mutedByDefault = !mutedByDefault;
-		globalMuted.set(mutedByDefault);
-		fetch('/api/profile/preferences', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ mutedByDefault })
-		});
+		mutedByDefaultOverride = !mutedByDefault;
+		globalMuted.set(!mutedByDefault);
+		saveMutedByDefault(!mutedByDefault);
 	}
 
 	async function togglePush() {
@@ -110,25 +141,14 @@
 	}
 
 	function handleAccentChange(key: AccentColorKey) {
-		currentAccent = key;
-		const color = ACCENT_COLORS[key];
-		document.documentElement.style.setProperty('--accent-primary', color.hex);
-		document.documentElement.style.setProperty('--accent-primary-dark', color.dark);
-		document.cookie = `scrolly_accent=${encodeURIComponent(JSON.stringify({ hex: color.hex, dark: color.dark }))};path=/;max-age=31536000;SameSite=Lax`;
-		fetch('/api/group/accent', {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ accentColor: key })
-		});
+		currentAccentOverride = key;
+		applyAccentColor(key);
+		saveAccentColor(key);
 	}
 
-	async function updatePref(key: string, value: boolean) {
+	function handleUpdatePref(key: string, value: boolean) {
 		prefs = { ...prefs, [key]: value };
-		await fetch('/api/notifications/preferences', {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ [key]: value })
-		});
+		updateNotificationPref(key, value);
 	}
 </script>
 
@@ -137,9 +157,9 @@
 </svelte:head>
 
 <div class="settings-page">
-	<!-- Tab bar (only shown for hosts) -->
 	{#if isHost}
 		<div class="tab-bar">
+			<div class="tab-bg" style="transform: translateX({activeTab === 'me' ? '0%' : '100%'})"></div>
 			<button class="tab" class:active={activeTab === 'me'} onclick={() => (activeTab = 'me')}
 				>Me</button
 			>
@@ -149,14 +169,24 @@
 		</div>
 	{/if}
 
-	<!-- ME TAB -->
 	{#if activeTab === 'me'}
 		<div class="tab-content">
-			<!-- Profile header -->
 			<div class="profile-header">
-				<div class="avatar-large">
-					{user?.username?.charAt(0)?.toUpperCase() ?? '?'}
-				</div>
+				<button class="avatar-btn" onclick={() => (showAvatarCrop = true)}>
+					{#if avatarUrl}
+						<img src={avatarUrl} alt="Profile" class="avatar-large avatar-img" />
+					{:else}
+						<div class="avatar-large avatar-initials">
+							{user?.username?.charAt(0)?.toUpperCase() ?? '?'}
+						</div>
+					{/if}
+					<span class="avatar-edit-badge">
+						<CameraIcon size={14} />
+					</span>
+				</button>
+				{#if avatarPath}
+					<button class="remove-photo-btn" onclick={handleRemoveAvatar}>Remove photo</button>
+				{/if}
 				<h2 class="profile-name">{user?.username}</h2>
 				<span class="profile-phone">{user?.phone}</span>
 				{#if group}
@@ -164,11 +194,72 @@
 				{/if}
 			</div>
 
-			<!-- Appearance -->
+			{#if showShareCta}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+				<a href="/share/setup" class="share-cta">
+					<ExportIcon size={18} class="share-cta-icon" />
+					<div class="share-cta-content">
+						<span class="share-cta-title">Share from other apps</span>
+						<span class="share-cta-desc">Add clips directly from supported platforms</span>
+					</div>
+					<span class="share-cta-btn">Set up</span>
+				</a>
+			{/if}
+
+			<div class="settings-section">
+				<h3 class="section-title">Playback</h3>
+				<div class="card">
+					<div class="setting-row">
+						<div class="setting-label">
+							<span class="setting-name">Start muted</span>
+							<span class="setting-desc">Mute videos and songs by default</span>
+						</div>
+						<button
+							class="toggle"
+							class:active={mutedByDefault}
+							onclick={toggleMutedByDefault}
+							aria-label="Toggle start muted"
+						>
+							<span class="toggle-thumb"></span>
+						</button>
+					</div>
+					<div class="setting-row">
+						<div class="setting-label">
+							<span class="setting-name">Auto-scroll</span>
+							<span class="setting-desc">Advance to next clip when current one ends</span>
+						</div>
+						<button
+							class="toggle"
+							class:active={autoScroll}
+							onclick={toggleAutoScroll}
+							aria-label="Toggle auto-scroll"
+						>
+							<span class="toggle-thumb"></span>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="settings-section">
+				<h3 class="section-title">Notifications</h3>
+				<div class="card">
+					<NotificationSettings
+						{pushSupported}
+						{pushEnabled}
+						{pushLoading}
+						{prefs}
+						{prefsLoading}
+						onTogglePush={togglePush}
+						onUpdatePref={handleUpdatePref}
+					/>
+				</div>
+			</div>
+
 			<div class="settings-section">
 				<h3 class="section-title">Appearance</h3>
 				<div class="card">
 					<div class="theme-toggle">
+						<div class="theme-bg" style="transform: translateX({themeIndex * 100}%)"></div>
 						<button
 							class="theme-option"
 							class:active={theme === 'system'}
@@ -187,213 +278,76 @@
 					</div>
 				</div>
 			</div>
-
-			<!-- Playback -->
-			<div class="settings-section">
-				<h3 class="section-title">Playback</h3>
-				<div class="card">
-					<div class="setting-row">
-						<div class="setting-label">
-							<span class="setting-name">Start muted</span>
-							<span class="setting-desc">Mute videos and songs by default</span>
-						</div>
-						<button class="toggle" class:active={mutedByDefault} onclick={toggleMutedByDefault}>
-							<span class="toggle-thumb"></span>
-						</button>
-					</div>
-					<div class="setting-row">
-						<div class="setting-label">
-							<span class="setting-name">Auto-scroll</span>
-							<span class="setting-desc">Advance to next clip when current one ends</span>
-						</div>
-						<button class="toggle" class:active={autoScroll} onclick={toggleAutoScroll}>
-							<span class="toggle-thumb"></span>
-						</button>
-					</div>
-				</div>
-			</div>
-
-			<!-- Sharing -->
-			<div class="settings-section">
-				<h3 class="section-title">Sharing</h3>
-				<div class="card">
-					<div class="setting-row last">
-						<div class="setting-label">
-							<span class="setting-name">Share from other apps</span>
-							<span class="setting-desc">Add clips directly from TikTok, Instagram & more</span>
-						</div>
-						<a href="/share/setup" class="setup-link">Set up</a>
-					</div>
-				</div>
-			</div>
-
-			<!-- Notifications -->
-			<div class="settings-section">
-				<h3 class="section-title">Notifications</h3>
-				<div class="card">
-					{#if !pushSupported}
-						<p class="hint">Install scrolly to your home screen to enable push notifications.</p>
-					{:else}
-						<div class="setting-row">
-							<div class="setting-label">
-								<span class="setting-name">Push notifications</span>
-								<span class="setting-desc">Receive alerts on this device</span>
-							</div>
-							<button
-								class="toggle"
-								class:active={pushEnabled}
-								disabled={pushLoading}
-								onclick={togglePush}
-							>
-								<span class="toggle-thumb"></span>
-							</button>
-						</div>
-
-						{#if pushEnabled}
-							<div class="divider"></div>
-							<h4 class="sub-heading">Notify me about</h4>
-
-							{#if prefsLoading}
-								<p class="hint">Loading...</p>
-							{:else}
-								<div class="setting-row">
-									<div class="setting-label">
-										<span class="setting-name">New clips</span>
-										<span class="setting-desc">When someone adds a video or song</span>
-									</div>
-									<button
-										class="toggle"
-										class:active={prefs.newAdds}
-										onclick={() => updatePref('newAdds', !prefs.newAdds)}
-									>
-										<span class="toggle-thumb"></span>
-									</button>
-								</div>
-
-								<div class="setting-row">
-									<div class="setting-label">
-										<span class="setting-name">Reactions</span>
-										<span class="setting-desc">When someone reacts to your clip</span>
-									</div>
-									<button
-										class="toggle"
-										class:active={prefs.reactions}
-										onclick={() => updatePref('reactions', !prefs.reactions)}
-									>
-										<span class="toggle-thumb"></span>
-									</button>
-								</div>
-
-								<div class="setting-row">
-									<div class="setting-label">
-										<span class="setting-name">Comments</span>
-										<span class="setting-desc">When someone comments on your clip</span>
-									</div>
-									<button
-										class="toggle"
-										class:active={prefs.comments}
-										onclick={() => updatePref('comments', !prefs.comments)}
-									>
-										<span class="toggle-thumb"></span>
-									</button>
-								</div>
-
-								<div class="setting-row last">
-									<div class="setting-label">
-										<span class="setting-name">Daily reminder</span>
-										<span class="setting-desc">Nudge to check unwatched clips</span>
-									</div>
-									<button
-										class="toggle"
-										class:active={prefs.dailyReminder}
-										onclick={() => updatePref('dailyReminder', !prefs.dailyReminder)}
-									>
-										<span class="toggle-thumb"></span>
-									</button>
-								</div>
-							{/if}
-						{/if}
-					{/if}
-				</div>
-			</div>
 		</div>
 	{/if}
 
-	<!-- GROUP TAB (host only) -->
 	{#if activeTab === 'group' && isHost}
 		<div class="tab-content">
-			<!-- Group identity -->
 			<div class="settings-section">
 				<h3 class="section-title">Group Name</h3>
-				<div class="card">
-					<GroupNameEdit initialName={group.name} />
-				</div>
+				<div class="card"><GroupNameEdit initialName={group.name} /></div>
 			</div>
-
 			<div class="settings-section">
 				<h3 class="section-title">Accent Color</h3>
 				<div class="card">
-					<p class="setting-desc" style="margin-bottom: var(--space-md)">Applies to all members</p>
-					<div class="color-palette">
-						{#each Object.entries(ACCENT_COLORS) as [key, color]}
-							<button
-								class="color-swatch"
-								class:active={currentAccent === key}
-								style="--swatch-color: {color.hex}"
-								onclick={() => handleAccentChange(key as AccentColorKey)}
-								aria-label={color.label}
-								title={color.label}
-							>
-								{#if currentAccent === key}
-									<svg
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="3"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<polyline points="20 6 9 17 4 12" />
-									</svg>
-								{/if}
-							</button>
-						{/each}
-					</div>
+					<AccentColorPicker {currentAccent} onchange={handleAccentChange} />
 				</div>
 			</div>
 
-			<!-- Members -->
 			<div class="settings-section">
 				<h3 class="section-title">Members</h3>
 				<div class="card">
 					<MemberList groupId={group.id} hostId={group.createdBy} currentUserId={user.id} />
 				</div>
 			</div>
-
-			<!-- Invite -->
 			<div class="settings-section">
 				<h3 class="section-title">Invite Link</h3>
-				<div class="card">
-					<InviteLink inviteCode={group.inviteCode} />
-				</div>
+				<div class="card"><InviteLink inviteCode={group.inviteCode} /></div>
 			</div>
 
-			<!-- Content Retention -->
+			<div class="settings-section">
+				<h3 class="section-title">Download Provider</h3>
+				<div class="card"><DownloadProviderManager /></div>
+			</div>
+			<div class="settings-section">
+				<h3 class="section-title">Allowed Platforms</h3>
+				<div class="card">
+					<PlatformFilter
+						currentMode={group.platformFilterMode}
+						currentPlatforms={group.platformFilterList
+							? JSON.parse(group.platformFilterList)
+							: null}
+					/>
+				</div>
+			</div>
+			{#if group.shortcutToken}
+				<div class="settings-section">
+					<h3 class="section-title">iOS Shortcut</h3>
+					<div class="card">
+						<ShortcutManager shortcutToken={group.shortcutToken} shortcutUrl={group.shortcutUrl} />
+					</div>
+				</div>
+			{/if}
+
+			<div class="settings-section">
+				<h3 class="section-title">Max Clip Size</h3>
+				<div class="card">
+					<MaxFileSizePicker currentMaxFileSizeMb={group.maxFileSizeMb} />
+				</div>
+			</div>
 			<div class="settings-section">
 				<h3 class="section-title">Content Retention</h3>
-				<div class="card">
-					<RetentionPicker currentRetention={group.retentionDays} />
-				</div>
+				<div class="card"><RetentionPicker currentRetention={group.retentionDays} /></div>
 			</div>
-
-			<!-- Storage & Clips -->
 			<div class="settings-section">
 				<h3 class="section-title">Storage & Clips</h3>
-				<div class="card">
-					<ClipsManager />
-				</div>
+				<div class="card"><ClipsManager /></div>
 			</div>
 		</div>
+	{/if}
+
+	{#if showAvatarCrop}
+		<AvatarCropModal ondismiss={() => (showAvatarCrop = false)} onuploaded={handleAvatarUploaded} />
 	{/if}
 
 	<footer class="version-footer">
@@ -415,7 +369,6 @@
 		padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 	}
 
-	/* Tab bar */
 	.tab-bar {
 		display: flex;
 		gap: 2px;
@@ -423,6 +376,19 @@
 		border-radius: var(--radius-full);
 		padding: 3px;
 		margin-bottom: var(--space-xl);
+		position: relative;
+	}
+
+	.tab-bg {
+		position: absolute;
+		top: 3px;
+		bottom: 3px;
+		left: 3px;
+		width: calc(50% - 3px);
+		background: var(--text-primary);
+		border-radius: var(--radius-full);
+		transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+		z-index: 0;
 	}
 
 	.tab {
@@ -436,21 +402,20 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: color 0.2s ease;
+		position: relative;
+		z-index: 1;
 	}
 
 	.tab.active {
-		background: var(--text-primary);
 		color: var(--bg-primary);
 	}
 
-	/* Tab content */
 	.tab-content {
 		display: flex;
 		flex-direction: column;
 	}
 
-	/* Profile header - centered, prominent */
 	.profile-header {
 		display: flex;
 		flex-direction: column;
@@ -459,10 +424,26 @@
 		padding: var(--space-sm) 0 var(--space-xl);
 	}
 
+	.avatar-btn {
+		position: relative;
+		border: none;
+		background: none;
+		padding: 0;
+		cursor: pointer;
+		margin-bottom: var(--space-xs);
+	}
+
+	.avatar-btn:active {
+		transform: scale(0.97);
+	}
+
 	.avatar-large {
 		width: 80px;
 		height: 80px;
 		border-radius: var(--radius-full);
+	}
+
+	.avatar-initials {
 		background: var(--bg-surface);
 		color: var(--text-secondary);
 		display: flex;
@@ -471,8 +452,36 @@
 		font-family: var(--font-display);
 		font-weight: 800;
 		font-size: 1.75rem;
-		flex-shrink: 0;
-		margin-bottom: var(--space-xs);
+	}
+
+	.avatar-img {
+		object-fit: cover;
+		display: block;
+	}
+
+	.avatar-edit-badge {
+		position: absolute;
+		bottom: 0;
+		right: 0;
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-full);
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid var(--bg-primary);
+	}
+
+	.remove-photo-btn {
+		border: none;
+		background: none;
+		color: var(--error);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		padding: 0;
 	}
 
 	.profile-name {
@@ -481,8 +490,6 @@
 		font-weight: 700;
 		color: var(--text-primary);
 		margin: 0;
-		text-transform: none;
-		letter-spacing: -0.01em;
 	}
 
 	.profile-phone {
@@ -502,7 +509,6 @@
 		margin-top: var(--space-xs);
 	}
 
-	/* Settings sections */
 	.settings-section {
 		margin-bottom: var(--space-lg);
 	}
@@ -518,35 +524,31 @@
 		padding: 0 var(--space-xs);
 	}
 
-	/* Cards */
 	.card {
 		background: var(--bg-elevated);
 		border-radius: var(--radius-md);
 		padding: var(--space-lg);
 	}
 
-	.divider {
-		height: 1px;
-		background: var(--bg-surface);
-		margin: var(--space-lg) 0;
-	}
-
-	.sub-heading {
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		margin: 0 0 var(--space-sm);
-	}
-
-	/* Theme toggle */
 	.theme-toggle {
 		display: flex;
 		gap: 2px;
 		background: var(--bg-surface);
 		border-radius: var(--radius-full);
 		padding: 3px;
+		position: relative;
+	}
+
+	.theme-bg {
+		position: absolute;
+		top: 3px;
+		bottom: 3px;
+		left: 3px;
+		width: calc(33.333% - 2px);
+		background: var(--text-primary);
+		border-radius: var(--radius-full);
+		transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+		z-index: 0;
 	}
 
 	.theme-option {
@@ -559,15 +561,15 @@
 		font-size: 0.8125rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: color 0.2s ease;
+		position: relative;
+		z-index: 1;
 	}
 
 	.theme-option.active {
-		background: var(--text-primary);
 		color: var(--bg-primary);
 	}
 
-	/* Setting rows */
 	.setting-row {
 		display: flex;
 		align-items: center;
@@ -577,9 +579,13 @@
 		border-bottom: 1px solid var(--bg-surface);
 	}
 
-	.setting-row.last,
+	.setting-row:first-child {
+		padding-top: 0;
+	}
+
 	.setting-row:last-child {
 		border-bottom: none;
+		padding-bottom: 0;
 	}
 
 	.setting-label {
@@ -600,23 +606,57 @@
 		color: var(--text-muted);
 	}
 
-	.hint {
-		color: var(--text-muted);
-		font-size: 0.8125rem;
-		line-height: 1.5;
-		margin: 0;
+	.share-cta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		background: var(--bg-elevated);
+		border-radius: var(--radius-lg);
+		padding: var(--space-lg);
+		margin: var(--space-lg) 0;
+		text-decoration: none;
+		transition: all 0.2s ease;
 	}
 
-	/* Setup link */
-	.setup-link {
+	.share-cta:active {
+		transform: scale(0.98);
+	}
+
+	.share-cta :global(.share-cta-icon) {
 		flex-shrink: 0;
 		color: var(--accent-primary);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		text-decoration: none;
 	}
 
-	/* Toggle */
+	.share-cta-content {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.share-cta-title {
+		font-family: var(--font-display);
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--text-primary);
+	}
+
+	.share-cta-desc {
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
+	}
+
+	.share-cta-btn {
+		flex-shrink: 0;
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		font-size: 0.8125rem;
+		font-weight: 700;
+		padding: var(--space-sm) var(--space-lg);
+		border-radius: var(--radius-full);
+	}
+
 	.toggle {
 		position: relative;
 		width: 44px;
@@ -630,11 +670,6 @@
 		padding: 0;
 	}
 
-	.toggle:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
 	.toggle.active {
 		background: var(--accent-primary);
 	}
@@ -645,52 +680,14 @@
 		left: 2px;
 		width: 22px;
 		height: 22px;
-		border-radius: 50%;
-		background: #fff;
-		transition: transform 0.2s;
+		border-radius: var(--radius-full);
+		background: var(--constant-white);
+		transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}
 
 	.toggle.active .toggle-thumb {
 		transform: translateX(18px);
-	}
-
-	/* Color palette */
-	.color-palette {
-		display: flex;
-		gap: var(--space-sm);
-		flex-wrap: wrap;
-	}
-
-	.color-swatch {
-		width: 40px;
-		height: 40px;
-		border-radius: var(--radius-full);
-		border: 2px solid transparent;
-		background: var(--swatch-color);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition:
-			border-color 0.2s ease,
-			transform 0.1s ease;
-		padding: 0;
-	}
-
-	.color-swatch:active {
-		transform: scale(0.95);
-	}
-
-	.color-swatch.active {
-		border-color: var(--text-primary);
-		transform: scale(1.1);
-	}
-
-	.color-swatch svg {
-		width: 16px;
-		height: 16px;
-		color: #000000;
 	}
 
 	.version-footer {

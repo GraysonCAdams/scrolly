@@ -9,6 +9,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		appUrl: env.PUBLIC_APP_URL || 'http://localhost:3000',
-		shortcutICloudUrl: env.SHORTCUT_ICLOUD_URL || null
+		shortcutUrl: locals.group?.shortcutUrl || null,
+		shortcutToken: locals.group?.shortcutToken || null
 	};
 };

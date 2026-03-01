@@ -1,10 +1,10 @@
 # Default owner for everything
-* @GraysonCAdams
+* @312-dev
 
 # Security-sensitive files
-/.github/workflows/ @GraysonCAdams
-/.github/codeql/ @GraysonCAdams
-/src/lib/server/auth/ @GraysonCAdams
-/src/lib/server/db/ @GraysonCAdams
-/Dockerfile @GraysonCAdams
-/SECURITY.md @GraysonCAdams
+/.github/workflows/ @312-dev
+/.github/codeql/ @312-dev
+/src/lib/server/auth/ @312-dev
+/src/lib/server/db/ @312-dev
+/Dockerfile @312-dev
+/SECURITY.md @312-dev

@@ -2,7 +2,10 @@ import webpush from 'web-push';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import { pushSubscriptions, notificationPreferences, users } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('push');
 
 type NotificationPayload = {
 	title: string;
@@ -47,11 +50,12 @@ export async function sendNotification(
 					},
 					payloadStr
 				);
-			} catch (err: any) {
-				if (err.statusCode === 410 || err.statusCode === 404) {
+			} catch (err: unknown) {
+				const pushErr = err as { statusCode?: number };
+				if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
 					await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
 				} else {
-					console.error(`Push failed for subscription ${sub.id}:`, err);
+					log.error({ err, subscriptionId: sub.id }, 'push failed for subscription');
 				}
 			}
 		})
@@ -65,16 +69,24 @@ export async function sendGroupNotification(
 	excludeUserId?: string
 ): Promise<void> {
 	const groupUsers = await db.query.users.findMany({
-		where: eq(users.groupId, groupId)
+		where: eq(users.groupId, groupId),
+		columns: { id: true, removedAt: true }
 	});
 
-	const targets = groupUsers.filter((u) => u.id !== excludeUserId);
+	const targets = groupUsers.filter((u) => u.id !== excludeUserId && !u.removedAt);
+	if (targets.length === 0) return;
+
+	const targetIds = targets.map((u) => u.id);
+
+	// Batch-fetch all notification preferences for target users in one query
+	const allPrefs = await db.query.notificationPreferences.findMany({
+		where: inArray(notificationPreferences.userId, targetIds)
+	});
+	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
 
 	await Promise.allSettled(
 		targets.map(async (user) => {
-			const prefs = await db.query.notificationPreferences.findFirst({
-				where: eq(notificationPreferences.userId, user.id)
-			});
+			const prefs = prefsMap.get(user.id);
 			if (prefs && !prefs[preferenceKey]) return;
 			await sendNotification(user.id, payload);
 		})

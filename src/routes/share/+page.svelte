@@ -1,11 +1,33 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { isSupportedUrl, platformLabel } from '$lib/url-validation';
+	import { resolve } from '$app/paths';
+	import {
+		isSupportedUrl,
+		platformLabel,
+		detectPlatform,
+		isPlatformAllowed
+	} from '$lib/url-validation';
+	import XCircleIcon from 'phosphor-svelte/lib/XCircleIcon';
+	import ProhibitIcon from 'phosphor-svelte/lib/ProhibitIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 
 	const shareUrl = $derived($page.data.shareUrl as string);
 	const platform = $derived(platformLabel(shareUrl));
 	const isValid = $derived(isSupportedUrl(shareUrl));
+	const detectedPlatform = $derived(shareUrl ? detectPlatform(shareUrl) : null);
+	const platformFilterMode = $derived(($page.data.group?.platformFilterMode as string) ?? 'all');
+	const platformFilterList = $derived<string[] | null>(
+		$page.data.group?.platformFilterList
+			? JSON.parse($page.data.group.platformFilterList as string)
+			: null
+	);
+	const platformAllowed = $derived(
+		detectedPlatform
+			? isPlatformAllowed(detectedPlatform, platformFilterMode, platformFilterList)
+			: true
+	);
 
 	let loading = $state(false);
 	let error = $state('');
@@ -26,7 +48,7 @@
 				return;
 			}
 			success = true;
-			setTimeout(() => goto('/'), 1500);
+			setTimeout(() => goto(resolve('/')), 1500);
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -43,52 +65,29 @@
 	<div class="share-card">
 		{#if !isValid}
 			<div class="icon-wrap error">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="10" />
-					<line x1="15" y1="9" x2="9" y2="15" />
-					<line x1="9" y1="9" x2="15" y2="15" />
-				</svg>
+				<XCircleIcon size={28} />
 			</div>
 			<h1 class="share-title">Unsupported link</h1>
 			<p class="share-desc">This URL isn't from a supported platform.</p>
 			<p class="share-url">{shareUrl}</p>
-			<a href="/" class="btn-secondary">Go to feed</a>
+			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+		{:else if !platformAllowed}
+			<div class="icon-wrap error">
+				<ProhibitIcon size={28} />
+			</div>
+			<h1 class="share-title">Platform not allowed</h1>
+			<p class="share-desc">{platform} links aren't allowed in this group.</p>
+			<p class="share-url">{shareUrl}</p>
+			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
 		{:else if success}
 			<div class="icon-wrap success">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="20 6 9 17 4 12" />
-				</svg>
+				<CheckIcon size={28} weight="bold" />
 			</div>
 			<h1 class="share-title">Added!</h1>
 			<p class="share-desc">Taking you to the feed...</p>
 		{:else}
 			<div class="icon-wrap">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path
-						d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"
-					/>
-				</svg>
+				<ExportIcon size={28} />
 			</div>
 			<h1 class="share-title">Add to feed</h1>
 			{#if platform}
@@ -103,7 +102,7 @@
 			<button class="btn-primary" onclick={handleSubmit} disabled={loading}>
 				{loading ? 'Adding...' : 'Add to feed'}
 			</button>
-			<a href="/" class="btn-ghost">Cancel</a>
+			<a href={resolve('/')} class="btn-ghost">Cancel</a>
 		{/if}
 	</div>
 </div>
@@ -141,11 +140,6 @@
 		align-items: center;
 		justify-content: center;
 		margin-bottom: var(--space-sm);
-	}
-
-	.icon-wrap svg {
-		width: 28px;
-		height: 28px;
 		color: var(--accent-primary);
 	}
 
@@ -154,15 +148,8 @@
 		animation: pop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
-	.icon-wrap.success svg {
-		color: var(--accent-primary);
-	}
-
 	.icon-wrap.error {
 		background: color-mix(in srgb, var(--error) 12%, transparent);
-	}
-
-	.icon-wrap.error svg {
 		color: var(--error);
 	}
 
@@ -216,7 +203,7 @@
 		width: 100%;
 		padding: var(--space-md) var(--space-xl);
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 1rem;

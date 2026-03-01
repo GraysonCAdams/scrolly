@@ -3,24 +3,20 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { withHost, parseBody, isResponse } from '$lib/server/api-utils';
 
-export const PATCH: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
+export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => {
+	const body = await parseBody<{ name?: string }>(request);
+	if (isResponse(body)) return body;
 
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can rename the group' }, { status: 403 });
-	}
-
-	const { name } = await request.json();
+	const { name } = body;
 
 	if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 50) {
 		return json({ error: 'Name must be 1-50 characters' }, { status: 400 });
 	}
 
 	const trimmed = name.trim();
-	await db.update(groups).set({ name: trimmed }).where(eq(groups.id, locals.group.id));
+	await db.update(groups).set({ name: trimmed }).where(eq(groups.id, group.id));
 
 	return json({ name: trimmed });
-};
+});

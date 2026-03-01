@@ -507,13 +507,54 @@ backdrop-filter: blur(20px);
 background: rgba(0, 0, 0, 0.7);
 ```
 
-### Engagement Icons (right-side overlay on video)
+### Action Sidebar (right-side overlay on video)
 
-- Icon size: `32px`–`36px`, filled style (more visible than outlined against video)
-- Count text: `12px`–`13px`, white, weight 600
-- Vertical gap between icon groups: `16px`–`20px`
-- All icons: `filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5))`
-- Profile avatar in overlay: `40px`–`48px` diameter
+Each action button sits inside a **circular semi-transparent background** for consistent visibility over any video content. This matches the YouTube Shorts pattern — raw icon-only buttons are too fragile against bright/varied video frames.
+
+**Icon Circle:**
+- Size: `44px` x `44px` (meets touch target minimum)
+- Background: `rgba(30, 30, 30, 0.55)` with `backdrop-filter: blur(6px)`
+- Border-radius: `--radius-full`
+- Active press: `scale(0.93)` + slightly brighter background
+
+**Icon:**
+- Size: `24px` x `24px` inside the circle
+- Color: `#fff`, with `filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4))`
+- Favorited state: `--accent-magenta` color, circle background tinted `rgba(255, 45, 120, 0.2)`
+
+**Count Labels:**
+- Displayed below the icon circle (e.g., comment count)
+- Font: `0.6875rem` (11px), weight 600, white, `text-shadow` for readability
+- Only shown when count > 0
+
+**Vertical gap between buttons:** `--space-lg` (16px)
+
+### Reel Bottom Overlay (user info + caption)
+
+The overlay at the bottom-left of each reel follows a structured layout:
+
+**Row 1 — User Info:**
+- `36px` circular avatar (with `2px solid rgba(255,255,255,0.25)` border)
+- Initials fallback on frosted glass background when no avatar
+- `@username` in `--font-display`, weight 700, `1rem`, white with text shadow
+- Platform icon badge (small pill) to the right of username
+
+**Row 2 — Caption:**
+- `0.875rem`, `rgba(255,255,255,0.9)`, max 2-line clamp with expand on tap
+- Editable inline for clip owner (before anyone else has viewed)
+
+**Row 3 — Reactions:**
+- Frosted glass pills with emoji + count
+
+### Spinning Album Art Disc (music reels)
+
+For music content type reels, a small spinning album art disc appears at the bottom-right of the viewport (below the action sidebar). Mirrors the TikTok/Shorts music indicator.
+
+- Size: `44px` x `44px`, circular, `overflow: hidden`
+- Border: `2px solid rgba(255,255,255,0.2)`
+- Box shadow: `0 2px 8px rgba(0,0,0,0.4)`
+- Spins continuously when playing: `animation: spin-disc 4s linear infinite`
+- Pauses rotation when audio is paused
 
 ---
 

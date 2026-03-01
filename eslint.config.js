@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import ts from 'typescript-eslint';
 import svelte from 'eslint-plugin-svelte';
 import sonarjs from 'eslint-plugin-sonarjs';
+import security from 'eslint-plugin-security';
 import globals from 'globals';
 
 export default ts.config(
@@ -9,6 +10,7 @@ export default ts.config(
 	...ts.configs.recommended,
 	...svelte.configs['flat/recommended'],
 	sonarjs.configs.recommended,
+	security.configs.recommended,
 	{
 		languageOptions: {
 			globals: {
@@ -28,7 +30,7 @@ export default ts.config(
 			'prefer-const': 'error',
 			'no-var': 'error',
 			eqeqeq: 'error',
-			'max-lines': ['warn', 500],
+			'max-lines': ['error', 500],
 			'sonarjs/cognitive-complexity': ['warn', 15],
 			'sonarjs/pseudo-random': 'off',
 			'sonarjs/no-os-command-from-path': 'off',
@@ -39,7 +41,8 @@ export default ts.config(
 			'svelte/require-each-key': 'warn',
 			'svelte/prefer-svelte-reactivity': 'warn',
 			'sonarjs/no-dead-store': 'warn',
-			'sonarjs/no-unused-vars': 'warn'
+			'sonarjs/no-unused-vars': 'warn',
+			'security/detect-object-injection': 'off'
 		}
 	},
 	{
@@ -59,7 +62,8 @@ export default ts.config(
 			'max-lines': 'off',
 			'@typescript-eslint/no-explicit-any': 'off',
 			'sonarjs/cognitive-complexity': 'off',
-			'sonarjs/no-hardcoded-credentials': 'off'
+			'sonarjs/no-hardcoded-credentials': 'off',
+			'sonarjs/no-clear-text-protocols': 'off'
 		}
 	},
 	{
@@ -68,6 +72,7 @@ export default ts.config(
 			'.svelte-kit/',
 			'node_modules/',
 			'data/',
+			'docs/.vitepress/dist/',
 			'vite.config.ts.timestamp-*'
 		]
 	}

@@ -1,5 +1,9 @@
 <script lang="ts">
-	const EMOJI = ['❤️', '👍', '👎', '😂', '‼️', '❓'];
+	import { REACTIONS } from '$lib/icons';
+
+	const RADIUS = 140;
+	const START_DEG = 120;
+	const END_DEG = 240;
 
 	const {
 		x,
@@ -18,26 +22,36 @@
 	let pickerEl: HTMLDivElement | null = $state(null);
 	let visible = $state(false);
 	let hoveredIndex = $state(-1);
-	let isDragging = $state(dragMode);
 	const btnEls: HTMLButtonElement[] = $state([]);
+
+	// Pre-compute arc positions (math coords, screen-y inverted)
+	const positions = REACTIONS.map((_, i) => {
+		const deg = START_DEG + (END_DEG - START_DEG) * (i / (REACTIONS.length - 1));
+		const rad = (deg * Math.PI) / 180;
+		return {
+			x: RADIUS * Math.cos(rad),
+			y: -RADIUS * Math.sin(rad)
+		};
+	});
 
 	// Animate in
 	$effect(() => {
-		requestAnimationFrame(() => {
+		const raf = requestAnimationFrame(() => {
 			visible = true;
 		});
+		return () => cancelAnimationFrame(raf);
 	});
 
-	// Auto-dismiss after 4s (only in tap mode)
+	// Auto-dismiss after 4s (tap mode only)
 	$effect(() => {
-		if (isDragging) return;
+		if (dragMode) return;
 		const timer = setTimeout(ondismiss, 4000);
 		return () => clearTimeout(timer);
 	});
 
 	// Dismiss on outside click (tap mode only)
 	$effect(() => {
-		if (isDragging) return;
+		if (dragMode) return;
 
 		function handleOutsideClick(e: PointerEvent) {
 			if (pickerEl && !pickerEl.contains(e.target as Node)) {
@@ -56,15 +70,14 @@
 
 	// Drag mode: track pointer and pick on release
 	$effect(() => {
-		if (!isDragging) return;
+		if (!dragMode) return;
 
 		function hitTestEmoji(cx: number, cy: number): number {
 			for (let i = 0; i < btnEls.length; i++) {
 				const el = btnEls[i];
 				if (!el) continue;
 				const rect = el.getBoundingClientRect();
-				// Generous hit area
-				const pad = 4;
+				const pad = 8;
 				if (
 					cx >= rect.left - pad &&
 					cx <= rect.right + pad &&
@@ -84,11 +97,9 @@
 		function handleUp(e: PointerEvent) {
 			const idx = hitTestEmoji(e.clientX, e.clientY);
 			if (idx >= 0) {
-				onpick(EMOJI[idx]);
+				onpick(REACTIONS[idx].emoji);
 			} else {
-				// Released outside emoji — switch to tap mode
-				isDragging = false;
-				hoveredIndex = -1;
+				ondismiss();
 			}
 		}
 
@@ -100,102 +111,85 @@
 			document.removeEventListener('pointerup', handleUp);
 		};
 	});
-
-	// Keep picker on screen
-	function getStyle() {
-		const pw = 284;
-		const ph = 52;
-		let left = x - pw / 2;
-		let top = y - ph - 16;
-
-		left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
-		if (top < 8) top = y + 16;
-
-		return `left:${left}px;top:${top}px`;
-	}
 </script>
 
-<div class="picker" class:visible style={getStyle()} bind:this={pickerEl}>
-	{#each EMOJI as emoji, i}
+<div
+	class="picker-anchor"
+	style="left:{x}px;top:{y}px"
+	bind:this={pickerEl}
+	role="listbox"
+	aria-label="Reaction picker"
+>
+	{#each REACTIONS as reaction, i (reaction.emoji)}
+		{@const ReactionIcon = reaction.component}
 		<button
-			class="emoji-btn"
+			class="reaction-btn"
+			class:visible
 			class:hovered={hoveredIndex === i}
+			style="--tx:{positions[i].x}px;--ty:{positions[i].y}px;transition-delay:{visible
+				? i * 30
+				: 0}ms"
 			bind:this={btnEls[i]}
 			onclick={() => {
-				if (!isDragging) onpick(emoji);
+				if (!dragMode) onpick(reaction.emoji);
 			}}
+			aria-label="React with {reaction.emoji}"
 		>
-			<span class="emoji-inner">{emoji}</span>
+			<ReactionIcon size={26} weight={reaction.weight} />
 		</button>
 	{/each}
 </div>
 
 <style>
-	.picker {
+	.picker-anchor {
 		position: fixed;
 		z-index: 200;
-		display: flex;
-		gap: 4px;
-		padding: 8px 12px;
-		background: rgba(0, 0, 0, 0.65);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		border-radius: var(--radius-full);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-		transform: scale(0.6);
-		opacity: 0;
-		transition:
-			transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-			opacity 150ms ease;
-		pointer-events: auto;
-	}
-
-	.picker.visible {
-		transform: scale(1);
-		opacity: 1;
-	}
-
-	.emoji-btn {
-		background: none;
-		border: none;
-		width: 40px;
-		height: 40px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		border-radius: var(--radius-full);
-		padding: 0;
-		transition: background 120ms ease;
-		-webkit-tap-highlight-color: transparent;
-	}
-
-	.emoji-inner {
-		font-size: 1.5rem;
-		line-height: 1;
-		display: block;
-		transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
 		pointer-events: none;
 	}
 
-	.emoji-btn.hovered .emoji-inner {
-		transform: scale(1.45) translateY(-6px);
+	.reaction-btn {
+		position: absolute;
+		width: 44px;
+		height: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		border-radius: var(--radius-full);
+		background: none;
+		color: var(--reel-text);
+		transform: translate(-50%, -50%) scale(0);
+		opacity: 0;
+		transition:
+			transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+			opacity 150ms ease,
+			color 120ms ease;
+		pointer-events: none;
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	.emoji-btn.hovered {
-		background: rgba(255, 255, 255, 0.12);
+	.reaction-btn.visible {
+		transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1);
+		opacity: 1;
+		pointer-events: auto;
 	}
 
-	.emoji-btn:hover:not(.hovered) {
-		background: rgba(255, 255, 255, 0.08);
+	.reaction-btn.hovered {
+		transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.45);
+		color: var(--accent-magenta);
 	}
 
-	.emoji-btn:hover:not(.hovered) .emoji-inner {
+	.reaction-btn:hover:not(.hovered) :global(svg) {
 		transform: scale(1.15);
 	}
 
-	.emoji-btn:active .emoji-inner {
-		transform: scale(0.9);
+	.reaction-btn :global(svg) {
+		width: 26px;
+		height: 26px;
+		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 8px rgba(0, 0, 0, 0.4));
+		transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+		pointer-events: none;
 	}
 </style>

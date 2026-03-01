@@ -8,8 +8,14 @@
 		type Toast
 	} from '$lib/stores/toasts';
 	import { onDestroy } from 'svelte';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import InfoIcon from 'phosphor-svelte/lib/InfoIcon';
+	import XCircleIcon from 'phosphor-svelte/lib/XCircleIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive tracking maps, cleaned up in onDestroy
 	const pollIntervals = new Map<string, ReturnType<typeof setInterval>>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive tracking maps, cleaned up in onDestroy
 	const dismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 	$effect(() => {
@@ -26,7 +32,7 @@
 			if (toast.autoDismiss && toast.autoDismiss > 0 && !dismissTimeouts.has(toast.id)) {
 				const timeout = setTimeout(() => {
 					dismissTimeouts.delete(toast.id);
-					removeToast(toast.id);
+					handleDismiss(toast.id);
 				}, toast.autoDismiss);
 				dismissTimeouts.set(toast.id, timeout);
 			}
@@ -60,11 +66,10 @@
 				if (interval) clearInterval(interval);
 				pollIntervals.delete(toast.id);
 
+				const contentLabel = toast.contentType === 'music' ? 'song' : 'video';
 				replaceToast(toast.id, {
 					type: 'success',
-					message: data.title
-						? `"${data.title}" is ready`
-						: `Your ${toast.contentType === 'music' ? 'song' : 'video'} is ready`
+					message: data.title ? `"${data.title}" is ready` : `Your ${contentLabel} is ready`
 				});
 
 				const timeout = setTimeout(() => removeToast(toast.id), 6000);
@@ -93,14 +98,22 @@
 		handleDismiss(toast.id);
 	}
 
+	let dismissingIds = $state(new Set<string>());
+
 	function handleDismiss(id: string) {
+		if (dismissingIds.has(id)) return;
 		const interval = pollIntervals.get(id);
 		if (interval) clearInterval(interval);
 		pollIntervals.delete(id);
 		const timeout = dismissTimeouts.get(id);
 		if (timeout) clearTimeout(timeout);
 		dismissTimeouts.delete(id);
-		removeToast(id);
+
+		dismissingIds = new Set([...dismissingIds, id]);
+		setTimeout(() => {
+			dismissingIds = new Set([...dismissingIds].filter((d) => d !== id));
+			removeToast(id);
+		}, 200);
 	}
 
 	onDestroy(() => {
@@ -112,47 +125,20 @@
 {#if $toasts.length > 0}
 	<div class="toast-stack">
 		{#each $toasts as toast (toast.id)}
-			<div class="toast toast-{toast.type}" role="alert">
+			<div
+				class="toast toast-{toast.type}"
+				class:dismissing={dismissingIds.has(toast.id)}
+				role="alert"
+			>
 				<div class="toast-icon">
 					{#if toast.type === 'processing'}
 						<div class="spinner-ring"></div>
 					{:else if toast.type === 'success'}
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="20 6 9 17 4 12" />
-						</svg>
+						<CheckIcon size={16} weight="bold" />
 					{:else if toast.type === 'info'}
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<circle cx="12" cy="12" r="10" />
-							<line x1="12" y1="16" x2="12" y2="12" />
-							<line x1="12" y1="8" x2="12.01" y2="8" />
-						</svg>
+						<InfoIcon size={16} />
 					{:else}
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<circle cx="12" cy="12" r="10" />
-							<line x1="15" y1="9" x2="9" y2="15" />
-							<line x1="9" y1="9" x2="15" y2="15" />
-						</svg>
+						<XCircleIcon size={16} />
 					{/if}
 				</div>
 				<span class="toast-message">{toast.message}</span>
@@ -160,17 +146,7 @@
 					<button class="toast-view" onclick={() => handleView(toast)}>View</button>
 				{/if}
 				<button class="toast-dismiss" onclick={() => handleDismiss(toast.id)} aria-label="Dismiss">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
+					<XIcon size={14} />
 				</button>
 				{#if toast.type === 'processing'}
 					<div class="progress-track">
@@ -236,7 +212,7 @@
 		justify-content: center;
 	}
 
-	.toast-icon svg {
+	.toast-icon :global(svg) {
 		width: 16px;
 		height: 16px;
 	}
@@ -293,7 +269,7 @@
 		color: var(--text-primary);
 	}
 
-	.toast-dismiss svg {
+	.toast-dismiss :global(svg) {
 		width: 14px;
 		height: 14px;
 	}
@@ -320,7 +296,7 @@
 		height: 16px;
 		border: 2px solid var(--bg-subtle);
 		border-top-color: var(--accent-primary);
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		animation: spin 0.8s linear infinite;
 	}
 
@@ -350,6 +326,17 @@
 		to {
 			opacity: 1;
 			transform: translateY(0) scale(1);
+		}
+	}
+
+	.toast.dismissing {
+		animation: toast-out 200ms ease-out forwards;
+	}
+
+	@keyframes toast-out {
+		to {
+			opacity: 0;
+			transform: translateY(12px) scale(0.97);
 		}
 	}
 </style>

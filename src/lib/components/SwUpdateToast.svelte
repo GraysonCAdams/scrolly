@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { swUpdateAvailable, applySwUpdate } from '$lib/stores/pwa';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 </script>
 
 {#if $swUpdateAvailable}
 	<div class="update-toast" role="alert">
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<polyline points="23 4 23 10 17 10" />
-			<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-		</svg>
+		<ArrowClockwiseIcon size={16} />
 		<span>New version available</span>
 		<button onclick={applySwUpdate}>Update</button>
 	</div>
@@ -31,9 +29,7 @@
 		animation: drop-in 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
-	.update-toast svg {
-		width: 16px;
-		height: 16px;
+	.update-toast :global(svg) {
 		color: var(--accent-blue);
 		flex-shrink: 0;
 	}
@@ -47,7 +43,7 @@
 
 	button {
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		padding: var(--space-xs) var(--space-md);

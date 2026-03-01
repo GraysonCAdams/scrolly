@@ -9,6 +9,9 @@ declare global {
 			user: InferSelectModel<typeof users> | null;
 			group: InferSelectModel<typeof groups> | null;
 		}
+		interface PageState {
+			sheet?: string;
+		}
 	}
 }
 

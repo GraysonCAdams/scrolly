@@ -4,15 +4,14 @@ Thanks for your interest in contributing! This guide covers everything you need 
 
 ## Prerequisites
 
-- **Node.js** 20+
-- **npm** 10+
+- **Node.js** 24+
 - **Docker** (optional, for container testing)
 
 ## Development Setup
 
 ```bash
 # Clone the repo
-git clone https://github.com/graysoncadams/scrolly.git
+git clone https://github.com/312-dev/scrolly.git
 cd scrolly
 
 # Install dependencies

@@ -2,46 +2,29 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { clips, users } from '$lib/server/db/schema';
-import { eq, count, isNull, and } from 'drizzle-orm';
-import { stat } from 'fs/promises';
+import { eq, count, isNull, and, sql } from 'drizzle-orm';
+import { withAuth } from '$lib/server/api-utils';
 
-export const GET: RequestHandler = async ({ locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
-
+export const GET: RequestHandler = withAuth(async (_event, { group }) => {
 	const [clipCount] = await db
 		.select({ count: count() })
 		.from(clips)
-		.where(eq(clips.groupId, locals.group.id));
+		.where(eq(clips.groupId, group.id));
 
 	const [memberCount] = await db
 		.select({ count: count() })
 		.from(users)
-		.where(and(eq(users.groupId, locals.group.id), isNull(users.removedAt)));
+		.where(and(eq(users.groupId, group.id), isNull(users.removedAt)));
 
-	const groupClips = await db.query.clips.findMany({
-		where: eq(clips.groupId, locals.group.id)
-	});
-
-	let totalBytes = 0;
-	for (const clip of groupClips) {
-		for (const path of [clip.videoPath, clip.audioPath, clip.thumbnailPath]) {
-			if (path) {
-				try {
-					const s = await stat(path);
-					totalBytes += s.size;
-				} catch {
-					// File may have been deleted
-				}
-			}
-		}
-	}
+	const [storage] = await db
+		.select({ totalBytes: sql<number>`coalesce(sum(${clips.fileSizeBytes}), 0)` })
+		.from(clips)
+		.where(eq(clips.groupId, group.id));
 
 	return json({
 		clipCount: clipCount.count,
 		memberCount: memberCount.count,
-		storageMb: Math.round((totalBytes / 1024 / 1024) * 10) / 10,
-		maxStorageMb: locals.group.maxStorageMb
+		storageMb: Math.round((storage.totalBytes / 1024 / 1024) * 10) / 10,
+		maxStorageMb: group.maxStorageMb
 	});
-};
+});

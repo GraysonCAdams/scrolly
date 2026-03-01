@@ -1,7 +1,10 @@
 <script lang="ts">
 	const { currentRetention }: { currentRetention: number | null } = $props();
 
-	let retention = $state<string>(currentRetention === null ? 'forever' : String(currentRetention));
+	let retentionOverride = $state<string | null>(null);
+	const retention = $derived(
+		retentionOverride ?? (currentRetention === null ? 'forever' : String(currentRetention))
+	);
 	let saving = $state(false);
 
 	const options = [
@@ -21,7 +24,7 @@
 
 	async function handleChange(e: Event) {
 		const value = (e.target as HTMLSelectElement).value;
-		retention = value;
+		retentionOverride = value;
 		saving = true;
 
 		try {
@@ -39,7 +42,7 @@
 
 <div class="retention-picker">
 	<select value={retention} onchange={handleChange} disabled={saving}>
-		{#each options as opt}
+		{#each options as opt (opt.value)}
 			<option value={opt.value}>{opt.label}</option>
 		{/each}
 	</select>

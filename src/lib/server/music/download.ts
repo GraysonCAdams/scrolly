@@ -1,12 +1,14 @@
-import { spawn } from 'child_process';
-import { resolve } from 'path';
-import { readdir, stat } from 'fs/promises';
+import { stat } from 'fs/promises';
 import { db } from '../db';
 import { clips } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { deduplicatedDownload } from '../download-lock';
+import { getActiveProvider } from '../providers/registry';
+import type { AudioDownloadResult } from '../providers/types';
+import { DATA_DIR, getMaxFileSize, cleanupClipFiles } from '$lib/server/download-utils';
+import { createLogger } from '$lib/server/logger';
 
-const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
+const log = createLogger('music');
 
 interface OdesliResponse {
 	entityUniqueId: string;
@@ -41,7 +43,7 @@ async function resolveOdesli(url: string): Promise<MusicMetadata> {
 	const res = await fetch(apiUrl);
 
 	if (!res.ok) {
-		console.error(`Odesli API returned ${res.status} for ${url}`);
+		log.error({ status: res.status, url }, 'odesli API error');
 		return {
 			title: null,
 			artist: null,
@@ -65,126 +67,69 @@ async function resolveOdesli(url: string): Promise<MusicMetadata> {
 	};
 }
 
-function spawnYtDlp(
+async function finalizeMusicClip(
 	clipId: string,
-	searchQuery: string
-): Promise<{ audioPath: string; duration: number | null }> {
-	return new Promise((resolvePromise, reject) => {
-		const outputTemplate = `${DATA_DIR}/${clipId}.%(ext)s`;
-
-		const args = [
-			'--no-playlist',
-			'--js-runtimes',
-			'node',
-			'--remote-components',
-			'ejs:github',
-			'--extractor-args',
-			'youtube:player_client=android_vr,web_safari',
-			'-x',
-			'--audio-format',
-			'mp3',
-			'--audio-quality',
-			'0',
-			'--write-info-json',
-			'-o',
-			outputTemplate,
-			searchQuery
-		];
-
-		// Strip Node/Vite env vars that interfere with yt-dlp's
-		// internal `node --permission` subprocess for JS challenge solving
-		const cleanEnv = { ...process.env };
-		const stripPrefixes = ['NODE_OPTIONS', 'NODE_DEV', 'NODE_CHANNEL_FD', 'VITE_'];
-		for (const key of Object.keys(cleanEnv)) {
-			if (stripPrefixes.some((p) => key.startsWith(p))) {
-				delete cleanEnv[key];
-			}
-		}
-
-		const proc = spawn('yt-dlp', args, {
-			stdio: ['ignore', 'pipe', 'pipe'],
-			env: cleanEnv
-		});
-		let stderr = '';
-		let stdout = '';
-
-		proc.stdout.on('data', (data: Buffer) => {
-			stdout += data.toString();
-		});
-		proc.stderr.on('data', (data: Buffer) => {
-			stderr += data.toString();
-		});
-
-		proc.on('close', async (code) => {
-			if (code !== 0) {
-				console.error(`yt-dlp stdout:\n${stdout}`);
-				reject(new Error(`yt-dlp audio exited with code ${code}: ${stderr}`));
-				return;
-			}
-
-			try {
-				const files = await readdir(DATA_DIR);
-				const clipFiles = files.filter((f) => f.startsWith(clipId));
-				const audioFile = clipFiles.find((f) => f.endsWith('.mp3'));
-				const infoFile = clipFiles.find((f) => f.endsWith('.info.json'));
-
-				if (!audioFile) {
-					reject(new Error(`No audio file found for clip ${clipId}`));
-					return;
-				}
-
-				let duration: number | null = null;
-				if (infoFile) {
-					try {
-						const { readFile } = await import('fs/promises');
-						const info = JSON.parse(await readFile(`${DATA_DIR}/${infoFile}`, 'utf-8'));
-						duration = typeof info.duration === 'number' ? Math.round(info.duration) : null;
-					} catch {
-						// Best-effort
-					}
-				}
-
-				resolvePromise({
-					audioPath: `${DATA_DIR}/${audioFile}`,
-					duration
-				});
-			} catch (err) {
-				reject(err);
-			}
-		});
-
-		proc.on('error', (err) => {
-			reject(new Error(`Failed to spawn yt-dlp: ${err.message}. Is yt-dlp installed?`));
-		});
-	});
-}
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
-
-async function downloadAudioFromYt(
-	clipId: string,
-	searchQuery: string
-): Promise<{ audioPath: string; duration: number | null }> {
-	let lastError: Error | null = null;
-
-	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-		try {
-			return await spawnYtDlp(clipId, searchQuery);
-		} catch (err) {
-			lastError = err instanceof Error ? err : new Error(String(err));
-			if (attempt < MAX_RETRIES) {
-				const delay = RETRY_DELAY_MS * attempt;
-				console.warn(`yt-dlp attempt ${attempt}/${MAX_RETRIES} failed, retrying in ${delay}ms...`);
-				await new Promise((r) => setTimeout(r, delay));
-			}
-		}
+	result: AudioDownloadResult,
+	metadata: MusicMetadata,
+	maxFileSizeBytes: number | null
+): Promise<void> {
+	// Calculate file size
+	let fileSizeBytes = 0;
+	try {
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		const s = await stat(result.audioPath);
+		fileSizeBytes = s.size;
+	} catch {
+		// File may not exist
 	}
 
-	throw lastError ?? new Error('yt-dlp download failed');
+	// Post-download file size safety net
+	if (maxFileSizeBytes && fileSizeBytes > maxFileSizeBytes) {
+		const sizeMb = Math.round(maxFileSizeBytes / (1024 * 1024));
+		log.warn({ clipId, fileSizeBytes, maxFileSizeBytes }, 'music clip size exceeds limit');
+		await cleanupClipFiles(clipId);
+		await db
+			.update(clips)
+			.set({
+				status: 'failed',
+				title: `Exceeds ${sizeMb} MB limit`,
+				durationSeconds: result.duration
+			})
+			.where(eq(clips.id, clipId));
+		return;
+	}
+
+	// Keep existing title (caption from SMS) if present
+	const existing = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+	const title = existing?.title || metadata.title || null;
+
+	await db
+		.update(clips)
+		.set({
+			status: 'ready',
+			audioPath: result.audioPath,
+			title,
+			durationSeconds: result.duration,
+			fileSizeBytes: fileSizeBytes || null
+		})
+		.where(eq(clips.id, clipId));
 }
 
 async function downloadMusicInner(clipId: string, url: string): Promise<void> {
+	const maxFileSizeBytes = await getMaxFileSize(clipId);
+
+	// Resolve the active provider for this clip's group
+	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+	if (!clip) return;
+	const provider = await getActiveProvider(clip.groupId);
+	if (!provider) {
+		await db
+			.update(clips)
+			.set({ status: 'failed', title: 'No download provider configured' })
+			.where(eq(clips.id, clipId));
+		return;
+	}
+
 	try {
 		// Step 1: Resolve metadata from Odesli
 		const metadata = await resolveOdesli(url);
@@ -202,61 +147,44 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 			})
 			.where(eq(clips.id, clipId));
 
-		// Step 3: Search YouTube and download audio
-		let result: { audioPath: string; duration: number | null } | null = null;
+		// Step 3: Search YouTube and download audio via provider
+		let result: AudioDownloadResult | null = null;
+		const downloadOptions = {
+			outputDir: DATA_DIR,
+			clipId,
+			maxFileSizeBytes
+		};
 
 		if (metadata.title && metadata.artist) {
 			try {
-				result = await downloadAudioFromYt(
-					clipId,
-					`ytsearch1:${metadata.title} ${metadata.artist}`
+				result = await provider.downloadAudio(
+					`ytsearch1:${metadata.title} ${metadata.artist}`,
+					downloadOptions
 				);
 			} catch (err) {
-				console.error(`YouTube search failed for "${metadata.title} ${metadata.artist}":`, err);
+				log.error({ err, title: metadata.title, artist: metadata.artist }, 'youtube search failed');
 			}
 		}
 
 		// Step 4: Fallback — try the YouTube Music URL directly
 		if (!result && metadata.youtubeMusicUrl) {
 			try {
-				result = await downloadAudioFromYt(clipId, metadata.youtubeMusicUrl);
+				result = await provider.downloadAudio(metadata.youtubeMusicUrl, downloadOptions);
 			} catch (err) {
-				console.error(`YouTube Music URL download failed:`, err);
+				log.error({ err }, 'youtube music URL download failed');
 			}
 		}
 
 		if (result) {
-			// Keep existing title (caption from SMS) if present
-			const existing = await db.query.clips.findFirst({
-				where: eq(clips.id, clipId)
-			});
-			const title = existing?.title || metadata.title || null;
-
-			// Calculate file size
-			let fileSizeBytes = 0;
-			try {
-				const s = await stat(result.audioPath);
-				fileSizeBytes = s.size;
-			} catch {
-				// File may not exist
-			}
-
-			await db
-				.update(clips)
-				.set({
-					status: 'ready',
-					audioPath: result.audioPath,
-					title,
-					durationSeconds: result.duration,
-					fileSizeBytes: fileSizeBytes || null
-				})
-				.where(eq(clips.id, clipId));
+			await finalizeMusicClip(clipId, result, metadata, maxFileSizeBytes);
 		} else {
 			// Failed to download audio, but metadata + platform links are still visible
+			await cleanupClipFiles(clipId);
 			await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
 		}
 	} catch (err) {
-		console.error(`Music download failed for clip ${clipId}:`, err);
+		log.error({ err, clipId }, 'music download failed');
+		await cleanupClipFiles(clipId);
 		await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
 	}
 }

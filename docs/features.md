@@ -1,46 +1,83 @@
 # Scrolly Feature Breakdown
 
 ## 1. Video Ingestion
-- **Goal:** Allow users to share TikTok/Instagram/Facebook links to the app. Videos are downloaded and re-hosted via yt-dlp.
-- **Primary method:** SMS. Users text links to the Scrolly phone number (Twilio). Any non-URL text in the message becomes the video's **caption**. On signup, users receive a VCF contact card via MMS.
-- **Fallback:** Paste URL into the web app's input field.
-- **Android bonus (Phase 3):** PWA can register as a share target via the Web Share Target API for direct share sheet integration.
-- **iOS limitation:** PWAs cannot be share targets. SMS fully solves this.
-- **Notes:** Videos are downloaded server-side via yt-dlp and stored on the VPS filesystem. See [sms-integration.md](sms-integration.md) for full SMS flow.
+- **Goal:** Allow users to share TikTok/Instagram/YouTube/Facebook links to the app. Videos are downloaded and re-hosted via a pluggable download provider.
+- **Primary method:** SMS. Users text links to the Scrolly phone number (Twilio). Any non-URL text in the message becomes the video's **caption**.
+- **Web app:** Paste URL into the add-video modal.
+- **Android share target:** PWA registers as a share target via the Web Share Target API for direct share sheet integration.
+- **iOS limitation:** PWAs cannot be share targets. SMS or paste-in-app works.
+- **Notes:** Videos are downloaded server-side via the active download provider and stored on the VPS filesystem. The host installs a provider from the Settings UI. Failed downloads can be retried from the UI.
 
-## 2. User Identity
-- **Goal:** Prompt for username and phone number. No password; access via private invite code.
-- **Doable:** Yes. Simple onboarding flow: invite code → username → phone number (required). Phone is used to match inbound SMS to the user. Session via signed httpOnly cookie.
+## 2. Music Sharing
+- **Goal:** Share music links across streaming platforms.
+- **How it works:** When a user shares a Spotify, Apple Music, or YouTube Music link, the app resolves it via Odesli to provide cross-platform links. Audio is downloaded and served with album art.
+- **Content type:** Music clips are distinguished from video clips via the `contentType` field. The feed renders a dedicated music player with spinning album art and streaming service links.
 
-## 3. Feed & Interaction
-- **Goal:** Scrollable TikTok-style feed, track who added what, allow comments/reactions, show original link, track watched status, tabs for "Unwatched", "Watched", "Favorites".
-- **Doable:** Yes. All features are standard for web apps. UI built with SvelteKit. Watched/favorite tracking via SQLite backend.
+## 3. User Identity
+- **Goal:** Simple, passwordless onboarding with phone verification.
+- **Flow:** Invite code → username → phone number → SMS verification code.
+- **Phone verification:** 6-digit SMS codes via Twilio with expiry and attempt limits.
+- **Session:** Signed httpOnly cookie. Users can log back in via phone number + verification code.
+- **Profile:** Avatar upload (circular crop, client-side canvas processing), theme preference, playback preferences.
 
-## 4. Notifications
-- **Goal:** Push notifications for new videos.
-- **Doable:** Partially. Web push is supported for PWAs on Android and desktop. iOS supports web push as of iOS 16.4+, but **only** for PWAs added to the Home Screen; notifications are text-only (no images or rich media), and reach is significantly lower due to the multi-step install-then-permit flow. Requires backend for notification delivery.
+## 4. Feed & Interaction
+- **Goal:** TikTok-style full-screen vertical feed with rich interactions.
+- **Feed:** Scrollable reel with inline video/music playback, filterable (all, unwatched, watched, favorites).
+- **Comments:** Threaded replies with hearts. Comment view tracking (new comment badges).
+- **Reactions:** Emoji reactions (❤️ 👍 👎 😂 ‼️ ❓) with animated emoji shower effect.
+- **Watched tracking:** Automatic with watch percentage. View count and viewer list per clip.
+- **Favorites:** Toggle favorite on any clip.
+- **Captions:** Editable by the poster (before others watch).
 
-## 5. Access Control
-- **Goal:** Private access only (invite link/code).
-- **Doable:** Yes. Can implement invite codes or private links. No public listing.
+## 5. Notifications
+- **In-app:** Activity feed page with grouped notifications (new clips, reactions, comments). Unread badges on the activity tab.
+- **Push notifications:** Web Push (VAPID) for new clips, reactions, and comments. Per-user preference toggles.
+- **Platform support:** Full support on Android/desktop. iOS 16.4+ PWA-only (text-only, Home Screen required).
+- **See:** [notifications.md](notifications.md) for setup and architecture.
 
-## 6. Host Controls
-- **Goal:** Set retention policy (max days/storage), auto-delete, keep original URL for deleted videos.
-- **Doable:** Yes. Backend can enforce retention and storage limits. Keeping original URL for deleted videos is straightforward.
+## 6. Group Management (Host Controls)
+- **Naming:** Host can rename the group.
+- **Accent color:** Host can change the group's accent/brand color.
+- **Retention policy:** Configurable auto-delete after N days (7, 14, 30, 60, 90, or off).
+- **Invite code:** Host can regenerate the invite code to invalidate old links.
+- **Members:** Host can view member list and remove members (soft-delete).
+- **Storage:** Host can view storage stats and batch-delete clips.
+
+## 7. Access Control
+- **Private access:** Groups are invite-only via unique codes.
+- **No public listing:** Groups are not discoverable.
+- **Session-based:** All API endpoints require a valid session cookie.
+
+## 8. PWA & Mobile
+- **Installable:** Full PWA with manifest, service worker, and offline fallback page.
+- **Share target (Android):** Receives shared URLs directly from the share sheet.
+- **Install banner:** Prompts users to install the PWA.
+- **Service worker updates:** Toast prompt when a new version is available.
 
 ---
 
 ## Summary Table
-| Feature | Doable | Notes |
+
+| Feature | Status | Notes |
 |---------|--------|-------|
-| SMS video ingestion | Yes | Primary method. Text links + captions to Scrolly number. |
-| Share sheet (Android) | Phase 3 | Web Share Target API — bonus, not required |
-| Video download & re-host | Yes | yt-dlp on VPS, local filesystem storage |
-| Username + phone onboarding | Yes | No password. Phone required for SMS matching. |
-| Private access | Yes | Invite code |
-| TikTok-style feed | Yes | SvelteKit PWA |
-| Comments/reactions | Yes | Phase 2 |
-| Watched/favorites tracking | Yes | SQLite backend |
-| Push notifications | Partial | Android/desktop: Yes; iOS: 16.4+ Home Screen PWA only, text-only, lower reach |
-| Retention controls | Yes | Backend logic |
-| Keep original URL | Yes | Simple |
+| SMS video ingestion | Done | Text links + captions to Scrolly number |
+| Web URL submission | Done | Paste URL via add-video modal |
+| Android share target | Done | Web Share Target API |
+| Music sharing | Done | Odesli cross-platform resolution |
+| Video download & re-host | Done | Pluggable provider, local filesystem |
+| Phone verification | Done | SMS codes via Twilio |
+| Username + avatar onboarding | Done | Circular crop, canvas processing |
+| Private access (invite code) | Done | Host can regenerate |
+| TikTok-style reel feed | Done | Full-screen vertical scroll |
+| Threaded comments + hearts | Done | Nested replies, heart toggle |
+| Emoji reactions | Done | 6 emoji types, animated shower |
+| Watched/view tracking | Done | Watch percent, viewer list |
+| Favorites | Done | Toggle, filterable in feed |
+| In-app notifications | Done | Activity feed, unread badges |
+| Push notifications | Done | Android/desktop full, iOS 16.4+ limited |
+| Group management | Done | Name, accent, retention, members, storage |
+| Theme switching | Done | System/light/dark, stored per user |
+| Playback preferences | Done | Mute default, auto-scroll, playback speed |
+| PWA install + updates | Done | Install banner, SW update toast |
+| Retention auto-delete | Done | Scheduled cleanup |
+| Daily reminder push | Planned | Preference exists, scheduling not yet implemented |

@@ -1,18 +1,12 @@
 <script lang="ts">
+	import InfoIcon from 'phosphor-svelte/lib/InfoIcon';
+
 	const { message }: { message: string } = $props();
 </script>
 
 {#if message}
 	<div class="inline-error" role="alert">
-		<svg viewBox="0 0 20 20" fill="none" class="error-icon">
-			<circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5" />
-			<path
-				d="M10 6V11M10 13.5V14"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-			/>
-		</svg>
+		<InfoIcon size={18} />
 		{message}
 	</div>
 {/if}
@@ -33,9 +27,7 @@
 		animation: inline-error-in 0.3s ease;
 	}
 
-	.error-icon {
-		width: 18px;
-		height: 18px;
+	.inline-error :global(svg) {
 		flex-shrink: 0;
 	}
 

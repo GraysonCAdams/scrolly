@@ -1,6 +1,17 @@
 <script lang="ts">
 	import InlineError from './InlineError.svelte';
-	import { isSupportedUrl, platformLabel } from '$lib/url-validation';
+	import {
+		isSupportedUrl,
+		platformLabel,
+		detectPlatform,
+		isPlatformAllowed
+	} from '$lib/url-validation';
+	import { addToast } from '$lib/stores/toasts';
+	import { page } from '$app/stores';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import ClipboardIcon from 'phosphor-svelte/lib/ClipboardIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 
 	const {
 		onsubmitted,
@@ -13,15 +24,34 @@
 		initialUrl?: string;
 	} = $props();
 
-	let url = $state(initialUrl || '');
+	const hasProvider = $derived(!!$page.data.group?.downloadProvider);
+	const platformFilterMode = $derived(($page.data.group?.platformFilterMode as string) ?? 'all');
+	const platformFilterList = $derived<string[] | null>(
+		$page.data.group?.platformFilterList
+			? JSON.parse($page.data.group.platformFilterList as string)
+			: null
+	);
+	let url = $state('');
 	let error = $state('');
 	let loading = $state(false);
 	let urlInput = $state<HTMLInputElement | null>(null);
 	let clipboardSuggestion = $state<{ url: string; label: string } | null>(null);
 
+	const detectedPlatform = $derived(url.trim() ? detectPlatform(url.trim()) : null);
+	const platformBlocked = $derived(
+		detectedPlatform
+			? !isPlatformAllowed(detectedPlatform, platformFilterMode, platformFilterList)
+			: false
+	);
+
 	export function focus() {
 		urlInput?.focus();
 	}
+
+	// Seed URL from prop
+	$effect.pre(() => {
+		if (initialUrl) url = initialUrl;
+	});
 
 	// Attempt clipboard read on mount (requires user gesture — modal tap counts)
 	$effect(() => {
@@ -31,9 +61,12 @@
 				const text = await navigator.clipboard.readText();
 				const trimmed = text?.trim();
 				if (trimmed && isSupportedUrl(trimmed)) {
-					const label = platformLabel(trimmed);
-					if (label) {
-						clipboardSuggestion = { url: trimmed, label };
+					const detected = detectPlatform(trimmed);
+					if (detected && isPlatformAllowed(detected, platformFilterMode, platformFilterList)) {
+						const label = platformLabel(trimmed);
+						if (label) {
+							clipboardSuggestion = { url: trimmed, label };
+						}
 					}
 				}
 			} catch {
@@ -68,6 +101,16 @@
 				return;
 			}
 			url = '';
+			// Always create a processing toast — persists in global ToastStack
+			// even if modal is dismissed/destroyed. AddVideoModal removes it
+			// when UploadStatus takes over as the feedback mechanism.
+			addToast({
+				type: 'processing',
+				message: `Adding ${data.clip.contentType === 'music' ? 'song' : 'video'} to feed...`,
+				clipId: data.clip.id,
+				contentType: data.clip.contentType,
+				autoDismiss: 0
+			});
 			onsubmitted?.(data.clip, '');
 		} catch {
 			error = 'Something went wrong';
@@ -77,90 +120,67 @@
 	}
 </script>
 
-<form
-	class="add-video"
-	onsubmit={(e) => {
-		e.preventDefault();
-		handleSubmit();
-	}}
->
-	{#if clipboardSuggestion}
-		<div class="clipboard-suggestion">
-			<div class="suggestion-content">
-				<svg
-					class="suggestion-icon"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path
-						d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
-					/>
-					<rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-				</svg>
-				<div class="suggestion-text">
-					<span class="suggestion-label">Paste from {clipboardSuggestion.label}?</span>
-					<span class="suggestion-url">{clipboardSuggestion.url}</span>
+{#if !hasProvider}
+	<div class="add-video no-provider-state">
+		<DownloadSimpleIcon size={40} class="no-provider-icon" />
+		<p class="no-provider-title">No download provider set up</p>
+		<p class="no-provider-desc">Ask your group host to configure one in Settings.</p>
+	</div>
+{:else}
+	<form
+		class="add-video"
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSubmit();
+		}}
+	>
+		{#if clipboardSuggestion}
+			<div class="clipboard-suggestion">
+				<div class="suggestion-content">
+					<ClipboardIcon size={18} class="suggestion-icon" />
+					<div class="suggestion-text">
+						<span class="suggestion-label">Paste from {clipboardSuggestion.label}?</span>
+						<span class="suggestion-url">{clipboardSuggestion.url}</span>
+					</div>
+				</div>
+				<div class="suggestion-actions">
+					<button type="button" class="suggestion-confirm" onclick={acceptClipboard}>
+						Paste
+					</button>
+					<button
+						type="button"
+						class="suggestion-dismiss"
+						onclick={dismissClipboard}
+						aria-label="Dismiss"
+					>
+						<XIcon size={16} />
+					</button>
 				</div>
 			</div>
-			<div class="suggestion-actions">
-				<button type="button" class="suggestion-confirm" onclick={acceptClipboard}>
-					Paste
-				</button>
-				<button
-					type="button"
-					class="suggestion-dismiss"
-					onclick={dismissClipboard}
-					aria-label="Dismiss"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
-				</button>
-			</div>
-		</div>
-	{/if}
+		{/if}
 
-	<div class="input-wrap" class:has-error={!!error}>
-		<input
-			bind:this={urlInput}
-			type="url"
-			bind:value={url}
-			placeholder="Paste a link..."
-			disabled={loading}
-		/>
-		<button type="submit" disabled={loading || !url.trim()}>
-			{#if loading}
-				<span class="spinner"></span>
-			{:else}
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="5" y1="12" x2="19" y2="12" />
-					<polyline points="12 5 19 12 12 19" />
-				</svg>
-			{/if}
-		</button>
-	</div>
-	<InlineError message={error} />
-	<p class="platforms">TikTok, Instagram, YouTube Shorts, Spotify, Apple Music</p>
-</form>
+		<div class="input-wrap" class:has-error={!!error}>
+			<input
+				bind:this={urlInput}
+				type="url"
+				bind:value={url}
+				placeholder="Paste a link..."
+				disabled={loading}
+			/>
+			<button type="submit" disabled={loading || !url.trim() || platformBlocked}>
+				{#if loading}
+					<span class="spinner"></span>
+				{:else}
+					<ArrowRightIcon size={20} weight="bold" />
+				{/if}
+			</button>
+		</div>
+		{#if platformBlocked}
+			<p class="platform-blocked">{platformLabel(url.trim())} links aren't allowed in this group</p>
+		{/if}
+		<InlineError message={error} />
+	</form>
+{/if}
 
 <style>
 	.add-video {
@@ -193,7 +213,7 @@
 		flex: 1;
 	}
 
-	.suggestion-icon {
+	.suggestion-content :global(.suggestion-icon) {
 		width: 18px;
 		height: 18px;
 		color: var(--accent-primary);
@@ -230,7 +250,7 @@
 	.suggestion-confirm {
 		padding: var(--space-xs) var(--space-md);
 		background: var(--accent-primary);
-		color: #000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 0.75rem;
@@ -252,7 +272,7 @@
 		margin: 0;
 	}
 
-	.suggestion-dismiss svg {
+	.suggestion-dismiss :global(svg) {
 		width: 16px;
 		height: 16px;
 	}
@@ -315,16 +335,16 @@
 		align-items: center;
 		justify-content: center;
 		background: var(--accent-primary);
-		color: #000;
+		color: var(--bg-primary);
 		border: none;
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		cursor: pointer;
 		transition:
 			transform 0.1s ease,
 			opacity 0.15s ease;
 	}
 
-	button svg {
+	button :global(svg) {
 		width: 20px;
 		height: 20px;
 	}
@@ -342,8 +362,8 @@
 		width: 18px;
 		height: 18px;
 		border: 2.5px solid rgba(0, 0, 0, 0.15);
-		border-top-color: #000;
-		border-radius: 50%;
+		border-top-color: var(--bg-primary);
+		border-radius: var(--radius-full);
 		animation: spin 0.6s linear infinite;
 	}
 
@@ -353,11 +373,39 @@
 		}
 	}
 
-	.platforms {
+	.platform-blocked {
 		margin: 0;
 		font-size: 0.8125rem;
-		color: var(--text-muted);
+		color: var(--error);
 		text-align: center;
-		letter-spacing: 0.01em;
+	}
+
+	.no-provider-state {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		padding: var(--space-2xl) var(--space-lg);
+	}
+
+	.no-provider-state :global(.no-provider-icon) {
+		width: 40px;
+		height: 40px;
+		color: var(--text-muted);
+		opacity: 0.4;
+		margin-bottom: var(--space-md);
+	}
+
+	.no-provider-title {
+		font-family: var(--font-display);
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0 0 var(--space-xs);
+	}
+
+	.no-provider-desc {
+		font-size: 0.875rem;
+		color: var(--text-muted);
+		margin: 0;
 	}
 </style>

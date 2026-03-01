@@ -1,0 +1,1 @@
+ALTER TABLE `groups` ADD `max_file_size_mb` integer DEFAULT 500;

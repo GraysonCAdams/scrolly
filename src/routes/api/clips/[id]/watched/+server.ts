@@ -3,10 +3,9 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { watched } from '$lib/server/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
+import { withClipAuth } from '$lib/server/api-utils';
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
+export const POST: RequestHandler = withClipAuth(async ({ params, request }, { user }) => {
 	// Parse optional watchPercent from body
 	let watchPercent: number | null = null;
 	try {
@@ -22,7 +21,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		.insert(watched)
 		.values({
 			clipId: params.id,
-			userId: locals.user.id,
+			userId: user.id,
 			watchPercent,
 			watchedAt: new Date()
 		})
@@ -38,14 +37,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		});
 
 	return json({ watched: true });
-};
+});
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
-	await db
-		.delete(watched)
-		.where(and(eq(watched.clipId, params.id), eq(watched.userId, locals.user.id)));
+export const DELETE: RequestHandler = withClipAuth(async ({ params }, { user }) => {
+	await db.delete(watched).where(and(eq(watched.clipId, params.id), eq(watched.userId, user.id)));
 
 	return json({ watched: false });
-};
+});

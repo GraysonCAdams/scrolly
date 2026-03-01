@@ -10,7 +10,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via [GitHub Security Advisories](https://github.com/graysoncadams/scrolly/security/advisories/new).
+Instead, please report them via [GitHub Security Advisories](https://github.com/312-dev/scrolly/security/advisories/new).
 
 You should receive a response within 48 hours. If the issue is confirmed, a patch will be released as soon as possible.
 

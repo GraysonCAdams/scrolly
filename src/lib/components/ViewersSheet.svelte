@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { relativeTime } from '$lib/utils';
+	import BaseSheet from './BaseSheet.svelte';
 
 	interface Viewer {
 		userId: string;
@@ -20,32 +21,7 @@
 
 	let viewers = $state<Viewer[]>([]);
 	let loading = $state(true);
-	let visible = $state(false);
-
-	// Animate in
-	let closedViaBack = false;
-
-	$effect(() => {
-		requestAnimationFrame(() => {
-			visible = true;
-		});
-		document.body.style.overflow = 'hidden';
-
-		// Android back button / gesture support
-		history.pushState({ sheet: 'viewers' }, '');
-		const handlePopState = () => {
-			closedViaBack = true;
-			ondismiss();
-		};
-		window.addEventListener('popstate', handlePopState);
-
-		return () => {
-			document.body.style.overflow = '';
-			window.removeEventListener('popstate', handlePopState);
-			// Clean up history entry if closed via button (not back gesture)
-			if (!closedViaBack) history.back();
-		};
-	});
+	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
 
 	// Load viewers
 	$effect(() => {
@@ -61,111 +37,51 @@
 		}
 		loading = false;
 	}
-
-	function dismiss() {
-		visible = false;
-		setTimeout(ondismiss, 300);
-	}
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="overlay" class:visible onclick={dismiss} role="presentation"></div>
-
-<div class="sheet" class:visible>
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="handle-bar" onclick={dismiss} role="button" tabindex="-1">
-		<div class="handle"></div>
-	</div>
-
-	<div class="header">
-		<span class="title">Views{viewers.length > 0 ? ` (${viewers.length})` : ''}</span>
-	</div>
-
-	<div class="viewers-list">
-		{#if loading}
-			<p class="empty">Loading...</p>
-		{:else if viewers.length === 0}
-			<p class="empty">No views yet</p>
-		{:else}
-			{#each viewers as viewer (viewer.userId)}
-				<div class="viewer-row">
-					<div class="viewer-avatar">
-						<span class="avatar-initial">{viewer.username.charAt(0).toUpperCase()}</span>
+<div class="viewers-sheet-wrapper">
+	<BaseSheet
+		bind:this={sheetRef}
+		title="Views{viewers.length > 0 ? ` (${viewers.length})` : ''}"
+		sheetId="viewers"
+		{ondismiss}
+	>
+		<div class="viewers-list">
+			{#if loading}
+				<p class="empty">Loading...</p>
+			{:else if viewers.length === 0}
+				<p class="empty">No views yet</p>
+			{:else}
+				{#each viewers as viewer (viewer.userId)}
+					<div class="viewer-row">
+						<div class="viewer-avatar">
+							<span class="avatar-initial">{viewer.username.charAt(0).toUpperCase()}</span>
+						</div>
+						<div class="viewer-info">
+							<span class="viewer-name">{viewer.username}</span>
+							<span class="viewer-time">{relativeTime(viewer.watchedAt)}</span>
+						</div>
+						<span
+							class="status-badge"
+							class:viewed={viewer.status === 'viewed'}
+							class:skipped={viewer.status === 'skipped'}
+						>
+							{viewer.status === 'viewed' ? 'Viewed' : 'Skipped'}
+						</span>
 					</div>
-					<div class="viewer-info">
-						<span class="viewer-name">{viewer.username}</span>
-						<span class="viewer-time">{relativeTime(viewer.watchedAt)}</span>
-					</div>
-					<span
-						class="status-badge"
-						class:viewed={viewer.status === 'viewed'}
-						class:skipped={viewer.status === 'skipped'}
-					>
-						{viewer.status === 'viewed' ? 'Viewed' : 'Skipped'}
-					</span>
-				</div>
-			{/each}
-		{/if}
-	</div>
+				{/each}
+			{/if}
+		</div>
+	</BaseSheet>
 </div>
 
 <style>
-	.overlay {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		z-index: 99;
-		opacity: 0;
-		transition: opacity 300ms ease;
-	}
-
-	.overlay.visible {
-		opacity: 1;
-	}
-
-	.sheet {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
+	/* Override BaseSheet styles for viewers-specific look */
+	.viewers-sheet-wrapper :global(.base-sheet) {
 		height: 50vh;
-		background: var(--bg-surface);
-		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-		z-index: 100;
-		display: flex;
-		flex-direction: column;
-		transform: translateY(100%);
-		transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
-
-	.sheet.visible {
-		transform: translateY(0);
-	}
-
-	.handle-bar {
-		display: flex;
-		justify-content: center;
-		padding: var(--space-md);
-		cursor: pointer;
-	}
-
-	.handle {
-		width: 36px;
-		height: 4px;
-		background: var(--bg-subtle);
-		border-radius: 2px;
-	}
-
-	.header {
-		padding: 0 var(--space-lg) var(--space-md);
-		border-bottom: 1px solid var(--bg-subtle);
-	}
-
-	.title {
-		font-family: var(--font-display);
-		font-size: 0.9375rem;
-		font-weight: 600;
-		color: var(--text-primary);
+	.viewers-sheet-wrapper :global(.base-header) {
+		border-bottom-color: var(--bg-subtle);
 	}
 
 	.viewers-list {

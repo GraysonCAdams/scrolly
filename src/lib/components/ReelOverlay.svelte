@@ -1,418 +1,239 @@
 <script lang="ts">
 	import PlatformIcon from './PlatformIcon.svelte';
-	import { toast } from '$lib/stores/toasts';
+	import ReelOverlayActions from './ReelOverlayActions.svelte';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
 
 	const {
 		username,
+		avatarPath = null,
 		platform,
 		caption,
-		reactions,
-		onreaction,
 		canEditCaption = false,
 		seenByOthers = false,
 		clipId = '',
+		active = false,
+		uiHidden = false,
+		hasDiscOverlap = false,
 		oncaptionedit,
-		ondelete
+		ondelete,
+		oncomment
 	}: {
 		username: string;
+		avatarPath?: string | null;
 		platform: string;
 		caption: string | null;
-		reactions: Record<string, { count: number; reacted: boolean }>;
-		onreaction: (emoji: string) => void;
 		canEditCaption?: boolean;
 		seenByOthers?: boolean;
 		clipId?: string;
+		active?: boolean;
+		uiHidden?: boolean;
+		hasDiscOverlap?: boolean;
 		oncaptionedit?: (clipId: string, newCaption: string) => void;
 		ondelete?: (clipId: string) => void;
+		oncomment?: () => void;
 	} = $props();
 
 	let expanded = $state(false);
 	let editing = $state(false);
-	let editValue = $state('');
-	let _saving = $state(false);
-	let saved = $state(false);
 	let confirmingDelete = $state(false);
-	let deleting = $state(false);
-	let inputEl: HTMLInputElement | null = $state(null);
-
 	const canModify = $derived(canEditCaption && !seenByOthers);
-
-	const reactionEntries = $derived(Object.entries(reactions).filter(([, v]) => v.count > 0));
-
-	function startEdit() {
-		if (!canModify) return;
-		editValue = caption || '';
-		editing = true;
-		confirmingDelete = false;
-		requestAnimationFrame(() => {
-			inputEl?.focus();
-		});
-	}
-
-	function cancelEdit() {
-		editing = false;
-	}
-
-	async function saveEdit() {
-		if (!editing) return;
-		editing = false;
-		const newCaption = editValue.trim();
-		if (newCaption === (caption || '').trim()) return;
-
-		_saving = true;
-		try {
-			const res = await fetch(`/api/clips/${clipId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ title: newCaption })
-			});
-			if (res.ok) {
-				oncaptionedit?.(clipId, newCaption);
-				saved = true;
-				setTimeout(() => (saved = false), 1500);
-			} else {
-				toast.error('Failed to save caption');
-			}
-		} catch {
-			toast.error('Failed to save caption');
-		}
-		_saving = false;
-	}
-
-	async function handleDelete() {
-		if (deleting) return;
-		deleting = true;
-		try {
-			const res = await fetch(`/api/clips/${clipId}`, { method: 'DELETE' });
-			if (res.ok) {
-				ondelete?.(clipId);
-			} else {
-				toast.error('Failed to delete clip');
-			}
-		} catch {
-			toast.error('Failed to delete clip');
-		}
-		deleting = false;
-		confirmingDelete = false;
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			saveEdit();
-		} else if (e.key === 'Escape') {
-			cancelEdit();
-		}
-	}
+	const initials = $derived(username.replace('@', '').slice(0, 2).toUpperCase());
 </script>
 
-<div class="reel-overlay">
-	<div class="overlay-user">
-		<span class="username">@{username}</span>
-		<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
+<div class="reel-overlay" class:ui-hidden={uiHidden}>
+	<div class="overlay-content">
+		<div class="overlay-user">
+			{#if avatarPath}
+				<img src="/api/profile/avatar/{avatarPath}" alt="" class="overlay-avatar" />
+			{:else}
+				<span class="overlay-avatar overlay-avatar-fallback">{initials}</span>
+			{/if}
+			<span class="username">@{username}</span>
+			<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
+			{#if canModify && !editing && !confirmingDelete}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<span
+					class="host-actions-inline"
+					onclick={(e) => e.stopPropagation()}
+					onkeydown={(e) => e.stopPropagation()}
+				>
+					<button class="host-icon-btn" onclick={() => (editing = true)} aria-label="Edit caption">
+						<PencilSimpleIcon size={13} />
+					</button>
+					<button
+						class="host-icon-btn delete"
+						onclick={() => (confirmingDelete = true)}
+						aria-label="Delete clip"
+					>
+						<TrashIcon size={13} />
+					</button>
+				</span>
+			{/if}
+		</div>
+
+		<ReelOverlayActions
+			{clipId}
+			{caption}
+			{canModify}
+			{expanded}
+			onexpandtoggle={() => (expanded = !expanded)}
+			{oncaptionedit}
+			{ondelete}
+			bind:editing
+			bind:confirmingDelete
+		/>
 	</div>
 
-	{#if editing}
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="caption-edit" onclick={(e) => e.stopPropagation()}>
-			<input
-				bind:this={inputEl}
-				type="text"
-				bind:value={editValue}
-				onkeydown={handleKeydown}
-				maxlength={200}
-				placeholder="Add a caption..."
-			/>
-			<div class="edit-actions">
-				<button class="edit-action save" onclick={saveEdit}>Save</button>
-				<button class="edit-action cancel" onclick={cancelEdit}>Cancel</button>
-			</div>
-		</div>
-	{:else if caption || canModify}
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="caption-area">
-			{#if caption}
-				<p
-					class="overlay-caption"
-					class:expanded
-					onclick={(e) => {
-						e.stopPropagation();
-						if (canModify) {
-							startEdit();
-						} else {
-							expanded = !expanded;
-						}
-					}}
-				>
-					{caption}
-				</p>
-			{:else}
-				<p
-					class="overlay-caption placeholder"
-					onclick={(e) => {
-						e.stopPropagation();
-						startEdit();
-					}}
-				>
-					Add a caption...
-				</p>
-			{/if}
-			{#if saved}
-				<span class="saved-badge">Saved</span>
-			{/if}
-		</div>
-	{/if}
-
-	<!-- Host actions: Edit / Delete (only when clip hasn't been seen by others) -->
-	{#if canModify && !editing}
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="host-actions" onclick={(e) => e.stopPropagation()}>
-			{#if confirmingDelete}
-				<span class="confirm-label">Delete this clip?</span>
-				<button class="host-action-btn confirm-yes" onclick={handleDelete} disabled={deleting}>
-					{deleting ? 'Deleting...' : 'Delete'}
-				</button>
-				<span class="host-action-dot">·</span>
-				<button class="host-action-btn" onclick={() => (confirmingDelete = false)}>Cancel</button>
-			{:else}
-				<button class="host-action-btn" onclick={startEdit}>Edit</button>
-				<span class="host-action-dot">·</span>
-				<button class="host-action-btn delete" onclick={() => (confirmingDelete = true)}
-					>Delete</button
-				>
-			{/if}
-		</div>
-	{/if}
-
-	{#if reactionEntries.length > 0}
-		<div class="overlay-reactions">
-			{#each reactionEntries as [emoji, data]}
-				<button
-					class="reaction-pill"
-					class:reacted={data.reacted}
-					onclick={(e) => {
-						e.stopPropagation();
-						onreaction(emoji);
-					}}
-				>
-					{emoji}
-					{data.count}
-				</button>
-			{/each}
-		</div>
+	{#if active && oncomment}
+		<button
+			type="button"
+			class="comment-prompt"
+			class:disc-inset={hasDiscOverlap}
+			onclick={(e) => {
+				e.stopPropagation();
+				oncomment();
+			}}
+		>
+			<ChatIcon size={18} />
+			<span>Add a comment...</span>
+		</button>
 	{/if}
 </div>
 
 <style>
 	.reel-overlay {
 		position: absolute;
-		bottom: calc(90px + env(safe-area-inset-bottom));
+		bottom: calc(94px + env(safe-area-inset-bottom));
 		left: var(--space-lg);
-		right: 72px;
+		right: var(--space-lg);
 		z-index: 5;
+		transition: opacity 0.3s ease;
 	}
-
+	.reel-overlay.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.overlay-content {
+		margin-right: 64px;
+	}
 	.overlay-user {
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
 		margin-bottom: var(--space-xs);
 	}
-
+	.overlay-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: var(--radius-full);
+		object-fit: cover;
+		flex-shrink: 0;
+		border: 2px solid var(--reel-avatar-border);
+	}
+	.overlay-avatar-fallback {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--reel-frosted-bg);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		color: var(--reel-text-medium);
+		font-family: var(--font-display);
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
 	.username {
 		font-family: var(--font-display);
 		font-weight: 700;
 		font-size: 1rem;
-		color: #fff;
-		text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+		color: var(--reel-text);
+		text-shadow: 0 1px 4px var(--reel-text-shadow);
 	}
-
 	.platform-badge {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		padding: 4px;
 		border-radius: var(--radius-full);
-		background: rgba(255, 255, 255, 0.15);
-		color: rgba(255, 255, 255, 0.8);
+		background: var(--reel-frosted-bg);
+		color: var(--reel-text-medium);
 	}
-
-	/* Caption display area */
-	.caption-area {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-sm);
-		margin-bottom: 2px;
-	}
-
-	.overlay-caption {
-		margin: 0;
-		font-size: 0.875rem;
-		color: rgba(255, 255, 255, 0.9);
-		text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
-		line-height: 1.4;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-		cursor: pointer;
-		flex: 1;
-	}
-
-	.overlay-caption.placeholder {
-		color: rgba(255, 255, 255, 0.4);
-		font-style: italic;
-	}
-
-	.overlay-caption.expanded {
-		-webkit-line-clamp: unset;
-		display: block;
-	}
-
-	.saved-badge {
+	.host-actions-inline {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 		flex-shrink: 0;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: var(--accent-primary);
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-		animation: fade-in 0.2s ease;
-		margin-top: 2px;
 	}
-
-	/* Inline edit mode */
-	.caption-edit {
-		margin-bottom: var(--space-sm);
-	}
-
-	.caption-edit input {
-		width: 100%;
-		padding: 8px 12px;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		border-radius: var(--radius-sm);
-		color: #fff;
-		font-size: 0.875rem;
-		font-family: var(--font-body);
-		outline: none;
-	}
-
-	.caption-edit input:focus {
-		border-color: var(--accent-primary);
-	}
-
-	.caption-edit input::placeholder {
-		color: rgba(255, 255, 255, 0.3);
-	}
-
-	.edit-actions {
-		display: flex;
-		gap: var(--space-sm);
-		margin-top: 6px;
-	}
-
-	.edit-action {
-		background: none;
-		border: none;
-		font-size: 0.75rem;
-		font-weight: 600;
-		cursor: pointer;
-		padding: 0;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-	}
-
-	.edit-action.save {
-		color: var(--accent-primary);
-	}
-
-	.edit-action.cancel {
-		color: rgba(255, 255, 255, 0.5);
-	}
-
-	/* Host action row (Edit / Delete) */
-	.host-actions {
+	.host-icon-btn {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		margin-bottom: var(--space-sm);
-		animation: fade-in 0.15s ease;
-	}
-
-	.host-action-btn {
+		justify-content: center;
+		width: 24px;
+		height: 24px;
 		background: none;
 		border: none;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: rgba(255, 255, 255, 0.45);
+		border-radius: var(--radius-full);
+		color: var(--reel-text-ghost);
 		cursor: pointer;
 		padding: 0;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 		transition: color 0.15s ease;
 	}
-
-	.host-action-btn:active {
-		color: rgba(255, 255, 255, 0.7);
+	.host-icon-btn :global(svg) {
+		width: 13px;
+		height: 13px;
+		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
 	}
-
-	.host-action-btn.delete {
-		color: rgba(255, 255, 255, 0.35);
+	.host-icon-btn:active {
+		color: var(--reel-text-dim);
+		transform: scale(0.9);
 	}
-
-	.host-action-btn.confirm-yes {
+	.host-icon-btn.delete:active {
 		color: var(--error);
 	}
-
-	.host-action-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.host-action-dot {
-		color: rgba(255, 255, 255, 0.25);
-		font-size: 0.6875rem;
-		user-select: none;
-	}
-
-	.confirm-label {
-		font-size: 0.6875rem;
-		font-weight: 500;
-		color: rgba(255, 255, 255, 0.6);
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-		margin-right: 2px;
-	}
-
-	/* Reactions */
-	.overlay-reactions {
+	.comment-prompt {
 		display: flex;
-		gap: 4px;
-		flex-wrap: wrap;
-	}
-
-	.reaction-pill {
-		background: rgba(255, 255, 255, 0.12);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		border: 1px solid rgba(255, 255, 255, 0.15);
-		color: rgba(255, 255, 255, 0.9);
-		padding: 2px 10px;
+		align-items: center;
+		gap: var(--space-sm);
+		width: 100%;
+		margin-top: var(--space-md);
+		padding: var(--space-sm) var(--space-md);
 		border-radius: var(--radius-full);
-		font-size: 0.8125rem;
+		background: var(--reel-glass-pill-bg);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border: 1px solid var(--reel-glass-border);
 		cursor: pointer;
-		transition: all 0.2s ease;
+		font: inherit;
+		text-align: left;
+		transition: background 0.2s ease;
+		animation: comment-prompt-in 0.3s ease;
 	}
-
-	.reaction-pill.reacted {
-		border-color: var(--accent-primary);
-		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+	.comment-prompt.disc-inset {
+		width: calc(100% - 56px);
 	}
-
-	@keyframes fade-in {
+	.comment-prompt:active {
+		background: var(--reel-frosted-bg-active);
+	}
+	.comment-prompt :global(svg) {
+		width: 18px;
+		height: 18px;
+		flex-shrink: 0;
+		color: var(--reel-text-subtle);
+	}
+	.comment-prompt span {
+		font-size: 0.875rem;
+		color: var(--reel-text-subtle);
+	}
+	@keyframes comment-prompt-in {
 		from {
 			opacity: 0;
+			transform: translateY(8px);
 		}
 		to {
 			opacity: 1;
+			transform: translateY(0);
 		}
 	}
 </style>

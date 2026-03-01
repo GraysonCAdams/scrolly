@@ -3,17 +3,26 @@
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
+	import { activitySheetOpen } from '$lib/stores/activitySheet';
 	import { homeTapSignal } from '$lib/stores/homeTap';
-	import { unreadCount, startPolling } from '$lib/stores/notifications';
+	import { unreadCount, startPolling, stopPolling } from '$lib/stores/notifications';
 	import { globalMuted } from '$lib/stores/mute';
 	import { initAudioContext } from '$lib/audio/normalizer';
+	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
+	import BellIcon from 'phosphor-svelte/lib/BellIcon';
+	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
 	const { children }: { children: Snippet } = $props();
 
 	const isFeed = $derived(page.url.pathname === '/');
-	const isActivity = $derived(page.url.pathname === '/activity');
 	const isSettings = $derived(page.url.pathname === '/settings');
 
-	const pageTitle = $derived(isActivity ? 'Activity' : isSettings ? 'Settings' : '');
+	const pageTitle = $derived.by(() => {
+		if (isSettings) return 'Settings';
+		return '';
+	});
 
 	onMount(() => {
 		startPolling();
@@ -42,6 +51,7 @@
 		darkMq.addEventListener('change', syncThemeColor);
 
 		return () => {
+			stopPolling();
 			themeObserver.disconnect();
 			darkMq.removeEventListener('change', syncThemeColor);
 		};
@@ -49,97 +59,60 @@
 
 	function syncThemeColor() {
 		const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
-		if (isFeed) {
-			// Immersive feed: always black to blend with video content
-			metas.forEach((m) => m.setAttribute('content', '#000000'));
-		} else {
-			// Match app background based on effective theme
-			const manual = document.documentElement.dataset.theme;
-			const isDark =
-				manual === 'dark' ||
-				(!manual && window.matchMedia('(prefers-color-scheme: dark)').matches);
-			metas.forEach((m) => m.setAttribute('content', isDark ? '#000000' : '#FFFFFF'));
-		}
+		const bgPrimary = getComputedStyle(document.documentElement)
+			.getPropertyValue('--bg-primary')
+			.trim();
+		metas.forEach((m) => m.setAttribute('content', bgPrimary));
 	}
 
 	// Re-sync when navigating between feed and other pages
 	$effect(() => {
+		// eslint-disable-next-line sonarjs/void-use -- reading isFeed to trigger effect re-run
 		void isFeed;
 		syncThemeColor();
 	});
 </script>
 
+<!-- eslint-disable svelte/no-navigation-without-resolve -- static routes, resolve() unnecessary -->
 <div class="app-shell">
 	{#if isFeed}
 		<!-- Feed: notification bell floats top-right -->
-		<a href="/activity" class="feed-notif-btn">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-				<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-			</svg>
+		<button
+			class="feed-notif-btn"
+			class:ui-hidden={$feedUiHidden}
+			onclick={() => activitySheetOpen.set(true)}
+		>
+			<BellIcon size={24} />
 			{#if $unreadCount > 0}
 				<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 			{/if}
-		</a>
+		</button>
 	{:else}
-		<!-- Non-feed pages: top bar with title and bell -->
+		<!-- Non-feed pages: top bar with title -->
 		<nav class="top-bar">
 			<span class="top-title">{pageTitle}</span>
-			{#if !isActivity}
-				<a href="/activity" class="top-bar-action">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-						<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-					</svg>
+			{#if !isSettings}
+				<button class="top-bar-action" onclick={() => activitySheetOpen.set(true)}>
+					<BellIcon size={22} />
 					{#if $unreadCount > 0}
 						<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 					{/if}
-				</a>
+				</button>
 			{/if}
 		</nav>
 	{/if}
 	<main class:immersive={isFeed}>
 		{@render children()}
 	</main>
-	<nav class="bottom-tabs" class:overlay-mode={isFeed}>
+	<nav class="bottom-tabs" class:overlay-mode={isFeed} class:ui-hidden={isFeed && $feedUiHidden}>
 		{#if isFeed}
 			<button class="tab active" onclick={() => homeTapSignal.update((n) => n + 1)}>
-				<!-- Filled home icon (active) -->
-				<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-					<path
-						d="M12.71 2.29a1 1 0 0 0-1.42 0l-9 9a1 1 0 0 0 1.42 1.42L4 12.41V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.59l.29.3a1 1 0 0 0 1.42-1.42l-9-9zM10 20v-6h4v6h-4z"
-					/>
-				</svg>
+				<HouseIcon size={24} weight="fill" />
 				<span>Home</span>
 			</button>
 		{:else}
 			<a href="/" class="tab">
-				<!-- Outlined home icon (inactive) -->
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-					<path d="M9 21V12h6v9" />
-				</svg>
+				<HouseIcon size={24} />
 				<span>Home</span>
 			</a>
 		{/if}
@@ -151,47 +124,20 @@
 			}}
 		>
 			<div class="add-icon">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M12 5v14M5 12h14" />
-				</svg>
+				<PlusIcon size={18} weight="bold" />
 			</div>
 			<span>Add</span>
 		</button>
 		<a href="/settings" class="tab" class:active={isSettings}>
-			{#if isSettings}
-				<!-- Filled gear icon (active) -->
-				<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-					<path
-						d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.26.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"
-					/>
-				</svg>
-			{:else}
-				<!-- Outlined gear icon (inactive) -->
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="3" />
-					<path
-						d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-					/>
-				</svg>
-			{/if}
+			<GearSixIcon size={24} weight={isSettings ? 'fill' : 'regular'} />
 			<span>Settings</span>
 		</a>
 	</nav>
 </div>
+
+{#if $activitySheetOpen}
+	<ActivitySheet ondismiss={() => activitySheetOpen.set(false)} />
+{/if}
 
 <style>
 	.app-shell {
@@ -212,12 +158,20 @@
 		width: 40px;
 		height: 40px;
 		border-radius: var(--radius-full);
-		color: #fff;
-		text-decoration: none;
-		filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+		color: var(--reel-text);
+		background: none;
+		border: none;
+		cursor: pointer;
+		filter: drop-shadow(0 1px 3px var(--reel-text-shadow));
+		transition: opacity 0.3s ease;
 	}
 
-	.feed-notif-btn svg {
+	.feed-notif-btn.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.feed-notif-btn :global(svg) {
 		width: 24px;
 		height: 24px;
 	}
@@ -230,7 +184,7 @@
 		height: 16px;
 		padding: 0 4px;
 		background: var(--accent-magenta);
-		color: #fff;
+		color: var(--constant-white);
 		font-size: 0.625rem;
 		font-weight: 700;
 		border-radius: var(--radius-full);
@@ -238,6 +192,16 @@
 		align-items: center;
 		justify-content: center;
 		line-height: 1;
+		animation: badge-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	@keyframes badge-pop {
+		from {
+			transform: scale(0);
+		}
+		to {
+			transform: scale(1);
+		}
 	}
 
 	/* Non-feed: top bar with title */
@@ -270,10 +234,12 @@
 		width: 36px;
 		height: 36px;
 		color: var(--text-secondary);
-		text-decoration: none;
+		background: none;
+		border: none;
+		cursor: pointer;
 	}
 
-	.top-bar-action svg {
+	.top-bar-action :global(svg) {
 		width: 22px;
 		height: 22px;
 	}
@@ -297,16 +263,26 @@
 		right: 0;
 		display: flex;
 		align-items: center;
-		background: var(--bg-elevated);
-		border-top: 1px solid var(--border);
+		background: color-mix(in srgb, var(--bg-elevated) 30%, transparent);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
 		padding: var(--space-sm) 0;
 		padding-bottom: max(var(--space-sm), env(safe-area-inset-bottom));
 		z-index: 10;
+		transition: opacity 0.3s ease;
+	}
+
+	.bottom-tabs.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.bottom-tabs.overlay-mode {
-		background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+		background: linear-gradient(transparent, var(--reel-gradient-heavy));
 		border-top: none;
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
 		z-index: 50;
 	}
 
@@ -336,15 +312,20 @@
 	}
 
 	.overlay-mode .tab.active {
-		color: #fff;
+		color: var(--reel-text);
 	}
 
-	.tab svg {
+	.tab :global(svg) {
 		width: 24px;
 		height: 24px;
 	}
 
+	.add-tab:active .add-icon {
+		transform: scale(0.93);
+	}
+
 	.add-icon {
+		transition: transform 100ms ease;
 		width: 36px;
 		height: 24px;
 		display: flex;
@@ -355,7 +336,7 @@
 		color: var(--bg-primary);
 	}
 
-	.add-icon svg {
+	.add-icon :global(svg) {
 		width: 18px;
 		height: 18px;
 	}

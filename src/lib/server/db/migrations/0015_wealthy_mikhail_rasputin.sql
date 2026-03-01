@@ -1,0 +1,1 @@
+ALTER TABLE `groups` ADD `download_provider` text;

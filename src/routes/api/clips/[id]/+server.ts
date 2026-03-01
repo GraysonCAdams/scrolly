@@ -7,29 +7,23 @@ import {
 	favorites,
 	reactions,
 	comments,
+	commentHearts,
+	commentViews,
 	notifications
 } from '$lib/server/db/schema';
-import { eq, and, ne, count } from 'drizzle-orm';
+import { eq, and, ne, count, inArray } from 'drizzle-orm';
+import { withClipAuth, parseBody, isResponse } from '$lib/server/api-utils';
+import { cleanupClipFiles } from '$lib/server/download-utils';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
-	const clip = await db.query.clips.findFirst({
-		where: eq(clips.id, params.id)
-	});
-
-	if (!clip) return json({ error: 'Clip not found' }, { status: 404 });
-	if (clip.groupId !== locals.user.groupId)
-		return json({ error: 'Not authorized' }, { status: 403 });
-
+export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip }) => {
 	// Check if anyone other than the uploader has watched this clip
 	let canEditCaption = false;
-	if (clip.addedBy === locals.user.id) {
-		const [result] = await db
+	if (clip.addedBy === user.id) {
+		const [watchResult] = await db
 			.select({ count: count() })
 			.from(watched)
 			.where(and(eq(watched.clipId, params.id), ne(watched.userId, clip.addedBy)));
-		canEditCaption = result.count === 0;
+		canEditCaption = watchResult.count === 0;
 	}
 
 	return json({
@@ -45,33 +39,26 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		platform: clip.platform,
 		canEditCaption
 	});
-};
+});
 
-export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
-	const clip = await db.query.clips.findFirst({
-		where: eq(clips.id, params.id)
-	});
-
-	if (!clip) return json({ error: 'Clip not found' }, { status: 404 });
-	if (clip.groupId !== locals.user.groupId)
-		return json({ error: 'Not authorized' }, { status: 403 });
-	if (clip.addedBy !== locals.user.id)
+export const PATCH: RequestHandler = withClipAuth(async ({ params, request }, { user, clip }) => {
+	if (clip.addedBy !== user.id)
 		return json({ error: 'Only the uploader can edit' }, { status: 403 });
 
 	// Check edit lock: anyone else watched?
-	const [result] = await db
+	const [watchResult] = await db
 		.select({ count: count() })
 		.from(watched)
 		.where(and(eq(watched.clipId, params.id), ne(watched.userId, clip.addedBy)));
 
-	if (result.count > 0) {
+	if (watchResult.count > 0) {
 		return json({ error: 'Caption can no longer be edited' }, { status: 403 });
 	}
 
-	const body = await request.json();
-	const title = typeof body.title === 'string' ? body.title.trim() : null;
+	const body = await parseBody<{ title?: string }>(request);
+	if (isResponse(body)) return body;
+
+	const title = typeof body.title === 'string' ? body.title.trim().slice(0, 500) : null;
 
 	await db
 		.update(clips)
@@ -79,38 +66,45 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		.where(eq(clips.id, params.id));
 
 	return json({ title: title || null });
-};
+});
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
-	const clip = await db.query.clips.findFirst({
-		where: eq(clips.id, params.id)
-	});
-
-	if (!clip) return json({ error: 'Clip not found' }, { status: 404 });
-	if (clip.groupId !== locals.user.groupId)
-		return json({ error: 'Not authorized' }, { status: 403 });
-	if (clip.addedBy !== locals.user.id)
+export const DELETE: RequestHandler = withClipAuth(async ({ params }, { user, clip }) => {
+	if (clip.addedBy !== user.id)
 		return json({ error: 'Only the uploader can delete' }, { status: 403 });
 
 	// Only allow deletion if no one else has watched
-	const [result] = await db
+	const [watchResult] = await db
 		.select({ count: count() })
 		.from(watched)
 		.where(and(eq(watched.clipId, params.id), ne(watched.userId, clip.addedBy)));
 
-	if (result.count > 0) {
+	if (watchResult.count > 0) {
 		return json({ error: 'Clip can no longer be deleted' }, { status: 403 });
 	}
 
-	// Delete related data, then the clip itself
-	await db.delete(notifications).where(eq(notifications.clipId, params.id));
-	await db.delete(watched).where(eq(watched.clipId, params.id));
-	await db.delete(favorites).where(eq(favorites.clipId, params.id));
-	await db.delete(reactions).where(eq(reactions.clipId, params.id));
-	await db.delete(comments).where(eq(comments.clipId, params.id));
-	await db.delete(clips).where(eq(clips.id, params.id));
+	// Fetch comment IDs before the transaction so we can cascade to comment_hearts
+	const clipComments = await db.query.comments.findMany({
+		where: eq(comments.clipId, params.id)
+	});
+
+	db.transaction((tx) => {
+		tx.delete(notifications).where(eq(notifications.clipId, params.id)).run();
+		tx.delete(watched).where(eq(watched.clipId, params.id)).run();
+		tx.delete(favorites).where(eq(favorites.clipId, params.id)).run();
+		tx.delete(reactions).where(eq(reactions.clipId, params.id)).run();
+		tx.delete(commentViews).where(eq(commentViews.clipId, params.id)).run();
+
+		// Delete comment hearts before comments (FK constraint)
+		const commentIds = clipComments.map((c) => c.id);
+		if (commentIds.length > 0) {
+			tx.delete(commentHearts).where(inArray(commentHearts.commentId, commentIds)).run();
+		}
+		tx.delete(comments).where(eq(comments.clipId, params.id)).run();
+		tx.delete(clips).where(eq(clips.id, params.id)).run();
+	});
+
+	// Clean up video/thumbnail/audio files from disk (best-effort, after DB transaction)
+	await cleanupClipFiles(params.id);
 
 	return json({ success: true });
-};
+});

@@ -70,10 +70,9 @@ sw.addEventListener('fetch', (event) => {
 					if (cached) return cached;
 					// For navigation requests, show offline page; for others return 503
 					if (event.request.mode === 'navigate') {
-						return caches.match(OFFLINE_URL).then(
-							(offlinePage) =>
-								offlinePage || new Response('Offline', { status: 503 })
-						);
+						return caches
+							.match(OFFLINE_URL)
+							.then((offlinePage) => offlinePage || new Response('Offline', { status: 503 }));
 					}
 					return new Response('Offline', { status: 503 });
 				})
@@ -87,17 +86,20 @@ sw.addEventListener('push', (event) => {
 	const data = event.data.json();
 	const { title, body, icon, url, tag, image } = data;
 
+	const notificationOptions: NotificationOptions & { image?: string } = {
+		body: body || '',
+		icon: icon || '/icons/icon-192.png',
+		badge: '/icons/badge-72.png',
+		tag: tag || undefined,
+		data: { url: url || '/' }
+	};
+	if (image) notificationOptions.image = image;
+
 	event.waitUntil(
 		Promise.all([
-			sw.registration.showNotification(title || 'scrolly', {
-				body: body || '',
-				icon: icon || '/icons/icon-192.png',
-				badge: '/icons/badge-72.png',
-				tag: tag || undefined,
-				image: image || undefined,
-				data: { url: url || '/' }
-			}),
-			// Set app badge indicator on push
+			sw.registration.showNotification(title || 'scrolly', notificationOptions),
+			// Set app badge indicator on push (Badging API not in standard TS types)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(sw.navigator as any).setAppBadge?.()?.catch?.(() => {})
 		])
 	);
@@ -106,7 +108,8 @@ sw.addEventListener('push', (event) => {
 sw.addEventListener('notificationclick', (event) => {
 	event.notification.close();
 
-	// Clear app badge when user taps a notification
+	// Clear app badge when user taps a notification (Badging API not in standard TS types)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(sw.navigator as any).clearAppBadge?.()?.catch?.(() => {});
 
 	const url = event.notification.data?.url || '/';
@@ -126,6 +129,7 @@ sw.addEventListener('notificationclick', (event) => {
 });
 
 // Handle push subscription rotation (browser may change the subscription)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- pushsubscriptionchange event type not in standard TS lib
 sw.addEventListener('pushsubscriptionchange', ((event: any) => {
 	event.waitUntil(
 		(async () => {

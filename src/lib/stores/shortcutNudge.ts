@@ -1,10 +1,11 @@
+import { browser } from '$app/environment';
 import { writable, derived } from 'svelte/store';
 import { showInstallBanner } from './pwa';
 
 const STORAGE_KEY = 'scrolly_shortcut_nudge_dismissed';
 
 function getInitial(): boolean {
-	if (typeof localStorage === 'undefined') return false;
+	if (!browser) return false;
 	return localStorage.getItem(STORAGE_KEY) === 'true';
 }
 
@@ -18,7 +19,7 @@ export const showShortcutNudge = derived(
 
 export function dismissShortcutNudge(): void {
 	shortcutNudgeDismissed.set(true);
-	if (typeof localStorage !== 'undefined') {
+	if (browser) {
 		localStorage.setItem(STORAGE_KEY, 'true');
 	}
 }

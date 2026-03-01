@@ -1,8 +1,11 @@
 import { db } from './db';
 import { clips } from './db/schema';
 import { eq, and } from 'drizzle-orm';
+import { createLogger } from '$lib/server/logger';
 
-interface DownloadResult {
+const log = createLogger('download');
+
+export interface DownloadResult {
 	status: 'ready' | 'failed';
 	videoPath: string | null;
 	thumbnailPath: string | null;
@@ -24,9 +27,17 @@ const TRACKING_PARAMS = [
 	'utm_medium',
 	'utm_campaign',
 	'utm_content',
+	'utm_term',
 	'igshid',
 	'igsh',
-	'fbclid'
+	'fbclid',
+	'ref',
+	'ref_src',
+	'ref_url',
+	's',
+	'context',
+	'share_id',
+	't'
 ];
 
 export function normalizeUrl(url: string): string {
@@ -95,12 +106,12 @@ export async function deduplicatedDownload(
 	});
 
 	if (readyClip) {
-		console.log(`Reusing existing download for ${url} (clip ${readyClip.id})`);
+		log.info({ url, sourceClipId: readyClip.id }, 'reusing existing download');
 		try {
 			await copyResultToClip(clipId, clipToResult(readyClip));
 			return;
 		} catch (err) {
-			console.error(`Failed to reuse clip ${readyClip.id} for ${clipId}:`, err);
+			log.error({ err, sourceClipId: readyClip.id, clipId }, 'failed to reuse clip');
 			// Fall through to try downloading fresh
 		}
 	}
@@ -108,14 +119,14 @@ export async function deduplicatedDownload(
 	// Phase 2: Check if this URL is already being downloaded
 	const inflight = activeDownloads.get(normalized);
 	if (inflight) {
-		console.log(`Waiting on active download for ${url}`);
+		log.info({ url }, 'waiting on active download');
 		const result = await inflight;
 		if (result.status === 'ready') {
 			try {
 				await copyResultToClip(clipId, result);
 				return;
 			} catch (err) {
-				console.error(`Failed to copy inflight result for ${clipId}:`, err);
+				log.error({ err, clipId }, 'failed to copy inflight result');
 				// Fall through to try our own download
 			}
 		}

@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 
 	const {
 		groupId: _groupId,
@@ -24,12 +26,84 @@
 	let members = $state<Member[]>([]);
 	let loading = $state(true);
 
-	onMount(async () => {
-		const res = await fetch('/api/group/members');
-		if (res.ok) {
-			members = await res.json();
+	// Add member form state (host only)
+	let showAddForm = $state(false);
+	let newUsername = $state('');
+	let newPhone = $state('');
+	let addError = $state('');
+	let adding = $state(false);
+
+	const isHost = $derived(currentUserId === hostId);
+
+	// Phone formatting helpers (same pattern as /join page)
+	function rawDigits(val: string): string {
+		return val.replace(/\D/g, '');
+	}
+
+	function formatPhone(val: string): string {
+		const d = rawDigits(val);
+		if (d.length <= 3) return d;
+		if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+		return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
+	}
+
+	function toE164(val: string): string {
+		return '+1' + rawDigits(val);
+	}
+
+	function handlePhoneInput(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const digits = rawDigits(input.value).slice(0, 10);
+		newPhone = formatPhone(digits);
+	}
+
+	async function handleAddMember() {
+		addError = '';
+		const digits = rawDigits(newPhone);
+		if (!newUsername.trim()) {
+			addError = 'Username is required';
+			return;
 		}
-		loading = false;
+		if (digits.length !== 10) {
+			addError = 'Enter a 10-digit phone number';
+			return;
+		}
+
+		adding = true;
+		try {
+			const res = await fetch('/api/group/members', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					username: newUsername.trim(),
+					phone: toE164(newPhone)
+				})
+			});
+			const data = await res.json();
+			if (!res.ok) {
+				addError = data.error || 'Failed to add member';
+				return;
+			}
+			members = [...members, data.member];
+			newUsername = '';
+			newPhone = '';
+			showAddForm = false;
+			toast.success(`${data.member.username} added`);
+		} catch {
+			addError = 'Failed to add member';
+		} finally {
+			adding = false;
+		}
+	}
+
+	$effect(() => {
+		untrack(async () => {
+			const res = await fetch('/api/group/members');
+			if (res.ok) {
+				members = await res.json();
+			}
+			loading = false;
+		});
 	});
 
 	function formatDate(dateStr: string) {
@@ -68,10 +142,14 @@
 	<p class="hint">No members found.</p>
 {:else}
 	<div class="member-list">
-		{#each members as member}
+		{#each members as member (member.id)}
 			<div class="member-row">
 				<div class="member-avatar">
-					<span>{member.username?.charAt(0)?.toUpperCase() ?? '?'}</span>
+					{#if member.avatarPath}
+						<img src="/api/profile/avatar/{member.avatarPath}" alt="" class="member-avatar-img" />
+					{:else}
+						<span>{member.username?.charAt(0)?.toUpperCase() ?? '?'}</span>
+					{/if}
 				</div>
 				<div class="member-info">
 					<div class="member-name-row">
@@ -88,20 +166,62 @@
 						onclick={() => handleRemove(member)}
 						aria-label="Remove {member.username}"
 					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M18 6L6 18M6 6l12 12" />
-						</svg>
+						<XIcon size={16} />
 					</button>
 				{/if}
 			</div>
 		{/each}
+	</div>
+{/if}
+
+{#if isHost && !loading}
+	<div class="add-member-section">
+		{#if showAddForm}
+			<div class="add-form">
+				<input
+					type="text"
+					class="add-input"
+					placeholder="Username"
+					bind:value={newUsername}
+					maxlength="50"
+				/>
+				<div class="phone-field">
+					<span class="phone-prefix">+1</span>
+					<input
+						type="tel"
+						class="add-input phone-input"
+						placeholder="(555) 123-4567"
+						value={newPhone}
+						oninput={handlePhoneInput}
+						maxlength="14"
+					/>
+				</div>
+				{#if addError}
+					<p class="add-error">{addError}</p>
+				{/if}
+				<div class="add-actions">
+					<button
+						class="btn-cancel"
+						onclick={() => {
+							showAddForm = false;
+							newUsername = '';
+							newPhone = '';
+							addError = '';
+						}}
+					>
+						Cancel
+					</button>
+					<button class="btn-add" onclick={handleAddMember} disabled={adding}>
+						{adding ? 'Adding...' : 'Add'}
+					</button>
+				</div>
+			</div>
+		{:else}
+			<button class="btn-add-member" onclick={() => (showAddForm = true)}>
+				<PlusIcon size={18} />
+				Add member
+			</button>
+		{/if}
 	</div>
 {/if}
 
@@ -134,7 +254,7 @@
 		height: 44px;
 		border-radius: var(--radius-full);
 		background: var(--accent-magenta);
-		color: white;
+		color: var(--text-primary);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -142,6 +262,13 @@
 		font-family: var(--font-display);
 		font-weight: 700;
 		font-size: 1rem;
+	}
+
+	.member-avatar-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: var(--radius-full);
 	}
 
 	.member-info {
@@ -201,8 +328,125 @@
 		background: color-mix(in srgb, var(--error) 20%, transparent);
 	}
 
-	.remove-btn svg {
+	.remove-btn :global(svg) {
 		width: 16px;
 		height: 16px;
+	}
+
+	.add-member-section {
+		margin-top: var(--space-md);
+	}
+
+	.btn-add-member {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		width: 100%;
+		padding: var(--space-sm) var(--space-md);
+		border: 1px dashed var(--border);
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--text-secondary);
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.btn-add-member:active {
+		transform: scale(0.97);
+	}
+
+	.btn-add-member :global(svg) {
+		width: 18px;
+		height: 18px;
+	}
+
+	.add-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-sm);
+	}
+
+	.add-input {
+		width: 100%;
+		padding: var(--space-sm) var(--space-md);
+		background: var(--bg-surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-full);
+		color: var(--text-primary);
+		font-size: 0.875rem;
+		outline: none;
+		transition: border-color 0.2s ease;
+		box-sizing: border-box;
+	}
+
+	.add-input:focus {
+		border-color: var(--accent-primary);
+	}
+
+	.add-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.phone-field {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+	}
+
+	.phone-prefix {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		flex-shrink: 0;
+	}
+
+	.phone-input {
+		flex: 1;
+	}
+
+	.add-error {
+		color: var(--error);
+		font-size: 0.75rem;
+		margin: 0;
+	}
+
+	.add-actions {
+		display: flex;
+		gap: var(--space-sm);
+		justify-content: flex-end;
+	}
+
+	.btn-cancel {
+		padding: var(--space-xs) var(--space-md);
+		border: none;
+		border-radius: var(--radius-full);
+		background: transparent;
+		color: var(--text-secondary);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+	}
+
+	.btn-add {
+		padding: var(--space-xs) var(--space-lg);
+		border: none;
+		border-radius: var(--radius-full);
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		font-size: 0.8125rem;
+		font-weight: 700;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.btn-add:active {
+		transform: scale(0.97);
+	}
+
+	.btn-add:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 </style>

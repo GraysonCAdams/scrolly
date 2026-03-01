@@ -1,0 +1,11 @@
+# Vulnerabilities in Node.js base image's bundled npm dependencies.
+# These are upstream issues we cannot fix — waiting on node:24-slim update.
+# Review periodically and remove once patched.
+
+# minimatch DoS via crafted glob patterns (npm bundled)
+CVE-2026-26996
+CVE-2026-27903
+CVE-2026-27904
+
+# tar arbitrary file read/write via hardlink (npm bundled)
+CVE-2026-26960

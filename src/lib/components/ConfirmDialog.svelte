@@ -32,11 +32,18 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if $confirmState.open}
-	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-	<div class="overlay" class:visible onclick={dismiss}>
-		<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-		<div class="dialog" class:visible onclick={(e) => e.stopPropagation()}>
-			<h3>{$confirmState.options.title}</h3>
+	<div class="overlay" class:visible onclick={dismiss} role="presentation">
+		<div
+			class="dialog"
+			class:visible
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="confirm-title"
+			tabindex="-1"
+		>
+			<h3 id="confirm-title">{$confirmState.options.title}</h3>
 			<p>{$confirmState.options.message}</p>
 			<div class="actions">
 				<button class="btn-cancel" onclick={dismiss}>
@@ -131,11 +138,11 @@
 
 	.btn-confirm {
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 	}
 
 	.btn-confirm.destructive {
 		background: var(--error);
-		color: #ffffff;
+		color: var(--text-primary);
 	}
 </style>

@@ -1,20 +1,18 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import {
-	comments,
-	commentHearts,
-	clips,
-	notificationPreferences,
-	notifications
-} from '$lib/server/db/schema';
+import { comments, commentHearts, clips } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
-import { sendNotification } from '$lib/server/push';
 import { v4 as uuid } from 'uuid';
+import {
+	withClipAuth,
+	parseBody,
+	isResponse,
+	mapUsersByIds,
+	notifyClipOwner
+} from '$lib/server/api-utils';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
+export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => {
 	const clipId = params.id;
 
 	const allComments = await db.query.comments.findMany({
@@ -26,13 +24,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	}
 
 	// Look up users (username + avatarPath)
-	const userIds = [...new Set(allComments.map((c) => c.userId))];
-	const userRows = await db.query.users.findMany({
-		where: (u, { inArray }) => inArray(u.id, userIds)
-	});
-	const usersMap = new Map(
-		userRows.map((u) => [u.id, { username: u.username, avatarPath: u.avatarPath }])
-	);
+	const usersMap = await mapUsersByIds(allComments.map((c) => c.userId));
 
 	// Fetch all hearts for these comments
 	const commentIds = allComments.map((c) => c.id);
@@ -44,7 +36,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	const userHearted = new Set<string>();
 	for (const h of allHearts) {
 		heartCounts.set(h.commentId, (heartCounts.get(h.commentId) || 0) + 1);
-		if (h.userId === locals.user.id) userHearted.add(h.commentId);
+		if (h.userId === user.id) userHearted.add(h.commentId);
 	}
 
 	// Separate top-level vs replies
@@ -58,13 +50,14 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 	// Format a comment for the response
 	function formatComment(c: (typeof allComments)[0]) {
-		const user = usersMap.get(c.userId);
+		const u = usersMap.get(c.userId);
 		return {
 			id: c.id,
 			text: c.text,
+			gifUrl: c.gifUrl || null,
 			userId: c.userId,
-			username: user?.username || 'Unknown',
-			avatarPath: user?.avatarPath || null,
+			username: u?.username || 'Unknown',
+			avatarPath: u?.avatarPath || null,
 			parentId: c.parentId || null,
 			heartCount: heartCounts.get(c.id) || 0,
 			hearted: userHearted.has(c.id),
@@ -80,7 +73,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	});
 
 	// Build response with nested replies (sorted chronologically)
-	const result = topLevel.map((c) => {
+	const formatted = topLevel.map((c) => {
 		const replies = (repliesByParent.get(c.id) || [])
 			.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
 			.map(formatComment);
@@ -91,34 +84,94 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		};
 	});
 
-	return json({ comments: result });
-};
+	return json({ comments: formatted });
+});
 
-export const POST: RequestHandler = async ({ request, locals, params }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+/** Determine the notification recipient and dispatch. */
+async function dispatchCommentNotification(
+	clipId: string,
+	parentId: string | null,
+	actor: { id: string; username: string },
+	preview: string
+) {
+	if (parentId) {
+		const parentComment = await db.query.comments.findFirst({
+			where: eq(comments.id, parentId)
+		});
+		if (parentComment && parentComment.userId !== actor.id) {
+			await notifyClipOwner({
+				recipientId: parentComment.userId,
+				actorId: actor.id,
+				actorUsername: actor.username,
+				clipId,
+				type: 'reply',
+				preferenceKey: 'comments',
+				pushTitle: 'New reply',
+				pushBody: `${actor.username} replied: ${preview}`,
+				pushTag: `reply-${clipId}`,
+				commentPreview: preview
+			});
+		}
+	} else {
+		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
+		if (clip && clip.addedBy !== actor.id) {
+			await notifyClipOwner({
+				recipientId: clip.addedBy,
+				actorId: actor.id,
+				actorUsername: actor.username,
+				clipId,
+				type: 'comment',
+				preferenceKey: 'comments',
+				pushTitle: 'New comment',
+				pushBody: `${actor.username}: ${preview}`,
+				pushTag: `comment-${clipId}`,
+				commentPreview: preview
+			});
+		}
+	}
+}
 
-	const { text, parentId } = await request.json();
+function isValidGiphyUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		return parsed.hostname.endsWith('giphy.com');
+	} catch {
+		return false;
+	}
+}
+
+/** Validate and normalize comment input. Returns error string or parsed data. */
+function validateCommentInput(body: {
+	text?: unknown;
+	gifUrl?: unknown;
+}): { error: string } | { trimmed: string; hasText: boolean; validGifUrl: string | null } {
+	const trimmed = (typeof body.text === 'string' ? body.text : '').trim();
+	const hasText = trimmed.length > 0;
+	const hasGif = typeof body.gifUrl === 'string' && body.gifUrl.length > 0;
+
+	if (!hasText && !hasGif) return { error: 'Comment text or GIF required' };
+	if (hasText && trimmed.length > 500) return { error: 'Comment too long (max 500 characters)' };
+	if (hasGif && !isValidGiphyUrl(body.gifUrl as string)) return { error: 'Invalid GIF URL' };
+
+	return { trimmed, hasText, validGifUrl: hasGif ? (body.gifUrl as string) : null };
+}
+
+export const POST: RequestHandler = withClipAuth(async ({ params, request }, { user }) => {
+	const body = await parseBody<{ text?: string; gifUrl?: string; parentId?: string }>(request);
+	if (isResponse(body)) return body;
+
 	const clipId = params.id;
 
-	if (!text || typeof text !== 'string' || text.trim().length === 0) {
-		return json({ error: 'Comment text required' }, { status: 400 });
-	}
+	const validation = validateCommentInput(body);
+	if ('error' in validation) return json({ error: validation.error }, { status: 400 });
+	const { trimmed, hasText, validGifUrl } = validation;
 
-	if (text.length > 500) {
-		return json({ error: 'Comment too long (max 500 characters)' }, { status: 400 });
-	}
-
-	// Validate parentId if provided
-	if (parentId) {
+	if (body.parentId) {
 		const parent = await db.query.comments.findFirst({
-			where: and(eq(comments.id, parentId), eq(comments.clipId, clipId))
+			where: and(eq(comments.id, body.parentId), eq(comments.clipId, clipId))
 		});
-		if (!parent) {
-			return json({ error: 'Parent comment not found' }, { status: 404 });
-		}
-		if (parent.parentId) {
-			return json({ error: 'Cannot reply to a reply' }, { status: 400 });
-		}
+		if (!parent) return json({ error: 'Parent comment not found' }, { status: 404 });
+		if (parent.parentId) return json({ error: 'Cannot reply to a reply' }, { status: 400 });
 	}
 
 	const commentId = uuid();
@@ -127,78 +180,26 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	await db.insert(comments).values({
 		id: commentId,
 		clipId,
-		userId: locals.user.id,
-		parentId: parentId || null,
-		text: text.trim(),
+		userId: user.id,
+		parentId: body.parentId || null,
+		text: trimmed,
+		gifUrl: validGifUrl,
 		createdAt: now
 	});
 
-	// Notification logic
-	if (parentId) {
-		// Reply: notify the parent comment author
-		const parentComment = await db.query.comments.findFirst({
-			where: eq(comments.id, parentId)
-		});
-		if (parentComment && parentComment.userId !== locals.user.id) {
-			const prefs = await db.query.notificationPreferences.findFirst({
-				where: eq(notificationPreferences.userId, parentComment.userId)
-			});
-			if (!prefs || prefs.comments) {
-				sendNotification(parentComment.userId, {
-					title: 'New reply',
-					body: `${locals.user.username} replied: ${text.trim().slice(0, 80)}`,
-					url: '/',
-					tag: `reply-${clipId}`
-				}).catch((err) => console.error('Push notification failed:', err));
-			}
-
-			await db.insert(notifications).values({
-				id: uuid(),
-				userId: parentComment.userId,
-				type: 'reply',
-				clipId,
-				actorId: locals.user.id,
-				commentPreview: text.trim().slice(0, 80),
-				createdAt: now
-			});
-		}
-	} else {
-		// Top-level: notify clip owner
-		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-		if (clip && clip.addedBy !== locals.user.id) {
-			const ownerPrefs = await db.query.notificationPreferences.findFirst({
-				where: eq(notificationPreferences.userId, clip.addedBy)
-			});
-			if (!ownerPrefs || ownerPrefs.comments) {
-				sendNotification(clip.addedBy, {
-					title: 'New comment',
-					body: `${locals.user.username}: ${text.trim().slice(0, 80)}`,
-					url: '/',
-					tag: `comment-${clipId}`
-				}).catch((err) => console.error('Push notification failed:', err));
-			}
-
-			await db.insert(notifications).values({
-				id: uuid(),
-				userId: clip.addedBy,
-				type: 'comment',
-				clipId,
-				actorId: locals.user.id,
-				commentPreview: text.trim().slice(0, 80),
-				createdAt: now
-			});
-		}
-	}
+	const preview = hasText ? trimmed.slice(0, 80) : '[GIF]';
+	await dispatchCommentNotification(clipId, body.parentId || null, user, preview);
 
 	return json(
 		{
 			comment: {
 				id: commentId,
-				text: text.trim(),
-				userId: locals.user.id,
-				username: locals.user.username,
-				avatarPath: locals.user.avatarPath || null,
-				parentId: parentId || null,
+				text: trimmed,
+				gifUrl: validGifUrl,
+				userId: user.id,
+				username: user.username,
+				avatarPath: user.avatarPath || null,
+				parentId: body.parentId || null,
 				heartCount: 0,
 				hearted: false,
 				createdAt: now.toISOString()
@@ -206,12 +207,13 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 		},
 		{ status: 201 }
 	);
-};
+});
 
-export const DELETE: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
+export const DELETE: RequestHandler = withClipAuth(async ({ request }, { user }) => {
+	const body = await parseBody<{ commentId?: string }>(request);
+	if (isResponse(body)) return body;
 
-	const { commentId } = await request.json();
+	const { commentId } = body;
 
 	if (!commentId) {
 		return json({ error: 'Comment ID required' }, { status: 400 });
@@ -219,7 +221,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 	// Only allow deleting own comments
 	const comment = await db.query.comments.findFirst({
-		where: and(eq(comments.id, commentId), eq(comments.userId, locals.user.id))
+		where: and(eq(comments.id, commentId), eq(comments.userId, user.id))
 	});
 
 	if (!comment) {
@@ -231,17 +233,17 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		where: eq(comments.parentId, commentId)
 	});
 
-	// Delete hearts on all affected comments
+	// Delete hearts, replies, and parent in a single transaction to avoid race conditions
 	const idsToDelete = [commentId, ...childReplies.map((r) => r.id)];
-	if (idsToDelete.length > 0) {
-		await db.delete(commentHearts).where(inArray(commentHearts.commentId, idsToDelete));
-	}
-
-	// Delete replies first, then parent
-	if (childReplies.length > 0) {
-		await db.delete(comments).where(eq(comments.parentId, commentId));
-	}
-	await db.delete(comments).where(eq(comments.id, commentId));
+	db.transaction((tx) => {
+		if (idsToDelete.length > 0) {
+			tx.delete(commentHearts).where(inArray(commentHearts.commentId, idsToDelete)).run();
+		}
+		if (childReplies.length > 0) {
+			tx.delete(comments).where(eq(comments.parentId, commentId)).run();
+		}
+		tx.delete(comments).where(eq(comments.id, commentId)).run();
+	});
 
 	return json({ deleted: true, deletedIds: idsToDelete });
-};
+});

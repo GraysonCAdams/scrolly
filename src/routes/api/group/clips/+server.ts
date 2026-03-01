@@ -13,6 +13,27 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and, inArray, not, desc, sql } from 'drizzle-orm';
 import { stat, unlink } from 'fs/promises';
+import { withHost, safeInt, parseBody, isResponse } from '$lib/server/api-utils';
+
+/** Delete media files from disk if no other clip references them. */
+async function cleanupClipFiles(targetClips: (typeof clips.$inferSelect)[], idsToDelete: string[]) {
+	for (const clip of targetClips) {
+		for (const pathField of ['videoPath', 'audioPath', 'thumbnailPath'] as const) {
+			const filePath = clip[pathField];
+			if (!filePath) continue;
+			const otherRef = await db.query.clips.findFirst({
+				where: and(eq(clips[pathField], filePath), not(inArray(clips.id, idsToDelete)))
+			});
+			if (!otherRef) {
+				try {
+					await unlink(filePath); // eslint-disable-line security/detect-non-literal-fs-filename
+				} catch {
+					// File may already be gone
+				}
+			}
+		}
+	}
+}
 
 /** Backfill fileSizeBytes for clips that don't have it yet. */
 async function backfillFileSizes(clipRows: (typeof clips.$inferSelect)[]) {
@@ -25,7 +46,7 @@ async function backfillFileSizes(clipRows: (typeof clips.$inferSelect)[]) {
 			for (const path of [clip.videoPath, clip.audioPath, clip.thumbnailPath]) {
 				if (path) {
 					try {
-						const s = await stat(path);
+						const s = await stat(path); // eslint-disable-line security/detect-non-literal-fs-filename
 						bytes += s.size;
 					} catch {
 						// File may have been deleted
@@ -40,33 +61,24 @@ async function backfillFileSizes(clipRows: (typeof clips.$inferSelect)[]) {
 	);
 }
 
-export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
-
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can manage clips' }, { status: 403 });
-	}
-
-	const limit = Math.min(parseInt(url.searchParams.get('limit') || '30'), 50);
-	const offset = parseInt(url.searchParams.get('offset') || '0');
+export const GET: RequestHandler = withHost(async ({ url }, { group }) => {
+	const limit = safeInt(url.searchParams.get('limit'), 30, 50);
+	const offset = safeInt(url.searchParams.get('offset'), 0);
 	const sort = url.searchParams.get('sort') === 'newest' ? 'newest' : 'largest';
 
 	// Get totals from DB (fast — no stat calls needed once backfilled)
-	const groupId = locals.group.id;
 	const [totals] = await db
 		.select({
 			totalClips: sql<number>`count(*)`,
 			totalBytes: sql<number>`coalesce(sum(${clips.fileSizeBytes}), 0)`
 		})
 		.from(clips)
-		.where(eq(clips.groupId, groupId));
+		.where(eq(clips.groupId, group.id));
 
 	// Build member lookup
 	const memberMap = new Map<string, string>();
 	const members = await db.query.users.findMany({
-		where: eq(users.groupId, groupId)
+		where: eq(users.groupId, group.id)
 	});
 	for (const m of members) {
 		memberMap.set(m.id, m.username || 'Unknown');
@@ -79,7 +91,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			: [desc(clips.fileSizeBytes), desc(clips.createdAt)];
 
 	const groupClips = await db.query.clips.findMany({
-		where: eq(clips.groupId, groupId),
+		where: eq(clips.groupId, group.id),
 		orderBy,
 		limit,
 		offset
@@ -107,19 +119,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		totalSizeMb: Math.round((totals.totalBytes / 1024 / 1024) * 10) / 10,
 		hasMore: offset + limit < totals.totalClips
 	});
-};
+});
 
-export const DELETE: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
+export const DELETE: RequestHandler = withHost(async ({ request }, { group }) => {
+	const body = await parseBody<{ clipIds?: string[] }>(request);
+	if (isResponse(body)) return body;
 
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can manage clips' }, { status: 403 });
-	}
-
-	const body = await request.json();
-	const clipIds: string[] = body.clipIds;
+	const clipIds = body.clipIds;
 
 	if (!Array.isArray(clipIds) || clipIds.length === 0) {
 		return json({ error: 'clipIds must be a non-empty array' }, { status: 400 });
@@ -127,7 +133,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 	// Fetch clips to get file paths and verify they belong to this group
 	const toDelete = await db.query.clips.findMany({
-		where: and(eq(clips.groupId, locals.group.id))
+		where: and(eq(clips.groupId, group.id))
 	});
 
 	const targetClips = toDelete.filter((c) => clipIds.includes(c.id));
@@ -158,24 +164,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	await db.delete(comments).where(inArray(comments.clipId, idsToDelete));
 	await db.delete(clips).where(inArray(clips.id, idsToDelete));
 
-	// Delete files from disk (only if no other clip still references them)
-	for (const clip of targetClips) {
-		for (const pathField of ['videoPath', 'audioPath', 'thumbnailPath'] as const) {
-			const filePath = clip[pathField];
-			if (filePath) {
-				const otherRef = await db.query.clips.findFirst({
-					where: and(eq(clips[pathField], filePath), not(inArray(clips.id, idsToDelete)))
-				});
-				if (!otherRef) {
-					try {
-						await unlink(filePath);
-					} catch {
-						// File may already be gone
-					}
-				}
-			}
-		}
-	}
+	await cleanupClipFiles(targetClips, idsToDelete);
 
 	return json({ deleted: targetClips.length });
-};
+});

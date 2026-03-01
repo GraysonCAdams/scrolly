@@ -12,8 +12,8 @@ export async function fetchUnreadCount(): Promise<void> {
 			const data = await res.json();
 			unreadCount.set(data.count);
 		}
-	} catch {
-		// silently fail
+	} catch (err) {
+		console.warn('[notifications]', err);
 	}
 }
 
@@ -25,17 +25,19 @@ export async function fetchUnwatchedCount(): Promise<void> {
 			unwatchedCount.set(data.count);
 			updateAppBadge(data.count);
 		}
-	} catch {
-		// silently fail
+	} catch (err) {
+		console.warn('[unwatched-count]', err);
 	}
 }
 
 function updateAppBadge(count: number): void {
 	if (!('setAppBadge' in navigator)) return;
 	if (count > 0) {
-		(navigator as any).setAppBadge(count).catch(() => {});
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Badge API not in lib.dom.d.ts
+		(navigator as any).setAppBadge(count).catch((err: unknown) => console.warn('[app-badge]', err));
 	} else {
-		(navigator as any).clearAppBadge().catch(() => {});
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Badge API not in lib.dom.d.ts
+		(navigator as any).clearAppBadge().catch((err: unknown) => console.warn('[app-badge]', err));
 	}
 }
 

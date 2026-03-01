@@ -1,4 +1,6 @@
 <script lang="ts">
+	import EyeIcon from 'phosphor-svelte/lib/EyeIcon';
+
 	const {
 		viewCount,
 		ontap
@@ -8,7 +10,6 @@
 	} = $props();
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <button
 	class="view-badge"
 	onclick={(e) => {
@@ -16,17 +17,7 @@
 		ontap();
 	}}
 >
-	<svg
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="2"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-	>
-		<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-		<circle cx="12" cy="12" r="3" />
-	</svg>
+	<EyeIcon size={14} />
 	<span>{viewCount}</span>
 </button>
 
@@ -41,12 +32,12 @@
 		-webkit-backdrop-filter: blur(8px);
 		border: none;
 		border-radius: var(--radius-full);
-		color: #fff;
+		color: var(--reel-text);
 		font-size: 0.75rem;
 		font-weight: 700;
 		cursor: pointer;
 		min-height: 32px;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 		transition: transform 0.1s ease;
 	}
 
@@ -54,9 +45,7 @@
 		transform: scale(0.95);
 	}
 
-	.view-badge svg {
-		width: 14px;
-		height: 14px;
-		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+	.view-badge :global(svg) {
+		filter: drop-shadow(0 1px 2px var(--reel-text-shadow));
 	}
 </style>

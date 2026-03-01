@@ -1,32 +1,57 @@
 # API Endpoints
 
-All API routes are SvelteKit `+server.ts` files under `src/routes/api/`. Authenticated endpoints require a valid session cookie.
+All API routes are SvelteKit `+server.ts` files under `src/routes/api/`. Authenticated endpoints require a valid session cookie. Errors return JSON `{ error: string }` with an appropriate HTTP status.
 
-## Auth & Access
+## Auth
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/auth/join` | Validate invite code, create or resume session |
-| POST | `/api/auth/onboard` | Set username + phone number. Sends VCF via SMS. |
-| GET | `/api/auth/me` | Current user info + group info |
+| GET | `/api/auth` | Current user info + group info |
+| POST | `/api/auth` | Join, login, verify phone, or onboard |
 
-### POST /api/auth/join
+### GET /api/auth
 ```
-Request:  { "invite_code": "abc123" }
-Response: { "user_id": "...", "group": { ... }, "needs_onboarding": true }
+Response: { user: { id, username, phone, groupId, themePreference, autoScroll, mutedByDefault, avatarPath }, group: { id, name, inviteCode, accentColor, retentionDays, ... } }
 ```
-Sets a signed httpOnly session cookie. If the user already has a session, resumes it.
 
-### POST /api/auth/onboard
-```
-Request:  { "username": "grayson", "phone": "+1234567890" }
-Response: { "user": { ... }, "vcf_sent": true }
-```
-Requires active session from `/join`. Sends an MMS with VCF attachment to the provided phone number.
+### POST /api/auth
+Dispatches by `action` field in the request body:
 
-### GET /api/auth/me
+**Join a group:**
 ```
-Response: { "user": { "id", "username", "phone", "group_id" }, "group": { "id", "name", ... } }
+Request:  { "action": "join", "inviteCode": "abc123" }
+Response: { "userId": "...", "group": { ... }, "needsOnboarding": true }
+```
+Sets a signed httpOnly session cookie. Resumes existing session if one exists.
+
+**Send login code:**
+```
+Request:  { "action": "login-send-code", "phone": "+1234567890" }
+Response: { "sent": true }
+```
+
+**Verify login code:**
+```
+Request:  { "action": "login-verify-code", "phone": "+1234567890", "code": "123456" }
+Response: { "userId": "...", "group": { ... } }
+```
+
+**Send verification code (during onboarding):**
+```
+Request:  { "action": "send-code", "phone": "+1234567890" }
+Response: { "sent": true }
+```
+
+**Verify code (during onboarding):**
+```
+Request:  { "action": "verify-code", "phone": "+1234567890", "code": "123456" }
+Response: { "verified": true }
+```
+
+**Complete onboarding:**
+```
+Request:  { "action": "onboard", "username": "jane", "phone": "+1234567890" }
+Response: { "user": { ... }, "group": { ... } }
 ```
 
 ## Clips
@@ -34,22 +59,48 @@ Response: { "user": { "id", "username", "phone", "group_id" }, "group": { "id", 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/clips` | List clips for the user's group |
-| POST | `/api/clips` | Submit a URL to download (fallback to SMS) |
+| POST | `/api/clips` | Submit a URL to download |
+| POST | `/api/clips/share` | Submit a URL via shortcut token |
 | GET | `/api/clips/[id]` | Single clip detail |
-| DELETE | `/api/clips/[id]` | Remove clip (host or clip owner only) |
+| PATCH | `/api/clips/[id]` | Update clip title |
+| DELETE | `/api/clips/[id]` | Remove clip |
+| GET | `/api/clips/unwatched-count` | Count of unwatched clips |
 
 ### GET /api/clips
 ```
-Query params: ?filter=unwatched|watched|favorites&page=1&limit=20
-Response: { "clips": [ { "id", "original_url", "title", "added_by": { "username" }, "status", "duration_seconds", "platform", "created_at", "watched": bool, "favorited": bool, "reaction_counts": { "😂": 3 }, "comment_count": 5 } ] }
+Query params: ?filter=unwatched|watched|favorites&limit=20&offset=0
+Response: { "clips": [...], "hasMore": true }
 ```
+Each clip includes: id, originalUrl, title, addedByUsername, addedByAvatar, status, durationSeconds, platform, contentType, createdAt, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers.
 
 ### POST /api/clips
 ```
 Request:  { "url": "https://tiktok.com/...", "title": "optional caption" }
-Response: { "clip": { "id", "status": "downloading" } }
+Response: { "clip": { "id", "status": "downloading", "contentType" } }   (201 Created)
 ```
-Triggers the yt-dlp download pipeline. Returns immediately with status `downloading`.
+Triggers the download pipeline via the active provider. Requires a download provider to be configured (see Settings). Returns immediately with status `downloading`.
+
+### POST /api/clips/share
+Authenticated via `?token=` query parameter (iOS Shortcut token). Allows sharing clips without a session cookie.
+```
+Request:  { "url": "https://tiktok.com/...", "phones": ["+1234567890"] }
+Response: { "ok": true, "clipId": "...", "status": "downloading" }   (201 Created)
+```
+
+### PATCH /api/clips/[id]
+```
+Request:  { "title": "new caption" }
+Response: { "title": "new caption" }
+```
+Only allowed by the uploader, and only if no one else has watched the clip.
+
+### DELETE /api/clips/[id]
+Only allowed by the uploader, and only if no one else has watched the clip.
+
+### GET /api/clips/unwatched-count
+```
+Response: { "count": 5 }
+```
 
 ## Interactions
 
@@ -58,45 +109,263 @@ Triggers the yt-dlp download pipeline. Returns immediately with status `download
 | POST | `/api/clips/[id]/watched` | Mark clip as watched |
 | DELETE | `/api/clips/[id]/watched` | Mark clip as unwatched |
 | POST | `/api/clips/[id]/favorite` | Toggle favorite |
+| GET | `/api/clips/[id]/views` | List who has viewed |
 | GET | `/api/clips/[id]/comments` | List comments |
 | POST | `/api/clips/[id]/comments` | Add a comment |
-| POST | `/api/clips/[id]/reactions` | Add a reaction |
-| DELETE | `/api/clips/[id]/reactions/[emoji]` | Remove a reaction |
+| DELETE | `/api/clips/[id]/comments` | Delete a comment |
+| POST | `/api/clips/[id]/comments/[commentId]/heart` | Toggle heart on comment |
+| POST | `/api/clips/[id]/comments/viewed` | Mark comments as viewed |
+| GET | `/api/clips/[id]/reactions` | List reactions |
+| POST | `/api/clips/[id]/reactions` | Toggle a reaction |
+| POST | `/api/clips/[id]/retry` | Retry failed download |
+
+### POST /api/clips/[id]/watched
+```
+Request:  { "watchPercent": 85 }   (optional, 0–100)
+Response: { "watched": true }
+```
+
+### POST /api/clips/[id]/favorite
+Toggles favorite on/off.
+```
+Response: { "favorited": true }
+```
+
+### GET /api/clips/[id]/views
+```
+Response: { "views": [{ "userId", "username", "avatarPath", "watchPercent", "status", "watchedAt" }] }
+```
+
+### GET /api/clips/[id]/comments
+Returns threaded comments with nested replies, heart counts, and user avatars.
+```
+Response: { "comments": [{ "id", "text", "user": { "username", "avatarPath" }, "parentId", "heartCount", "hearted", "replies": [...], "createdAt" }] }
+```
 
 ### POST /api/clips/[id]/comments
 ```
-Request:  { "text": "lmao" }
-Response: { "comment": { "id", "text", "user": { "username" }, "created_at" } }
+Request:  { "text": "lmao", "parentId": "optional-comment-id" }
+Response: { "comment": { "id", "text", "user": { ... }, "createdAt" } }
+```
+
+### POST /api/clips/[id]/comments/[commentId]/heart
+Toggles heart on/off.
+```
+Response: { "heartCount": 3, "hearted": true }
 ```
 
 ### POST /api/clips/[id]/reactions
 ```
 Request:  { "emoji": "🔥" }
-Response: { "reaction": { "id", "emoji", "user_id" } }
+Response: { "reactions": { "🔥": { "count": 2, "reacted": true } } }
+```
+Allowed emojis: ❤️ 👍 👎 😂 ‼️ ❓
+
+### POST /api/clips/[id]/retry
+Retries a failed download. Only available for clips with `status: 'failed'`.
+```
+Response: { "status": "downloading" }
 ```
 
-## SMS Inbound
+## Group Management
+
+Host-only endpoints (unless noted). Requires `createdBy === currentUser`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/sms/inbound` | Twilio webhook — receives incoming text messages |
+| PATCH | `/api/group/name` | Rename group |
+| PATCH | `/api/group/accent` | Change accent color |
+| PATCH | `/api/group/retention` | Set retention policy |
+| PATCH | `/api/group/max-file-size` | Set max file size limit |
+| PATCH | `/api/group/platforms` | Set platform filter |
+| GET | `/api/group/provider` | List download providers |
+| PATCH | `/api/group/provider` | Set active provider |
+| POST | `/api/group/provider/install` | Install a provider |
+| DELETE | `/api/group/provider/install` | Uninstall a provider |
+| POST | `/api/group/invite-code/regenerate` | Generate new invite code |
+| PATCH | `/api/group/shortcut` | Set iOS Shortcut URL |
+| POST | `/api/group/shortcut/regenerate-token` | Regenerate shortcut token |
+| GET | `/api/group/members` | List group members |
+| POST | `/api/group/members` | Add a member |
+| DELETE | `/api/group/members/[userId]` | Remove a member |
+| GET | `/api/group/clips` | List clips with storage info |
+| DELETE | `/api/group/clips` | Batch delete clips |
+| GET | `/api/group/stats` | Group statistics |
 
-### POST /api/sms/inbound
-Called by Twilio when a user texts the Scrolly number. Not called by the frontend.
-
+### PATCH /api/group/name
 ```
-Twilio POST body includes: From, Body, NumMedia, MediaUrl0, etc.
+Request:  { "name": "The Squad" }   (1–50 chars)
 ```
 
-**Processing logic:**
-1. Look up user by `From` phone number
-2. Extract URL(s) from `Body`
-3. Non-URL text in `Body` becomes the video caption
-4. Create clip record + trigger download for each URL
-5. Reply via TwiML: "Got it! Your video is being added to the feed."
-6. If phone not found: "This number isn't registered with Scrolly."
+### PATCH /api/group/accent
+```
+Request:  { "accentColor": "coral" }
+Response: { "accentColor": "coral" }
+```
 
-**Security:** Validate that the request is actually from Twilio using request signature verification.
+### PATCH /api/group/retention
+```
+Request:  { "retentionDays": 30 }   (null, 7, 14, 30, 60, or 90)
+Response: { "retentionDays": 30 }
+```
+
+### PATCH /api/group/max-file-size
+```
+Request:  { "maxFileSizeMb": 100 }   (null to remove limit)
+Response: { "maxFileSizeMb": 100 }
+```
+
+### PATCH /api/group/platforms
+```
+Request:  { "mode": "all", "platforms": [] }   (mode: "all" | "allow" | "block")
+Response: { "platformFilterMode": "all", "platformFilterList": null }
+```
+
+### GET /api/group/provider
+```
+Response: { "providers": [{ "id", "name", "installed", "version", ... }] }
+```
+
+### PATCH /api/group/provider
+```
+Request:  { "providerId": "yt-dlp" }   (null to unset)
+Response: { "downloadProvider": "yt-dlp" }
+```
+
+### POST /api/group/provider/install
+```
+Request:  { "providerId": "yt-dlp" }
+Response: { "installed": true, "version": "..." }   (201 Created)
+```
+
+### DELETE /api/group/provider/install
+```
+Request:  { "providerId": "yt-dlp" }
+Response: { "installed": false }
+```
+
+### POST /api/group/invite-code/regenerate
+```
+Response: { "inviteCode": "new-code-here" }
+```
+
+### PATCH /api/group/shortcut
+```
+Request:  { "shortcutUrl": "https://..." }   (null to remove)
+Response: { "shortcutUrl": "https://..." }
+```
+
+### POST /api/group/shortcut/regenerate-token
+```
+Response: { "shortcutToken": "new-token-here" }
+```
+
+### GET /api/group/members
+```
+Response: [{ "id", "username", "avatarPath", "createdAt", "isHost" }]
+```
+
+### POST /api/group/members
+Host-only. Creates a new member in the group.
+```
+Request:  { "username": "jane", "phone": "+1234567890" }
+Response: { "member": { "id", "username", "avatarPath", "createdAt", "isHost" } }   (201 Created)
+```
+
+### DELETE /api/group/members/[userId]
+Soft-deletes the member (sets `removedAt`).
+
+### GET /api/group/clips
+```
+Query params: ?sort=newest|largest&limit=20&offset=0
+Response: { "clips": [...], "totalClips": 42, "totalSizeMb": 1200, "hasMore": true }
+```
+
+### DELETE /api/group/clips
+```
+Request:  { "clipIds": ["id1", "id2"] }
+```
+
+### GET /api/group/stats
+```
+Response: { "clipCount": 42, "memberCount": 8, "storageMb": 1200, "maxStorageMb": 5000 }
+```
+
+## Notifications
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/notifications` | Paginated notification feed |
+| POST | `/api/notifications/mark-read` | Mark notifications as read |
+| GET | `/api/notifications/unread-count` | Unread notification count |
+| GET | `/api/notifications/preferences` | Fetch notification preferences |
+| PATCH | `/api/notifications/preferences` | Update notification preferences |
+
+### GET /api/notifications
+```
+Query params: ?limit=30&offset=0
+Response: { "notifications": [{ "id", "type", "clipId", "emoji", "commentPreview", "actorUsername", "actorAvatar", "clipThumbnail", "clipTitle", "read", "createdAt" }] }
+```
+
+### POST /api/notifications/mark-read
+```
+Request:  { "all": true }             — mark all as read
+Request:  { "clipId": "...", "type": "comment" }  — mark specific
+```
+
+### GET /api/notifications/unread-count
+```
+Response: { "count": 3 }
+```
+
+### PATCH /api/notifications/preferences
+```
+Request:  { "newAdds": true, "reactions": true, "comments": false, "dailyReminder": false }
+Response: { "preferences": { ... } }
+```
+
+## Profile
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/profile/preferences` | Update user preferences |
+| POST | `/api/profile/avatar` | Upload profile avatar |
+| DELETE | `/api/profile/avatar` | Delete profile avatar |
+| GET | `/api/profile/avatar/[filename]` | Serve avatar image |
+
+### POST /api/profile/preferences
+```
+Request:  { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false }
+Response: { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false }
+```
+All fields optional — only provided fields are updated.
+
+### POST /api/profile/avatar
+Upload a profile picture as `multipart/form-data`.
+```
+Response: { "avatarPath": "abc123.jpg" }
+```
+
+### DELETE /api/profile/avatar
+```
+Response: { "ok": true }
+```
+
+### GET /api/profile/avatar/[filename]
+Serves the avatar image with JPEG content-type and cache headers.
+
+## GIFs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/gifs/search` | Search or list trending GIFs |
+
+### GET /api/gifs/search
+Requires `GIPHY_API_KEY` to be configured.
+```
+Query params: ?q=funny&limit=20&offset=0
+Response: { "gifs": [{ "id", "title", "url", "stillUrl", "width", "height" }] }
+```
 
 ## Push Notifications
 
@@ -104,25 +373,28 @@ Twilio POST body includes: From, Body, NumMedia, MediaUrl0, etc.
 |--------|------|-------------|
 | POST | `/api/push/subscribe` | Register a push subscription |
 | DELETE | `/api/push/subscribe` | Unregister |
-| PUT | `/api/push/preferences` | Update notification preferences |
 
 ### POST /api/push/subscribe
 ```
 Request:  { "endpoint": "...", "keys": { "p256dh": "...", "auth": "..." } }
-Response: { "subscribed": true }
+Response: { "id": "subscription-id" }   (201 Created)
 ```
 
-### PUT /api/push/preferences
-```
-Request:  { "new_adds": true, "reactions": true, "comments": false, "daily_reminder": false }
-Response: { "preferences": { ... } }
-```
-
-## Video Serving
+## Media
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/videos/[filename]` | Serve video file with range request support |
+| GET | `/api/videos/[filename]` | Serve video with range request support |
 | GET | `/api/thumbnails/[filename]` | Serve thumbnail image |
 
-Range requests (`Accept-Ranges: bytes`) are required for HTML5 `<video>` seeking to work correctly. The server must handle `Range` headers and return `206 Partial Content`.
+Range requests (`Accept-Ranges: bytes`) are required for HTML5 `<video>` seeking. The server handles `Range` headers and returns `206 Partial Content`.
+
+## Health
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Health check |
+
+```
+Response: { "status": "ok", "version": "1.0.0", "uptime": 12345 }
+```

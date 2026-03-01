@@ -6,7 +6,13 @@ export const groups = sqliteTable('groups', {
 	inviteCode: text('invite_code').notNull().unique(),
 	retentionDays: integer('retention_days'),
 	maxStorageMb: integer('max_storage_mb'),
+	maxFileSizeMb: integer('max_file_size_mb').default(500),
 	accentColor: text('accent_color').notNull().default('coral'),
+	downloadProvider: text('download_provider'),
+	platformFilterMode: text('platform_filter_mode').notNull().default('all'),
+	platformFilterList: text('platform_filter_list'),
+	shortcutToken: text('shortcut_token').unique(),
+	shortcutUrl: text('shortcut_url'),
 	createdBy: text('created_by'),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
@@ -66,6 +72,7 @@ export const comments = sqliteTable('comments', {
 		.references(() => users.id),
 	parentId: text('parent_id'),
 	text: text('text').notNull(),
+	gifUrl: text('gif_url'),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 

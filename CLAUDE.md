@@ -2,57 +2,60 @@
 
 Private video-sharing PWA for friend groups. SvelteKit + SQLite + Twilio.
 
+## Build & Run
+
+- Dev: `npm run dev`
+- Build: `npm run build`
+- Tests: `npm run test`
+- Lint: `npm run lint`
+- Type check: `npm run check`
+- Format: `npm run format`
+
 ## Tech Stack
 
-- **Frontend:** SvelteKit 2 with Svelte 5 (runes: `$state`, `$props`, `$effect`)
+- **Frontend:** SvelteKit 2, Svelte 5 (runes), TypeScript
 - **Backend:** SvelteKit adapter-node (monolith)
 - **Database:** SQLite via Drizzle ORM
-- **Styling:** Scoped `<style>` blocks in Svelte components (no CSS framework)
-- **Language:** TypeScript
+- **Styling:** Scoped `<style>` blocks (no CSS framework)
+- **SMS:** Twilio for video ingestion + VCF delivery
+- **Push:** web-push with VAPID keys
+
+## Code Conventions
+
+- IMPORTANT: Use Svelte 5 runes (`$state`, `$props`, `$effect`, `$derived`) — NOT legacy `let`/`export let`
+- IMPORTANT: Use CSS custom properties for ALL colors — NEVER hardcode hex values
+- Scoped CSS per component — no global stylesheets beyond body resets
+- Mobile-first: design for `375px` base, `520px` max content width
+- All API routes return JSON via `+server.ts` files
+- Use Drizzle ORM for all database queries — never raw SQL
+- IDs are UUIDs (text), timestamps are Unix epoch integers
+- After making code changes, run `npm run check` to verify no type errors were introduced
 
 ## Design System
 
-**All UI work MUST follow the design guidelines in `docs/design-guidelines.md`.** This is the single source of truth for colors, typography, spacing, components, and layout patterns. Reference material lives in `docs/inspo/`.
-
-Key principles:
-- Dark-first, immersive, mobile-native feel
-- Bold oversized typography, strong hierarchy
-- Coral (`#FF6B35`) default accent for primary CTAs (host-configurable per group)
-- Magenta (`#FF2D78`) for badges/notifications/favorites
-- Card-based layouts with generous rounded corners
-- Sora font for display/headings (`--font-display`) via Google Fonts, system fonts for body (`--font-body`)
-- Mobile-first responsive (`375px` base, `520px` max content width)
-- Support system-based light/dark mode AND manual toggle in user profile settings (System / Light / Dark)
-- Use CSS custom properties for ALL colors — never hardcode color values
-- Theme set via `[data-theme]` attribute on `<html>`, preference stored in user DB record + cookie
-- Profile pictures: circular crop upload, canvas-based client-side processing
+**All UI work MUST follow @docs/design-guidelines.md** — the single source of truth for colors, typography, spacing, components, and layout. Reference material in `docs/inspo/`.
 
 ## Project Structure
 
-- `src/routes/` — SvelteKit file-based routing
-- `src/routes/(app)/` — Authenticated route group (feed, favorites, settings)
+- `src/routes/(app)/` — Authenticated routes (feed, favorites, settings)
 - `src/routes/api/` — REST API endpoints (`+server.ts`)
 - `src/lib/components/` — Reusable Svelte components
-- `src/lib/server/` — Server-only code (db, sms, video, auth)
+- `src/lib/server/` — Server-only code (db, sms, video, auth, push)
 - `src/lib/stores/` — Svelte stores for client state
-- `docs/` — Planning & design documentation
-- `static/` — PWA manifest, icons
-- `data/` — Runtime SQLite DB + downloaded videos (gitignored)
+- `docs/` — Planning & design docs
 
-## Conventions
+## Key Reference Docs
 
-- Use Svelte 5 runes (`$state`, `$props`, `$effect`, `$derived`) not legacy `let`/`export let`
-- Scoped CSS in each component — no global stylesheets beyond body resets
-- Use CSS custom properties (variables) defined in `docs/design-guidelines.md` for all colors, spacing, and radii
-- Mobile-first: design for `375px` first, scale up
-- All API routes return JSON
-- Use Drizzle ORM for all database queries
+- @docs/design-guidelines.md — Colors, typography, spacing, components
+- @docs/data-model.md — SQLite schema and relationships
+- @docs/api.md — API endpoint reference
+- @docs/architecture.md — Stack overview and deployment
+- @docs/notifications.md — Push notification setup and triggers
 
 ## Git Workflow
 
-- **Commit early and often** — make small, focused commits as work progresses during a session, not one massive commit at the end
-- Each commit should represent a single logical change (e.g., one feature, one bug fix, one refactor)
-- Write concise commit messages: imperative mood, lowercase, no period (e.g., `feat: add comment count badge`)
-- Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `style:`
+- Commit early and often — small, focused commits as work progresses
+- Conventional prefixes: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `style:`
+- Imperative mood, lowercase, no period (e.g., `feat: add comment count badge`)
 - Never bundle unrelated changes into a single commit
-- Commit working states — don't commit broken code unless on a WIP branch
+- Commit working states only

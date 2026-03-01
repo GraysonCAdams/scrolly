@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Something went wrong — scrolly</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+		<style>
+			:root {
+				--bg-primary: #000000;
+				--bg-elevated: #111111;
+				--bg-surface: #1a1a1a;
+				--text-primary: #ffffff;
+				--text-secondary: #999999;
+				--text-muted: #666666;
+				--accent-primary: #ff6b35;
+				--radius-full: 9999px;
+			}
+
+			@media (prefers-color-scheme: light) {
+				:root {
+					--bg-primary: #ffffff;
+					--bg-elevated: #f5f5f5;
+					--bg-surface: #eeeeee;
+					--text-primary: #000000;
+					--text-secondary: #555555;
+					--text-muted: #999999;
+				}
+			}
+
+			*, *::before, *::after { box-sizing: border-box; }
+
+			body {
+				margin: 0;
+				background: var(--bg-primary);
+				color: var(--text-primary);
+				font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+				-webkit-font-smoothing: antialiased;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				min-height: 100dvh;
+				padding: 1.5rem;
+				text-align: center;
+			}
+
+			.error-code {
+				font-family: 'Sora', system-ui, sans-serif;
+				font-size: 5rem;
+				font-weight: 800;
+				letter-spacing: -0.04em;
+				line-height: 1;
+				color: var(--text-muted);
+				opacity: 0.3;
+				margin: 0 0 1rem;
+			}
+
+			.error-icon {
+				width: 56px;
+				height: 56px;
+				color: var(--accent-primary);
+				opacity: 0.8;
+				margin-bottom: 1.5rem;
+			}
+
+			.error-icon svg {
+				width: 100%;
+				height: 100%;
+			}
+
+			h1 {
+				font-family: 'Sora', system-ui, sans-serif;
+				font-size: 1.5rem;
+				font-weight: 700;
+				margin: 0 0 0.5rem;
+				letter-spacing: -0.02em;
+			}
+
+			p {
+				color: var(--text-muted);
+				font-size: 0.875rem;
+				margin: 0 0 2rem;
+				max-width: 280px;
+				line-height: 1.5;
+			}
+
+			a {
+				display: inline-block;
+				padding: 0.75rem 2rem;
+				background: var(--accent-primary);
+				color: #000000;
+				border: none;
+				border-radius: var(--radius-full);
+				font-size: 1rem;
+				font-weight: 700;
+				font-family: 'DM Sans', system-ui, sans-serif;
+				text-decoration: none;
+				cursor: pointer;
+			}
+
+			a:active {
+				transform: scale(0.97);
+			}
+
+			.stack-trace {
+				margin-top: 2rem;
+				padding: 1rem;
+				background: var(--bg-surface);
+				border-radius: 8px;
+				max-width: 480px;
+				width: 100%;
+				text-align: left;
+				overflow-x: auto;
+			}
+
+			.stack-trace pre {
+				margin: 0;
+				font-family: 'Space Mono', monospace;
+				font-size: 0.75rem;
+				color: var(--text-secondary);
+				white-space: pre-wrap;
+				word-break: break-word;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="error-code">%sveltekit.status%</div>
+		<div class="error-icon">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="12" cy="12" r="10" />
+				<path d="M16 16s-1.5-2-4-2-4 2-4 2" />
+				<line x1="9" y1="9" x2="9.01" y2="9" />
+				<line x1="15" y1="9" x2="15.01" y2="9" />
+			</svg>
+		</div>
+		<h1>Something went wrong</h1>
+		<p>%sveltekit.error.message%</p>
+		<a href="/">Go home</a>
+	</body>
+</html>

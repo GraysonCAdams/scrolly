@@ -1,6 +1,9 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
+	import { env } from '$env/dynamic/public';
 	import iconUrl from '$lib/assets/icon.svg?url';
 	import InlineError from '$lib/components/InlineError.svelte';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 
 	let view = $state<'login' | 'verify'>('login');
 	let phoneDisplay = $state('');
@@ -224,22 +227,33 @@
 							class="phone-input"
 						/>
 					</div>
-					<p class="sms-consent">By tapping "Send Code," you agree to receive SMS messages from Scrolly, including verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data rates may apply. <a href="https://graysoncadams.github.io/scrolly/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &amp; <a href="https://graysoncadams.github.io/scrolly/terms.html" target="_blank" rel="noopener">Terms</a>.</p>
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- external operator-configured URLs -->
+					<p class="sms-consent">
+						By tapping "Send Code," you agree to receive SMS messages from Scrolly, including
+						verification codes and replies when you text clips. Msg frequency varies. Msg &amp; data
+						rates may apply.
+						{#if env.PUBLIC_PRIVACY_URL || env.PUBLIC_TERMS_URL}
+							{#if env.PUBLIC_PRIVACY_URL}<a
+									href={env.PUBLIC_PRIVACY_URL}
+									target="_blank"
+									rel="noopener">Privacy Policy</a
+								>{/if}{#if env.PUBLIC_PRIVACY_URL && env.PUBLIC_TERMS_URL}
+								&amp;
+							{/if}{#if env.PUBLIC_TERMS_URL}<a
+									href={env.PUBLIC_TERMS_URL}
+									target="_blank"
+									rel="noopener">Terms</a
+								>{/if}.
+						{/if}
+					</p>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					<button type="submit" class="btn-primary" disabled={loading || !phoneValid}>
 						{#if loading}
 							<span class="spinner"></span>
 							Sending...
 						{:else}
 							Send Code
-							<svg viewBox="0 0 20 20" fill="none" class="btn-icon">
-								<path
-									d="M4 10H16M16 10L11 5M16 10L11 15"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							</svg>
+							<ArrowRightIcon size={18} />
 						{/if}
 					</button>
 				</form>
@@ -256,7 +270,7 @@
 					}}
 				>
 					<div class="code-inputs" onpaste={handleCodePaste}>
-						{#each codeDigits as digit, i}
+						{#each codeDigits as digit, i (i)}
 							<input
 								type="text"
 								inputmode="numeric"
@@ -311,7 +325,7 @@
 		<InlineError message={error} />
 	</div>
 
-	<p class="footer-note">if you know, you know.</p>
+	<p class="footer-note">a private place to share videos with your people.</p>
 </div>
 
 <style>
@@ -522,7 +536,7 @@
 		gap: var(--space-sm);
 		padding: var(--space-md) var(--space-xl);
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 1rem;
@@ -542,11 +556,6 @@
 	.btn-primary:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
-	}
-
-	.btn-icon {
-		width: 18px;
-		height: 18px;
 	}
 
 	.btn-ghost {
@@ -594,9 +603,9 @@
 	.spinner {
 		width: 16px;
 		height: 16px;
-		border: 2px solid rgba(0, 0, 0, 0.2);
-		border-top-color: #000000;
-		border-radius: 50%;
+		border: 2px solid color-mix(in srgb, var(--bg-primary) 20%, transparent);
+		border-top-color: var(--bg-primary);
+		border-radius: var(--radius-full);
 		animation: spin 0.6s linear infinite;
 	}
 

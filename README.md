@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/icons/icon-192x192.png" alt="Scrolly" width="100" />
+  <img src="static/icons/icon-192.png" alt="Scrolly" width="100" />
 </p>
 
 <h1 align="center">Scrolly</h1>
@@ -9,128 +9,72 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/graysoncadams/scrolly/actions/workflows/ci.yml"><img src="https://github.com/graysoncadams/scrolly/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/graysoncadams/scrolly/actions/workflows/security.yml"><img src="https://github.com/graysoncadams/scrolly/actions/workflows/security.yml/badge.svg" alt="Security"></a>
-  <a href="https://api.scorecard.dev/projects/github.com/graysoncadams/scrolly"><img src="https://api.scorecard.dev/projects/github.com/graysoncadams/scrolly/badge" alt="OpenSSF Scorecard"></a>
-  <a href="https://github.com/graysoncadams/scrolly/releases/latest"><img src="https://img.shields.io/github/v/release/graysoncadams/scrolly?label=release" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/graysoncadams/scrolly" alt="License"></a>
+  <a href="https://github.com/312-dev/scrolly/actions/workflows/ci.yml"><img src="https://github.com/312-dev/scrolly/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/312-dev/scrolly/actions/workflows/security.yml"><img src="https://github.com/312-dev/scrolly/actions/workflows/security.yml/badge.svg" alt="Security"></a>
+  <a href="https://securityscorecards.dev/viewer/?uri=github.com/312-dev/scrolly"><img src="https://api.scorecard.dev/projects/github.com/312-dev/scrolly/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://github.com/312-dev/scrolly/releases/latest"><img src="https://img.shields.io/github/v/release/312-dev/scrolly?label=release" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/312-dev/scrolly" alt="License"></a>
 </p>
 
 ---
 
-Share video clips and music links with your close friends through private groups. Built as an installable PWA with a native mobile feel.
+Share video clips and music links with your close friends. TikTok-style vertical feed, invite-only group, installable PWA.
 
 ## Features
 
-- **Video Feed** — SMS-based clip sharing via Twilio with inline playback
-- **Music Sharing** — Cross-platform link resolution via Odesli
-- **Groups** — Invite codes, customizable accent colors, member management
-- **Push Notifications** — Real-time alerts via Web Push API
-- **Favorites & Reactions** — Save and react to shared content
-- **Comments** — Threaded discussions on posts
-- **Themes** — Dark, light, and system-based theme switching
-- **PWA** — Installable on mobile and desktop
+- Full-screen vertical reel with swipe navigation and playback speed control
+- Share videos and music via paste, Android share sheet, or iOS Shortcuts
+- Cross-platform music link resolution (Spotify, Apple Music, YouTube Music)
+- Threaded comments, emoji reactions, GIF search, and view tracking
+- Push notifications and in-app activity feed
+- Host controls: members, retention, storage limits, platform filtering, download providers
+- Dark/light/system themes, profile avatars, favorites
+- Phone verification via Twilio, pluggable video download providers
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | SvelteKit 2, Svelte 5 (runes) |
-| Backend | SvelteKit adapter-node |
-| Database | SQLite via Drizzle ORM |
-| Messaging | Twilio SMS |
-| Notifications | Web Push (VAPID) |
-| Styling | Scoped CSS, custom properties |
-| Language | TypeScript |
+> **Note:** Scrolly does not bundle any download tools. The host must explicitly install a provider from Settings. See [DISCLAIMER.md](DISCLAIMER.md).
 
 ## Quick Start
 
+**Prerequisites:** Node.js 24+
+
 ```bash
-# Clone and install
-git clone https://github.com/graysoncadams/scrolly.git
+git clone https://github.com/312-dev/scrolly.git
 cd scrolly
 npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your values (see comments in file)
-
-# Development
+cp .env.example .env   # edit with your values
 npm run dev
 ```
 
-## Self-Hosting with Docker
-
-### Install
+## Docker
 
 ```bash
-# 1. Download the compose file and env template
-curl -LO https://raw.githubusercontent.com/GraysonCAdams/scrolly/main/docker-compose.yml
-curl -LO https://raw.githubusercontent.com/GraysonCAdams/scrolly/main/.env.example
-cp .env.example .env
-
-# 2. Configure (edit .env — see comments for guidance)
-nano .env
-
-# 3. Start
+curl -LO https://raw.githubusercontent.com/312-dev/scrolly/main/docker-compose.yml
+curl -LO https://raw.githubusercontent.com/312-dev/scrolly/main/.env.example
+cp .env.example .env && nano .env
 docker compose up -d
 ```
 
-The app will be available at `http://localhost:3000`. Database migrations run automatically on every startup — no manual steps needed.
+Migrations run automatically on startup. Upgrade with `docker compose pull && docker compose up -d`.
 
-### Upgrade
+## Docs
 
-```bash
-docker compose pull        # Pull the latest image
-docker compose up -d       # Restart with new version (migrations run automatically)
-```
-
-### Version Pinning
-
-Edit `docker-compose.yml` to control which version you run:
-
-```yaml
-image: ghcr.io/graysoncadams/scrolly:1.0.0   # Exact version
-image: ghcr.io/graysoncadams/scrolly:1.0      # Latest patch in 1.0.x
-image: ghcr.io/graysoncadams/scrolly:latest   # Always newest
-```
-
-All versions are listed on the [Releases](https://github.com/GraysonCAdams/scrolly/releases) page.
-
-### Auto-Updates (optional)
-
-Uncomment the Watchtower service in `docker-compose.yml` to automatically pull new images daily.
-
-### Backup
-
-```bash
-docker run --rm -v scrolly_scrolly-data:/data -v $(pwd):/backup alpine \
-  tar czf /backup/scrolly-backup-$(date +%Y%m%d).tar.gz -C / data
-```
+**[312-dev.github.io/scrolly](https://312-dev.github.io/scrolly/)** — deployment, configuration, and API reference.
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start dev server |
+| `npm run dev` | Dev server |
 | `npm run build` | Production build |
-| `npm run lint` | Run ESLint |
-| `npm run lint:strict` | Lint with zero warnings |
-| `npm run format` | Format with Prettier |
-| `npm run format:check` | Check formatting |
-| `npm run type-check` | TypeScript type checking |
-| `npm run test` | Run unit tests |
-| `npm run test:coverage` | Run tests with coverage |
-| `npm run check` | SvelteKit diagnostics |
+| `npm run lint` | ESLint |
+| `npm run format` | Prettier |
+| `npm run type-check` | TypeScript check |
+| `npm run test` | Unit tests |
+| `npm run test:coverage` | Tests with coverage |
 
-## Contributing
+## Links
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and PR guidelines.
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnerabilities.
-
-## License
-
-[MIT](LICENSE) — Created by [@GraysonCAdams](https://github.com/GraysonCAdams)
+- [Contributing](CONTRIBUTING.md) — development setup and PR guidelines
+- [Security](SECURITY.md) — vulnerability reporting
+- [Disclaimer](DISCLAIMER.md) — content and liability
+- [License](LICENSE) — MIT

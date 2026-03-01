@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 
-	const { inviteCode: initialCode }: { inviteCode: string } = $props();
-
-	let code = $state(initialCode);
+	let { inviteCode: code }: { inviteCode: string } = $props();
 	let copied = $state(false);
 	let regenerating = $state(false);
 
@@ -57,46 +58,15 @@
 	<div class="invite-actions">
 		<button class="btn-copy" onclick={copyLink}>
 			{#if copied}
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="20 6 9 17 4 12" />
-				</svg>
+				<CheckIcon size={15} weight="bold" />
 				Copied!
 			{:else}
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-					<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-				</svg>
+				<CopyIcon size={15} />
 				Copy Link
 			{/if}
 		</button>
 		<button class="btn-regen" onclick={handleRegenerate} disabled={regenerating}>
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M21 2v6h-6" />
-				<path d="M3 12a9 9 0 0115.36-6.36L21 8" />
-				<path d="M3 22v-6h6" />
-				<path d="M21 12a9 9 0 01-15.36 6.36L3 16" />
-			</svg>
+			<ArrowClockwiseIcon size={15} />
 			{regenerating ? 'Regenerating...' : 'New Link'}
 		</button>
 	</div>
@@ -155,7 +125,7 @@
 		cursor: not-allowed;
 	}
 
-	.invite-actions button svg {
+	.invite-actions button :global(svg) {
 		width: 15px;
 		height: 15px;
 		flex-shrink: 0;
@@ -163,12 +133,12 @@
 
 	.btn-copy {
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 	}
 
-	.btn-regen {
+	.invite-actions .btn-regen {
 		background: var(--bg-surface);
 		color: var(--text-primary);
-		border: 1px solid var(--border) !important;
+		border: 1px solid var(--border);
 	}
 </style>

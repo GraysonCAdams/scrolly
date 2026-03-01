@@ -12,6 +12,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	return {
 		user: locals.user,
 		group: locals.group,
-		vapidPublicKey: env.VAPID_PUBLIC_KEY || ''
+		vapidPublicKey: env.VAPID_PUBLIC_KEY || '',
+		gifEnabled: !!env.GIPHY_API_KEY
 	};
 };

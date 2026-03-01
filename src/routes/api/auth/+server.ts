@@ -12,6 +12,9 @@ import { v4 as uuid } from 'uuid';
 import { eq, and, desc } from 'drizzle-orm';
 import { sendVerification, checkVerification } from '$lib/server/sms/verify';
 import { dev } from '$app/environment';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('auth');
 
 async function handleJoin(body: Record<string, string>) {
 	const { inviteCode } = body;
@@ -120,7 +123,54 @@ async function handleOnboard(userId: string, body: Record<string, string>) {
 	await db.update(users).set({ username, phone }).where(eq(users.id, userId));
 
 	const data = await getUserWithGroup(userId);
+
+	// First user to complete onboarding becomes the host
+	if (data?.group && !data.group.createdBy) {
+		await db.update(groups).set({ createdBy: userId }).where(eq(groups.id, data.group.id));
+		data.group = { ...data.group, createdBy: userId };
+		log.info({ userId, username, groupId: data.group.id }, 'first user set as host');
+	}
+
 	return json({ user: data?.user, group: data?.group });
+}
+
+/** In dev mode, ensure a group + user exist for the given phone number. */
+async function ensureDevUser(phone: string, existingUser: typeof users.$inferSelect | undefined) {
+	let group = await db.query.groups.findFirst({
+		where: eq(groups.inviteCode, 'dev')
+	});
+	const isNewGroup = !group;
+	if (!group) {
+		const groupId = uuid();
+		await db.insert(groups).values({
+			id: groupId,
+			name: 'Dev Group',
+			inviteCode: 'dev',
+			shortcutToken: uuid(),
+			createdAt: new Date()
+		});
+		group = await db.query.groups.findFirst({ where: eq(groups.id, groupId) });
+	}
+	if (existingUser && !existingUser.username) {
+		await db.update(users).set({ username: 'dev', phone }).where(eq(users.id, existingUser.id));
+		if (!group!.createdBy) {
+			await db.update(groups).set({ createdBy: existingUser.id }).where(eq(groups.id, group!.id));
+		}
+	} else {
+		const userId = uuid();
+		await db.insert(users).values({
+			id: userId,
+			username: 'dev',
+			phone,
+			groupId: group!.id,
+			createdAt: new Date()
+		});
+		await db.insert(notificationPreferences).values({ userId });
+		if (isNewGroup || !group!.createdBy) {
+			await db.update(groups).set({ createdBy: userId }).where(eq(groups.id, group!.id));
+		}
+	}
+	log.debug({ phone }, 'dev mode: auto-created user');
 }
 
 async function handleLoginSendCode(body: Record<string, string>) {
@@ -131,52 +181,11 @@ async function handleLoginSendCode(body: Record<string, string>) {
 		return json({ error: 'Phone must be in E.164 format (e.g., +1234567890)' }, { status: 400 });
 	}
 
-	// Find a fully onboarded user with this phone
-	let user = await db.query.users.findFirst({
+	const user = await db.query.users.findFirst({
 		where: eq(users.phone, phone)
 	});
 	if ((!user || !user.username) && dev) {
-		// Dev mode: auto-create a group + user for any phone number
-		let group = await db.query.groups.findFirst({
-			where: eq(groups.inviteCode, 'dev')
-		});
-		const isNewGroup = !group;
-		if (!group) {
-			const groupId = uuid();
-			await db.insert(groups).values({
-				id: groupId,
-				name: 'Dev Group',
-				inviteCode: 'dev',
-				createdAt: new Date()
-			});
-			group = await db.query.groups.findFirst({
-				where: eq(groups.id, groupId)
-			});
-		}
-		if (user && !user.username) {
-			await db.update(users).set({ username: 'dev', phone }).where(eq(users.id, user.id));
-			user = await db.query.users.findFirst({ where: eq(users.id, user.id) });
-			// Make the first dev user the host if group has no host
-			if (!group!.createdBy) {
-				await db.update(groups).set({ createdBy: user!.id }).where(eq(groups.id, group!.id));
-			}
-		} else {
-			const userId = uuid();
-			await db.insert(users).values({
-				id: userId,
-				username: 'dev',
-				phone,
-				groupId: group!.id,
-				createdAt: new Date()
-			});
-			await db.insert(notificationPreferences).values({ userId });
-			user = await db.query.users.findFirst({ where: eq(users.id, userId) });
-			// First user in a new dev group becomes the host
-			if (isNewGroup || !group!.createdBy) {
-				await db.update(groups).set({ createdBy: userId }).where(eq(groups.id, group!.id));
-			}
-		}
-		console.log(`[DEV] Auto-created user for ${phone}`);
+		await ensureDevUser(phone, user);
 	} else if (!user || !user.username) {
 		return json({ error: 'No account found with this phone number' }, { status: 404 });
 	}
