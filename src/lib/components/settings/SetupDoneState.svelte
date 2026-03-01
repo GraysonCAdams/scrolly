@@ -37,6 +37,14 @@
 		to scrolly in the background.
 	</p>
 
+	<div class="icloud-tip">
+		<AppleLogoIcon size={16} />
+		<p>
+			This shortcut syncs via iCloud to all your Apple devices. On <strong>Mac</strong>, share to
+			the <strong>Shortcuts</strong> app from Safari's share menu, then choose your scrolly shortcut.
+		</p>
+	</div>
+
 	<!-- What members will see -->
 	<div class="preview-section">
 		<h2 class="section-heading">What your members will see</h2>
@@ -122,6 +130,37 @@
 		line-height: 1.5;
 		margin: 0 0 var(--space-2xl);
 		max-width: 340px;
+	}
+
+	/* --- iCloud tip --- */
+	.icloud-tip {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-sm);
+		text-align: left;
+		padding: var(--space-md);
+		background: var(--bg-elevated);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--space-2xl);
+		width: 100%;
+	}
+
+	.icloud-tip :global(svg) {
+		flex-shrink: 0;
+		color: var(--text-muted);
+		margin-top: 2px;
+	}
+
+	.icloud-tip p {
+		font-size: 0.875rem;
+		color: var(--text-secondary);
+		line-height: 1.5;
+		margin: 0;
+	}
+
+	.icloud-tip p strong {
+		color: var(--text-primary);
 	}
 
 	/* --- Section headings --- */

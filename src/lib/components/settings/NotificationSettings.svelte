@@ -143,9 +143,13 @@
 		padding: var(--space-sm) 0;
 		border-bottom: 1px solid var(--bg-surface);
 	}
+	.setting-row:first-child {
+		padding-top: 0;
+	}
 	.setting-row.last,
 	.setting-row:last-child {
 		border-bottom: none;
+		padding-bottom: 0;
 	}
 
 	.setting-label {

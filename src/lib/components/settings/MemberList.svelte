@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
+	import { groupMembers } from '$lib/stores/members';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 
@@ -85,6 +86,14 @@
 				return;
 			}
 			members = [...members, data.member];
+			groupMembers.update((ms) => [
+				...ms,
+				{
+					id: data.member.id,
+					username: data.member.username,
+					avatarPath: data.member.avatarPath
+				}
+			]);
 			newUsername = '';
 			newPhone = '';
 			showAddForm = false;
@@ -126,6 +135,7 @@
 			const res = await fetch(`/api/group/members/${member.id}`, { method: 'DELETE' });
 			if (res.ok) {
 				members = members.filter((m) => m.id !== member.id);
+				groupMembers.update((ms) => ms.filter((m) => m.id !== member.id));
 				toast.success(`${member.username} removed`);
 			} else {
 				toast.error('Failed to remove member');
@@ -245,8 +255,13 @@
 		border-bottom: 1px solid var(--bg-surface);
 	}
 
+	.member-row:first-child {
+		padding-top: 0;
+	}
+
 	.member-row:last-child {
 		border-bottom: none;
+		padding-bottom: 0;
 	}
 
 	.member-avatar {
