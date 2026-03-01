@@ -199,7 +199,7 @@
 					<a
 						href={clip.spotifyUrl}
 						target="_blank"
-						rel="noopener"
+						rel="external noopener"
 						class="platform-pill"
 						aria-label="Spotify"
 					>
@@ -211,7 +211,7 @@
 					<a
 						href={clip.appleMusicUrl}
 						target="_blank"
-						rel="noopener"
+						rel="external noopener"
 						class="platform-pill"
 						aria-label="Apple Music"
 					>
@@ -223,7 +223,7 @@
 					<a
 						href={clip.youtubeMusicUrl}
 						target="_blank"
-						rel="noopener"
+						rel="external noopener"
 						class="platform-pill"
 						aria-label="YouTube Music"
 					>
@@ -278,7 +278,7 @@
 		border-radius: var(--radius-lg);
 		object-fit: cover;
 		margin-bottom: var(--space-xl);
-		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+		box-shadow: 0 12px 40px var(--reel-text-shadow);
 		transition: transform 0.3s ease;
 	}
 
@@ -310,20 +310,20 @@
 		font-family: var(--font-display);
 		font-size: 1.25rem;
 		font-weight: 700;
-		color: #fff;
-		text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+		color: var(--reel-text);
+		text-shadow: 0 1px 4px var(--reel-text-shadow);
 	}
 
 	.song-artist {
 		margin: 0;
 		font-size: 1rem;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--reel-text-dim);
 	}
 
 	.song-duration {
 		margin: var(--space-xs) 0 0;
 		font-size: 0.8125rem;
-		color: rgba(255, 255, 255, 0.45);
+		color: var(--reel-text-faint);
 	}
 
 	.play-btn {
@@ -331,10 +331,10 @@
 		height: 56px;
 		border-radius: 50%;
 		border: none;
-		background: rgba(255, 255, 255, 0.15);
+		background: var(--reel-frosted-bg);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
-		color: #fff;
+		color: var(--reel-text);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
@@ -362,7 +362,7 @@
 
 	.time {
 		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--reel-text-subtle);
 		min-width: 32px;
 		flex-shrink: 0;
 	}
@@ -372,7 +372,7 @@
 		height: 4px;
 		-webkit-appearance: none;
 		appearance: none;
-		background: rgba(255, 255, 255, 0.2);
+		background: var(--reel-spinner-track);
 		border-radius: 2px;
 		outline: none;
 	}
@@ -382,7 +382,7 @@
 		width: 12px;
 		height: 12px;
 		border-radius: 50%;
-		background: #fff;
+		background: var(--reel-text);
 		cursor: pointer;
 	}
 
@@ -397,8 +397,8 @@
 		display: inline-block;
 		width: 16px;
 		height: 16px;
-		border: 2px solid rgba(255, 255, 255, 0.2);
-		border-top-color: rgba(255, 255, 255, 0.7);
+		border: 2px solid var(--reel-spinner-track);
+		border-top-color: var(--reel-spinner-head);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 		flex-shrink: 0;
@@ -412,17 +412,17 @@
 
 	.status-label {
 		font-size: 0.875rem;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--reel-text-subtle);
 	}
 
 	.error-label {
-		color: rgba(255, 255, 255, 0.45);
+		color: var(--reel-text-faint);
 	}
 
 	.retry-btn {
 		background: none;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		color: rgba(255, 255, 255, 0.8);
+		border: 1px solid var(--reel-input-border);
+		color: var(--reel-text-medium);
 		padding: 4px 16px;
 		border-radius: var(--radius-full);
 		font-size: 0.875rem;
@@ -432,7 +432,7 @@
 	}
 
 	.retry-btn:active {
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--reel-glass-pill-bg);
 	}
 
 	.platform-links {
@@ -449,8 +449,8 @@
 		gap: 6px;
 		padding: 8px 16px;
 		border-radius: var(--radius-full);
-		background: rgba(255, 255, 255, 0.1);
-		color: rgba(255, 255, 255, 0.85);
+		background: var(--reel-glass-pill-bg);
+		color: var(--reel-text-bright);
 		text-decoration: none;
 		font-size: 0.875rem;
 		font-weight: 500;
@@ -458,6 +458,6 @@
 	}
 
 	.platform-pill:active {
-		background: rgba(255, 255, 255, 0.18);
+		background: var(--reel-frosted-bg-active);
 	}
 </style>

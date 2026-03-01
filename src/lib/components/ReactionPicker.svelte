@@ -24,9 +24,10 @@
 
 	// Animate in
 	$effect(() => {
-		requestAnimationFrame(() => {
+		const raf = requestAnimationFrame(() => {
 			visible = true;
 		});
+		return () => cancelAnimationFrame(raf);
 	});
 
 	// Auto-dismiss after 4s (only in tap mode)
@@ -116,7 +117,14 @@
 	}
 </script>
 
-<div class="picker" class:visible style={getStyle()} bind:this={pickerEl}>
+<div
+	class="picker"
+	class:visible
+	style={getStyle()}
+	bind:this={pickerEl}
+	role="listbox"
+	aria-label="Reaction picker"
+>
 	{#each EMOJI as emoji, i (emoji)}
 		<button
 			class="emoji-btn"
@@ -125,6 +133,7 @@
 			onclick={() => {
 				if (!isDragging) onpick(emoji);
 			}}
+			aria-label="React with {emoji}"
 		>
 			<span class="emoji-inner">{emoji}</span>
 		</button>
@@ -138,12 +147,12 @@
 		display: flex;
 		gap: 4px;
 		padding: 8px 12px;
-		background: rgba(0, 0, 0, 0.65);
+		background: var(--reel-picker-bg);
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
 		border-radius: var(--radius-full);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+		border: 1px solid var(--reel-picker-border);
+		box-shadow: 0 8px 32px var(--reel-icon-shadow);
 		transform: scale(0.6);
 		opacity: 0;
 		transition:
@@ -185,11 +194,11 @@
 	}
 
 	.emoji-btn.hovered {
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--reel-picker-active);
 	}
 
 	.emoji-btn:hover:not(.hovered) {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--reel-picker-hover);
 	}
 
 	.emoji-btn:hover:not(.hovered) .emoji-inner {

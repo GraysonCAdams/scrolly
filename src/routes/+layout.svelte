@@ -67,6 +67,42 @@
 		--overlay-text: rgba(255, 255, 255, 0.6);
 		--overlay-track: rgba(255, 255, 255, 0.2);
 
+		/* Reel/feed overlay gradients & shadows */
+		--reel-gradient-heavy: rgba(0, 0, 0, 0.85);
+		--reel-gradient-medium: rgba(0, 0, 0, 0.7);
+		--reel-gradient-soft: rgba(0, 0, 0, 0.6);
+		--reel-gradient-faint: rgba(0, 0, 0, 0.3);
+		--reel-text-shadow: rgba(0, 0, 0, 0.6);
+		--reel-icon-shadow: rgba(0, 0, 0, 0.4);
+
+		/* Reel overlay text (constant across themes — always over video) */
+		--reel-text: #fff;
+		--reel-text-bright: rgba(255, 255, 255, 0.9);
+		--reel-text-medium: rgba(255, 255, 255, 0.8);
+		--reel-text-dim: rgba(255, 255, 255, 0.7);
+		--reel-text-subtle: rgba(255, 255, 255, 0.5);
+		--reel-text-faint: rgba(255, 255, 255, 0.45);
+		--reel-text-ghost: rgba(255, 255, 255, 0.35);
+		--reel-text-placeholder: rgba(255, 255, 255, 0.3);
+		--reel-text-disabled: rgba(255, 255, 255, 0.25);
+
+		/* Reel overlay surfaces (constant across themes) */
+		--reel-avatar-border: rgba(255, 255, 255, 0.25);
+		--reel-frosted-bg: rgba(255, 255, 255, 0.15);
+		--reel-frosted-bg-active: rgba(255, 255, 255, 0.2);
+		--reel-glass-border: rgba(255, 255, 255, 0.15);
+		--reel-glass-pill-bg: rgba(255, 255, 255, 0.12);
+		--reel-icon-circle-bg: rgba(30, 30, 30, 0.55);
+		--reel-icon-circle-active: rgba(50, 50, 50, 0.7);
+		--reel-input-bg: rgba(0, 0, 0, 0.5);
+		--reel-input-border: rgba(255, 255, 255, 0.2);
+		--reel-picker-bg: rgba(0, 0, 0, 0.65);
+		--reel-picker-border: rgba(255, 255, 255, 0.12);
+		--reel-picker-hover: rgba(255, 255, 255, 0.08);
+		--reel-picker-active: rgba(255, 255, 255, 0.12);
+		--reel-spinner-track: rgba(255, 255, 255, 0.2);
+		--reel-spinner-head: rgba(255, 255, 255, 0.7);
+
 		--radius-sm: 8px;
 		--radius-md: 12px;
 		--radius-lg: 16px;
@@ -101,6 +137,12 @@
 			--overlay-btn-active: rgba(0, 0, 0, 0.15);
 			--overlay-text: rgba(0, 0, 0, 0.5);
 			--overlay-track: rgba(0, 0, 0, 0.15);
+			--reel-gradient-heavy: rgba(0, 0, 0, 0.55);
+			--reel-gradient-medium: rgba(0, 0, 0, 0.45);
+			--reel-gradient-soft: rgba(0, 0, 0, 0.3);
+			--reel-gradient-faint: rgba(0, 0, 0, 0.12);
+			--reel-text-shadow: rgba(0, 0, 0, 0.35);
+			--reel-icon-shadow: rgba(0, 0, 0, 0.25);
 		}
 	}
 
@@ -119,23 +161,12 @@
 		--overlay-btn-active: rgba(0, 0, 0, 0.15);
 		--overlay-text: rgba(0, 0, 0, 0.5);
 		--overlay-track: rgba(0, 0, 0, 0.15);
-	}
-
-	/* Manual override: dark */
-	:global(:root[data-theme='dark']) {
-		--bg-primary: #000000;
-		--bg-elevated: #111111;
-		--bg-surface: #1a1a1a;
-		--bg-subtle: #222222;
-		--text-primary: #ffffff;
-		--text-secondary: #999999;
-		--text-muted: #666666;
-		--border: #333333;
-		--picker-bg: rgba(30, 30, 30, 0.9);
-		--overlay-btn: rgba(255, 255, 255, 0.15);
-		--overlay-btn-active: rgba(255, 255, 255, 0.25);
-		--overlay-text: rgba(255, 255, 255, 0.6);
-		--overlay-track: rgba(255, 255, 255, 0.2);
+		--reel-gradient-heavy: rgba(0, 0, 0, 0.55);
+		--reel-gradient-medium: rgba(0, 0, 0, 0.45);
+		--reel-gradient-soft: rgba(0, 0, 0, 0.3);
+		--reel-gradient-faint: rgba(0, 0, 0, 0.12);
+		--reel-text-shadow: rgba(0, 0, 0, 0.35);
+		--reel-icon-shadow: rgba(0, 0, 0, 0.25);
 	}
 
 	:global(body) {

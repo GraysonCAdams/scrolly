@@ -28,7 +28,7 @@
 	let holdFired = false;
 
 	let justFaved = $state(false);
-	let prevFavorited = $state(favorited);
+	let prevFavorited = $state(false);
 	$effect(() => {
 		if (favorited && !prevFavorited) {
 			justFaved = true;
@@ -220,8 +220,8 @@
 <style>
 	.action-sidebar {
 		position: absolute;
-		right: var(--space-md);
-		bottom: calc(90px + env(safe-area-inset-bottom));
+		right: var(--space-lg);
+		bottom: calc(116px + env(safe-area-inset-bottom));
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -236,7 +236,7 @@
 		gap: 4px;
 		background: none;
 		border: none;
-		color: #fff;
+		color: var(--reel-text);
 		cursor: pointer;
 		padding: 0;
 		min-width: 44px;
@@ -252,25 +252,25 @@
 		width: 44px;
 		height: 44px;
 		border-radius: var(--radius-full);
-		background: rgba(30, 30, 30, 0.55);
+		background: var(--reel-icon-circle-bg);
 		backdrop-filter: blur(6px);
 		-webkit-backdrop-filter: blur(6px);
 		transition: background 0.15s ease;
 	}
 
 	.sidebar-btn:active .icon-circle {
-		background: rgba(50, 50, 50, 0.7);
+		background: var(--reel-icon-circle-active);
 		transform: scale(0.93);
 	}
 
 	.icon-circle svg {
 		width: 24px;
 		height: 24px;
-		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
 	}
 
 	.sidebar-btn.active .icon-circle {
-		background: rgba(255, 45, 120, 0.2);
+		background: color-mix(in srgb, var(--accent-magenta) 20%, transparent);
 	}
 
 	.sidebar-btn.active {
@@ -286,7 +286,7 @@
 		padding: 0 4px;
 		border-radius: var(--radius-full);
 		background: var(--accent-magenta);
-		color: #fff;
+		color: var(--reel-text);
 		font-size: 0.5625rem;
 		font-weight: 700;
 		display: flex;
@@ -298,8 +298,8 @@
 	.sidebar-count {
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #fff;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+		color: var(--reel-text);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 	}
 
 	.icon-circle.pop {

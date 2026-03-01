@@ -245,17 +245,17 @@
 		border-radius: var(--radius-full);
 		object-fit: cover;
 		flex-shrink: 0;
-		border: 2px solid rgba(255, 255, 255, 0.25);
+		border: 2px solid var(--reel-avatar-border);
 	}
 
 	.overlay-avatar-fallback {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(255, 255, 255, 0.15);
+		background: var(--reel-frosted-bg);
 		backdrop-filter: blur(6px);
 		-webkit-backdrop-filter: blur(6px);
-		color: rgba(255, 255, 255, 0.8);
+		color: var(--reel-text-medium);
 		font-family: var(--font-display);
 		font-size: 0.75rem;
 		font-weight: 700;
@@ -265,8 +265,8 @@
 		font-family: var(--font-display);
 		font-weight: 700;
 		font-size: 1rem;
-		color: #fff;
-		text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+		color: var(--reel-text);
+		text-shadow: 0 1px 4px var(--reel-text-shadow);
 	}
 
 	.platform-badge {
@@ -275,8 +275,8 @@
 		justify-content: center;
 		padding: 4px;
 		border-radius: var(--radius-full);
-		background: rgba(255, 255, 255, 0.15);
-		color: rgba(255, 255, 255, 0.8);
+		background: var(--reel-frosted-bg);
+		color: var(--reel-text-medium);
 	}
 
 	/* Caption display area */
@@ -295,8 +295,8 @@
 		font: inherit;
 		text-align: left;
 		font-size: 0.875rem;
-		color: rgba(255, 255, 255, 0.9);
-		text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+		color: var(--reel-text-bright);
+		text-shadow: 0 1px 4px var(--reel-text-shadow);
 		line-height: 1.4;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -307,7 +307,7 @@
 	}
 
 	.overlay-caption.placeholder {
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--reel-text-faint);
 		font-style: italic;
 	}
 
@@ -321,7 +321,7 @@
 		font-size: 0.6875rem;
 		font-weight: 600;
 		color: var(--accent-primary);
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 		animation: fade-in 0.2s ease;
 		margin-top: 2px;
 	}
@@ -334,12 +334,12 @@
 	.caption-edit input {
 		width: 100%;
 		padding: 8px 12px;
-		background: rgba(0, 0, 0, 0.5);
+		background: var(--reel-input-bg);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		border: 1px solid var(--reel-input-border);
 		border-radius: var(--radius-sm);
-		color: #fff;
+		color: var(--reel-text);
 		font-size: 0.875rem;
 		font-family: var(--font-body);
 		outline: none;
@@ -350,7 +350,7 @@
 	}
 
 	.caption-edit input::placeholder {
-		color: rgba(255, 255, 255, 0.3);
+		color: var(--reel-text-placeholder);
 	}
 
 	.edit-actions {
@@ -366,7 +366,7 @@
 		font-weight: 600;
 		cursor: pointer;
 		padding: 0;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 	}
 
 	.edit-action.save {
@@ -374,7 +374,7 @@
 	}
 
 	.edit-action.cancel {
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--reel-text-subtle);
 	}
 
 	/* Host action row (Edit / Delete) */
@@ -391,19 +391,19 @@
 		border: none;
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.45);
+		color: var(--reel-text-faint);
 		cursor: pointer;
 		padding: 0;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 		transition: color 0.15s ease;
 	}
 
 	.host-action-btn:active {
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--reel-text-dim);
 	}
 
 	.host-action-btn.delete {
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--reel-text-ghost);
 	}
 
 	.host-action-btn.confirm-yes {
@@ -416,7 +416,7 @@
 	}
 
 	.host-action-dot {
-		color: rgba(255, 255, 255, 0.25);
+		color: var(--reel-text-disabled);
 		font-size: 0.6875rem;
 		user-select: none;
 	}
@@ -424,8 +424,8 @@
 	.confirm-label {
 		font-size: 0.6875rem;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.6);
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+		color: var(--reel-text-subtle);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 		margin-right: 2px;
 	}
 
@@ -437,11 +437,11 @@
 	}
 
 	.reaction-pill {
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--reel-glass-pill-bg);
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
-		border: 1px solid rgba(255, 255, 255, 0.15);
-		color: rgba(255, 255, 255, 0.9);
+		border: 1px solid var(--reel-glass-border);
+		color: var(--reel-text-bright);
 		padding: 2px 10px;
 		border-radius: var(--radius-full);
 		font-size: 0.8125rem;
