@@ -1,11 +1,17 @@
+# NOTE: Branch protection should require the "ci" job to pass before merge.
+# Configure in GitHub: Settings > Branches > Branch protection rules > main
+#   - Require status checks: ci
+#   - Require branches to be up to date before merging
+
 name: CI
 
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', '*.md']
   pull_request:
     branches: [main]
-    paths-ignore: ['*.md']
+    paths-ignore: ['docs/**', '*.md']
   workflow_dispatch:
 
 concurrency:
@@ -41,12 +47,8 @@ jobs:
       - name: Type check
         run: npm run type-check
 
-      - name: Unit tests
-        run: npm run test
-
-      - name: Coverage report
+      - name: Tests with coverage
         run: npm run test:coverage
-        continue-on-error: true
 
       - name: Upload coverage
         if: always()

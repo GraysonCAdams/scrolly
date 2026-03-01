@@ -1,8 +1,8 @@
 services:
   scrolly:
-    # Pin to a specific version for stability (e.g. 1.0.0, 1.0, or latest)
-    # See releases: https://github.com/312-dev/scrolly/releases
-    image: ghcr.io/312-dev/scrolly:latest
+    # Pin to a specific version for stability
+    # Update after releases: https://github.com/312-dev/scrolly/releases
+    image: ghcr.io/312-dev/scrolly:1.0.0
     # To build locally instead, comment out 'image' and uncomment:
     # build: .
     ports:

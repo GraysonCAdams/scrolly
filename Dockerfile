@@ -1,3 +1,6 @@
+# Global build arg — available in all stages
+ARG APP_VERSION=dev
+
 # ----- Stage 1: Build -----
 FROM node:24-slim AS builder
 
@@ -8,11 +11,10 @@ RUN npm ci
 
 COPY . .
 
-ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
 
 RUN npm run build
-RUN npm pkg delete scripts.prepare && npm ci --omit=dev
+RUN HUSKY=0 npm ci --omit=dev
 
 
 # ----- Stage 2: Runtime -----
@@ -37,7 +39,6 @@ COPY --from=builder /app/src/lib/server/db/migrations ./migrations
 
 RUN mkdir -p /app/data && chown -R scrolly:scrolly /app
 
-ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
 ENV NODE_ENV=production
 ENV PORT=3000
