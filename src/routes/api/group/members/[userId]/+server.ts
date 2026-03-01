@@ -8,17 +8,10 @@ import {
 	verificationCodes
 } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { withHost } from '$lib/server/api-utils';
 
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
-
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can remove members' }, { status: 403 });
-	}
-
-	if (params.userId === locals.user.id) {
+export const DELETE: RequestHandler = withHost(async ({ params }, { user, group }) => {
+	if (params.userId === user.id) {
 		return json({ error: 'Cannot remove yourself' }, { status: 400 });
 	}
 
@@ -26,7 +19,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		where: eq(users.id, params.userId)
 	});
 
-	if (!target || target.groupId !== locals.group.id || target.removedAt) {
+	if (!target || target.groupId !== group.id || target.removedAt) {
 		return json({ error: 'User not found in this group' }, { status: 404 });
 	}
 
@@ -46,4 +39,4 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	await db.delete(verificationCodes).where(eq(verificationCodes.userId, params.userId));
 
 	return json({ removed: true });
-};
+});

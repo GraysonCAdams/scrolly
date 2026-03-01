@@ -4,21 +4,17 @@ import { db } from '$lib/server/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { PLATFORM_KEYS } from '$lib/url-validation';
+import { withHost, parseBody, isResponse } from '$lib/server/api-utils';
 
 const VALID_MODES = ['all', 'allow', 'block'];
 
-export const PATCH: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
+export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => {
+	const body = await parseBody<{ mode?: string; platforms?: string[] }>(request);
+	if (isResponse(body)) return body;
 
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can change platform settings' }, { status: 403 });
-	}
+	const { mode, platforms } = body;
 
-	const { mode, platforms } = await request.json();
-
-	if (!VALID_MODES.includes(mode)) {
+	if (!mode || !VALID_MODES.includes(mode)) {
 		return json({ error: 'Invalid mode. Must be all, allow, or block' }, { status: 400 });
 	}
 
@@ -37,10 +33,10 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 	await db
 		.update(groups)
 		.set({ platformFilterMode: mode, platformFilterList })
-		.where(eq(groups.id, locals.group.id));
+		.where(eq(groups.id, group.id));
 
 	return json({
 		platformFilterMode: mode,
 		platformFilterList: mode === 'all' ? null : platforms
 	});
-};
+});

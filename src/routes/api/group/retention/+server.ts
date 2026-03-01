@@ -3,25 +3,23 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { withHost, parseBody, isResponse, badRequest } from '$lib/server/api-utils';
+import { VALID_RETENTION_DAYS } from '$lib/server/constants';
 
-const VALID_RETENTION = [null, 7, 14, 30, 60, 90];
+export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => {
+	const body = await parseBody<{ retentionDays?: number | null }>(request);
+	if (isResponse(body)) return body;
 
-export const PATCH: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
+	const { retentionDays } = body;
+
+	if (!(VALID_RETENTION_DAYS as readonly (number | null)[]).includes(retentionDays ?? null)) {
+		return badRequest('Invalid retention value');
 	}
 
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can change retention policy' }, { status: 403 });
-	}
-
-	const { retentionDays } = await request.json();
-
-	if (!VALID_RETENTION.includes(retentionDays)) {
-		return json({ error: 'Invalid retention value' }, { status: 400 });
-	}
-
-	await db.update(groups).set({ retentionDays }).where(eq(groups.id, locals.group.id));
+	await db
+		.update(groups)
+		.set({ retentionDays: retentionDays ?? null })
+		.where(eq(groups.id, group.id));
 
 	return json({ retentionDays });
-};
+});

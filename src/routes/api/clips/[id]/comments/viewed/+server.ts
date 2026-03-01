@@ -3,12 +3,11 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { commentViews } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { withClipAuth } from '$lib/server/api-utils';
 
-export const POST: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
+export const POST: RequestHandler = withClipAuth(async ({ params }, { user }) => {
 	const clipId = params.id;
-	const userId = locals.user.id;
+	const userId = user.id;
 	const now = new Date();
 
 	// Upsert: insert or update viewedAt
@@ -26,4 +25,4 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 	}
 
 	return json({ ok: true });
-};
+});

@@ -1,18 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { withAuth, safeInt } from '$lib/server/api-utils';
 
 const GIPHY_BASE = 'https://api.giphy.com/v1/gifs';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
+export const GET: RequestHandler = withAuth(async ({ url }, _auth) => {
 	const apiKey = env.GIPHY_API_KEY;
 	if (!apiKey) return json({ error: 'GIF search not configured' }, { status: 503 });
 
 	const q = url.searchParams.get('q')?.trim();
-	const limit = Math.min(parseInt(url.searchParams.get('limit') || '20') || 20, 30);
-	const offset = parseInt(url.searchParams.get('offset') || '0') || 0;
+	const limit = safeInt(url.searchParams.get('limit'), 20, 30);
+	const offset = safeInt(url.searchParams.get('offset'), 0);
 
 	const endpoint = q
 		? `${GIPHY_BASE}/search?api_key=${apiKey}&q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}&rating=r`
@@ -42,4 +41,4 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	);
 
 	return json({ gifs });
-};
+});

@@ -331,7 +331,7 @@ describe('GET /api/clips/[id]', () => {
 		expect(body.error).toMatch(/not found/i);
 	});
 
-	it('returns 403 for clip in another group', async () => {
+	it('returns 404 for clip in another group', async () => {
 		const event = createMockEvent({
 			method: 'GET',
 			path: `/api/clips/${data.readyClip.id}`,
@@ -340,9 +340,9 @@ describe('GET /api/clips/[id]', () => {
 			group: data.otherGroup
 		});
 		const res = await clipIdMod.GET(event as any);
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(404);
 		const body = await res.json();
-		expect(body.error).toMatch(/not authorized/i);
+		expect(body.error).toMatch(/not found/i);
 	});
 
 	it('returns clip details when authorized', async () => {

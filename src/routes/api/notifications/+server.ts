@@ -3,15 +3,14 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { notifications } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { withAuth, safeInt, mapUsersByIds } from '$lib/server/api-utils';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
-	const limit = Math.min(parseInt(url.searchParams.get('limit') || '30'), 50);
-	const offset = parseInt(url.searchParams.get('offset') || '0');
+export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
+	const limit = safeInt(url.searchParams.get('limit'), 30, 50);
+	const offset = safeInt(url.searchParams.get('offset'), 0);
 
 	const rows = await db.query.notifications.findMany({
-		where: eq(notifications.userId, locals.user.id),
+		where: eq(notifications.userId, user.id),
 		orderBy: [desc(notifications.createdAt)],
 		limit,
 		offset
@@ -20,16 +19,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	if (rows.length === 0) return json({ notifications: [] });
 
 	// Build lookup maps for actors and clips
-	const actorIds = [...new Set(rows.map((r) => r.actorId))];
+	const actorMap = await mapUsersByIds(rows.map((r) => r.actorId));
+
 	const clipIds = [...new Set(rows.map((r) => r.clipId))];
-
-	const actorRows = await db.query.users.findMany({
-		where: (u, { inArray }) => inArray(u.id, actorIds)
-	});
-	const actorMap = new Map(
-		actorRows.map((u) => [u.id, { username: u.username, avatarPath: u.avatarPath }])
-	);
-
 	const clipRows = await db.query.clips.findMany({
 		where: (c, { inArray }) => inArray(c.id, clipIds)
 	});
@@ -52,4 +44,4 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}));
 
 	return json({ notifications: result });
-};
+});

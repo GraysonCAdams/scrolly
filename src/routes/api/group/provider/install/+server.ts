@@ -4,16 +4,17 @@ import { db } from '$lib/server/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { getProviderInstance } from '$lib/server/providers/registry';
+import { withHost, parseBody, isResponse } from '$lib/server/api-utils';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can install providers' }, { status: 403 });
+export const POST: RequestHandler = withHost(async ({ request }) => {
+	const body = await parseBody<{ providerId?: string }>(request);
+	if (isResponse(body)) return body;
+
+	const { providerId } = body;
+	if (!providerId) {
+		return json({ error: 'Provider ID required' }, { status: 400 });
 	}
 
-	const { providerId } = await request.json();
 	const provider = getProviderInstance(providerId);
 	if (!provider) {
 		return json({ error: 'Unknown provider' }, { status: 400 });
@@ -27,17 +28,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const message = err instanceof Error ? err.message : 'Installation failed';
 		return json({ error: message }, { status: 500 });
 	}
-};
+});
 
-export const DELETE: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can uninstall providers' }, { status: 403 });
+export const DELETE: RequestHandler = withHost(async ({ request }, { group }) => {
+	const body = await parseBody<{ providerId?: string }>(request);
+	if (isResponse(body)) return body;
+
+	const { providerId } = body;
+	if (!providerId) {
+		return json({ error: 'Provider ID required' }, { status: 400 });
 	}
 
-	const { providerId } = await request.json();
 	const provider = getProviderInstance(providerId);
 	if (!provider) {
 		return json({ error: 'Unknown provider' }, { status: 400 });
@@ -46,9 +47,9 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	await provider.uninstall();
 
 	// If this was the active provider, deactivate it
-	if (locals.group.downloadProvider === providerId) {
-		await db.update(groups).set({ downloadProvider: null }).where(eq(groups.id, locals.group.id));
+	if (group.downloadProvider === providerId) {
+		await db.update(groups).set({ downloadProvider: null }).where(eq(groups.id, group.id));
 	}
 
 	return json({ installed: false });
-};
+});

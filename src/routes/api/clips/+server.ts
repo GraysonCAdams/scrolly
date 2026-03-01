@@ -7,8 +7,7 @@ import {
 	favorites,
 	commentViews,
 	reactions,
-	comments,
-	users
+	comments
 } from '$lib/server/db/schema';
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import {
@@ -24,10 +23,20 @@ import { sendGroupNotification } from '$lib/server/push';
 import { normalizeUrl } from '$lib/server/download-lock';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { v4 as uuid } from 'uuid';
-import { requireAuth, groupReactionsByClip, parseBody, isResponse } from '$lib/server/api-utils';
+import {
+	withAuth,
+	groupReactionsByClip,
+	parseBody,
+	isResponse,
+	badRequest,
+	mapUsersByIds,
+	safeInt
+} from '$lib/server/api-utils';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clips');
+
+const VALID_FILTERS = ['unwatched', 'watched', 'favorites'] as const;
 
 function countByClipId(items: { clipId: string }[], clipIds: Set<string>): Map<string, number> {
 	const counts = new Map<string, number>();
@@ -55,15 +64,15 @@ function countUnreadComments(
 	return counts;
 }
 
-export const GET: RequestHandler = async ({ locals, url }) => {
-	const authError = requireAuth(locals);
-	if (authError) return authError;
-
-	const filter = url.searchParams.get('filter'); // 'unwatched' | 'watched' | 'favorites'
-	const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
-	const offset = parseInt(url.searchParams.get('offset') || '0');
-	const groupId = locals.user!.groupId;
-	const userId = locals.user!.id;
+export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
+	const filter = url.searchParams.get('filter');
+	if (filter && !(VALID_FILTERS as readonly string[]).includes(filter)) {
+		return badRequest('Invalid filter. Must be unwatched, watched, or favorites');
+	}
+	const limit = safeInt(url.searchParams.get('limit'), 20, 50);
+	const offset = safeInt(url.searchParams.get('offset'), 0);
+	const groupId = user.groupId;
+	const userId = user.id;
 
 	// Get all clips for the group
 	let allClips = await db.query.clips.findMany({
@@ -143,16 +152,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	// Look up usernames + avatars only for users who added these clips
-	const addedByIds = [...new Set(paginatedClips.map((c) => c.addedBy))];
-	const usersMap = new Map<string, { username: string; avatarPath: string | null }>();
-	if (addedByIds.length > 0) {
-		const userRows = await db.query.users.findMany({
-			where: inArray(users.id, addedByIds)
-		});
-		for (const u of userRows) {
-			usersMap.set(u.id, { username: u.username, avatarPath: u.avatarPath });
-		}
-	}
+	const usersMap = await mapUsersByIds(paginatedClips.map((c) => c.addedBy));
 
 	const result = paginatedClips.map((c) => ({
 		...c,
@@ -168,14 +168,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}));
 
 	return json({ clips: result, hasMore: offset + limit < total });
-};
+});
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-	const authError = requireAuth(locals);
-	if (authError) return authError;
-
+export const POST: RequestHandler = withAuth(async ({ request }, { user, group }) => {
 	// Check that a download provider is configured
-	const provider = await getActiveProvider(locals.user!.groupId);
+	const provider = await getActiveProvider(user.groupId);
 	if (!provider) {
 		return json(
 			{ error: 'No download provider configured. Ask your group host to set one up in Settings.' },
@@ -203,10 +200,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const platform = detectPlatform(videoUrl)!;
 
 	// Enforce group platform filter
-	const filterList = locals.group!.platformFilterList
-		? JSON.parse(locals.group!.platformFilterList)
-		: null;
-	if (!isPlatformAllowed(platform, locals.group!.platformFilterMode ?? 'all', filterList)) {
+	const filterList = group.platformFilterList ? JSON.parse(group.platformFilterList) : null;
+	if (!isPlatformAllowed(platform, group.platformFilterMode ?? 'all', filterList)) {
 		return json(
 			{ error: `${platformLabel(videoUrl) || platform} links are not allowed in this group` },
 			{ status: 400 }
@@ -218,31 +213,40 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Check if this URL already exists in the group's feed
 	const existing = await db.query.clips.findFirst({
-		where: and(eq(clips.groupId, locals.user!.groupId), eq(clips.originalUrl, normalizedUrl))
+		where: and(eq(clips.groupId, user.groupId), eq(clips.originalUrl, normalizedUrl))
 	});
 	if (existing) {
 		return json({ error: 'This link has already been added to the feed.' }, { status: 409 });
 	}
 
 	const clipId = uuid();
-	await db.insert(clips).values({
-		id: clipId,
-		groupId: locals.user!.groupId,
-		addedBy: locals.user!.id,
-		originalUrl: normalizedUrl,
-		title: title || null,
-		platform,
-		contentType,
-		status: 'downloading',
-		createdAt: new Date()
-	});
+	const now = new Date();
 
-	// Auto-mark as watched by the uploader so it never appears in their "New" tab
-	await db.insert(watched).values({
-		clipId,
-		userId: locals.user!.id,
-		watchPercent: 100,
-		watchedAt: new Date()
+	// Insert clip + auto-watched in a transaction so both succeed or fail together
+	db.transaction((tx) => {
+		tx.insert(clips)
+			.values({
+				id: clipId,
+				groupId: user.groupId,
+				addedBy: user.id,
+				originalUrl: normalizedUrl,
+				title: title || null,
+				platform,
+				contentType,
+				status: 'downloading',
+				createdAt: now
+			})
+			.run();
+
+		// Auto-mark as watched by the uploader so it never appears in their "New" tab
+		tx.insert(watched)
+			.values({
+				clipId,
+				userId: user.id,
+				watchPercent: 100,
+				watchedAt: now
+			})
+			.run();
 	});
 
 	// Route to appropriate download pipeline
@@ -262,16 +266,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Notify group members
 	sendGroupNotification(
-		locals.user!.groupId,
+		user.groupId,
 		{
 			title: 'New clip added',
-			body: `${locals.user!.username} shared a new ${contentType === 'music' ? 'song' : 'video'}`,
+			body: `${user.username} shared a new ${contentType === 'music' ? 'song' : 'video'}`,
 			url: '/',
 			tag: 'new-clip'
 		},
 		'newAdds',
-		locals.user!.id
+		user.id
 	).catch((err) => log.error({ err }, 'push notification failed'));
 
 	return json({ clip: { id: clipId, status: 'downloading', contentType } }, { status: 201 });
-};
+});

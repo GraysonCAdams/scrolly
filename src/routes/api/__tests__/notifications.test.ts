@@ -40,7 +40,8 @@ describe('GET /api/notifications', () => {
 			method: 'GET',
 			path: '/api/notifications',
 			searchParams: { limit: '10', offset: '0' },
-			user: data.host
+			user: data.host,
+			group: data.group
 		});
 		const response = await notifMod.GET(event);
 		expect(response.status).toBe(200);
@@ -67,7 +68,8 @@ describe('POST /api/notifications/mark-read', () => {
 			method: 'POST',
 			path: '/api/notifications/mark-read',
 			body: { all: true },
-			user: data.host
+			user: data.host,
+			group: data.group
 		});
 		const response = await markReadMod.POST(event);
 		expect(response.status).toBe(200);
@@ -92,7 +94,8 @@ describe('GET /api/notifications/unread-count', () => {
 		const event = createMockEvent({
 			method: 'GET',
 			path: '/api/notifications/unread-count',
-			user: data.host
+			user: data.host,
+			group: data.group
 		});
 		const response = await unreadCountMod.GET(event);
 		expect(response.status).toBe(200);
@@ -117,7 +120,8 @@ describe('GET /api/notifications/preferences', () => {
 		const event = createMockEvent({
 			method: 'GET',
 			path: '/api/notifications/preferences',
-			user: data.host
+			user: data.host,
+			group: data.group
 		});
 		const response = await prefsMod.GET(event);
 		expect(response.status).toBe(200);
@@ -149,7 +153,8 @@ describe('PATCH /api/notifications/preferences', () => {
 			method: 'PATCH',
 			path: '/api/notifications/preferences',
 			body: { dailyReminder: true },
-			user: data.host
+			user: data.host,
+			group: data.group
 		});
 		const response = await prefsMod.PATCH(event);
 		expect(response.status).toBe(200);

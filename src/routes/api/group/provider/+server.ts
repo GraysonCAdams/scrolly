@@ -4,32 +4,26 @@ import { db } from '$lib/server/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { listProvidersWithStatus, getProviderInstance } from '$lib/server/providers/registry';
+import { withHost, parseBody, isResponse } from '$lib/server/api-utils';
 
-export const GET: RequestHandler = async ({ locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can manage providers' }, { status: 403 });
-	}
-
-	const providers = await listProvidersWithStatus(locals.group.id);
+export const GET: RequestHandler = withHost(async (_event, { group }) => {
+	const providers = await listProvidersWithStatus(group.id);
 	return json({ providers });
-};
+});
 
-export const PATCH: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
-	}
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can manage providers' }, { status: 403 });
-	}
+export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => {
+	const body = await parseBody<{ providerId?: string | null }>(request);
+	if (isResponse(body)) return body;
 
-	const { providerId } = await request.json();
+	const { providerId } = body;
 
 	if (providerId === null) {
-		await db.update(groups).set({ downloadProvider: null }).where(eq(groups.id, locals.group.id));
+		await db.update(groups).set({ downloadProvider: null }).where(eq(groups.id, group.id));
 		return json({ downloadProvider: null });
+	}
+
+	if (!providerId) {
+		return json({ error: 'Provider ID required' }, { status: 400 });
 	}
 
 	const provider = getProviderInstance(providerId);
@@ -42,9 +36,6 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Provider is not installed. Install it first.' }, { status: 400 });
 	}
 
-	await db
-		.update(groups)
-		.set({ downloadProvider: providerId })
-		.where(eq(groups.id, locals.group.id));
+	await db.update(groups).set({ downloadProvider: providerId }).where(eq(groups.id, group.id));
 	return json({ downloadProvider: providerId });
-};
+});

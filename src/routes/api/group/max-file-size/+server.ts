@@ -3,25 +3,23 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { withHost, parseBody, isResponse, badRequest } from '$lib/server/api-utils';
+import { VALID_MAX_FILE_SIZES } from '$lib/server/constants';
 
-const VALID_SIZES: (number | null)[] = [25, 50, 100, 200, 500, null];
+export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => {
+	const body = await parseBody<{ maxFileSizeMb?: number | null }>(request);
+	if (isResponse(body)) return body;
 
-export const PATCH: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.group) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
+	const { maxFileSizeMb } = body;
+
+	if (!(VALID_MAX_FILE_SIZES as readonly (number | null)[]).includes(maxFileSizeMb ?? null)) {
+		return badRequest('Invalid file size value');
 	}
 
-	if (locals.group.createdBy !== locals.user.id) {
-		return json({ error: 'Only the host can change the max file size' }, { status: 403 });
-	}
-
-	const { maxFileSizeMb } = await request.json();
-
-	if (!VALID_SIZES.includes(maxFileSizeMb)) {
-		return json({ error: 'Invalid file size value' }, { status: 400 });
-	}
-
-	await db.update(groups).set({ maxFileSizeMb }).where(eq(groups.id, locals.group.id));
+	await db
+		.update(groups)
+		.set({ maxFileSizeMb: maxFileSizeMb ?? null })
+		.where(eq(groups.id, group.id));
 
 	return json({ maxFileSizeMb });
-};
+});

@@ -3,23 +3,15 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { watched } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { withClipAuth, mapUsersByIds } from '$lib/server/api-utils';
 
-export const GET: RequestHandler = async ({ locals, params }) => {
-	if (!locals.user) return json({ error: 'Not authenticated' }, { status: 401 });
-
+export const GET: RequestHandler = withClipAuth(async ({ params }, _auth) => {
 	const watchedRows = await db.query.watched.findMany({
 		where: eq(watched.clipId, params.id)
 	});
 
-	// Look up user details
-	const userIds = [...new Set(watchedRows.map((w) => w.userId))];
-	const usersMap = new Map<string, { username: string; avatarPath: string | null }>();
-	if (userIds.length > 0) {
-		const userRows = await db.query.users.findMany();
-		for (const u of userRows) {
-			usersMap.set(u.id, { username: u.username, avatarPath: u.avatarPath });
-		}
-	}
+	// Look up user details only for users who watched this clip
+	const usersMap = await mapUsersByIds(watchedRows.map((w) => w.userId));
 
 	const views = watchedRows
 		.map((w) => ({
@@ -36,4 +28,4 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		});
 
 	return json({ views });
-};
+});

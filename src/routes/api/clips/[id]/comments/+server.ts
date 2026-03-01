@@ -1,28 +1,18 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import {
-	comments,
-	commentHearts,
-	clips,
-	notificationPreferences,
-	notifications
-} from '$lib/server/db/schema';
+import { comments, commentHearts, clips } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
-import { sendNotification } from '$lib/server/push';
 import { v4 as uuid } from 'uuid';
-import { requireAuth, requireClipInGroup, parseBody, isResponse } from '$lib/server/api-utils';
-import { createLogger } from '$lib/server/logger';
+import {
+	withClipAuth,
+	parseBody,
+	isResponse,
+	mapUsersByIds,
+	notifyClipOwner
+} from '$lib/server/api-utils';
 
-const log = createLogger('comments');
-
-export const GET: RequestHandler = async ({ locals, params }) => {
-	const authError = requireAuth(locals);
-	if (authError) return authError;
-
-	const clipOrError = await requireClipInGroup(params.id, locals.user!.groupId);
-	if (isResponse(clipOrError)) return clipOrError;
-
+export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => {
 	const clipId = params.id;
 
 	const allComments = await db.query.comments.findMany({
@@ -34,13 +24,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	}
 
 	// Look up users (username + avatarPath)
-	const userIds = [...new Set(allComments.map((c) => c.userId))];
-	const userRows = await db.query.users.findMany({
-		where: (u, { inArray }) => inArray(u.id, userIds)
-	});
-	const usersMap = new Map(
-		userRows.map((u) => [u.id, { username: u.username, avatarPath: u.avatarPath }])
-	);
+	const usersMap = await mapUsersByIds(allComments.map((c) => c.userId));
 
 	// Fetch all hearts for these comments
 	const commentIds = allComments.map((c) => c.id);
@@ -52,7 +36,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	const userHearted = new Set<string>();
 	for (const h of allHearts) {
 		heartCounts.set(h.commentId, (heartCounts.get(h.commentId) || 0) + 1);
-		if (h.userId === locals.user!.id) userHearted.add(h.commentId);
+		if (h.userId === user.id) userHearted.add(h.commentId);
 	}
 
 	// Separate top-level vs replies
@@ -66,14 +50,14 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 	// Format a comment for the response
 	function formatComment(c: (typeof allComments)[0]) {
-		const user = usersMap.get(c.userId);
+		const u = usersMap.get(c.userId);
 		return {
 			id: c.id,
 			text: c.text,
 			gifUrl: c.gifUrl || null,
 			userId: c.userId,
-			username: user?.username || 'Unknown',
-			avatarPath: user?.avatarPath || null,
+			username: u?.username || 'Unknown',
+			avatarPath: u?.avatarPath || null,
 			parentId: c.parentId || null,
 			heartCount: heartCounts.get(c.id) || 0,
 			hearted: userHearted.has(c.id),
@@ -101,77 +85,48 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	});
 
 	return json({ comments: formatted });
-};
-
-/** Send push + insert notification record for a comment or reply. */
-async function notifyCommentRecipient(
-	recipientId: string,
-	actorUsername: string,
-	actorId: string,
-	clipId: string,
-	commentText: string,
-	type: 'comment' | 'reply',
-	now: Date
-) {
-	const prefs = await db.query.notificationPreferences.findFirst({
-		where: eq(notificationPreferences.userId, recipientId)
-	});
-	if (!prefs || prefs.comments) {
-		const title = type === 'reply' ? 'New reply' : 'New comment';
-		const body =
-			type === 'reply'
-				? `${actorUsername} replied: ${commentText}`
-				: `${actorUsername}: ${commentText}`;
-		sendNotification(recipientId, { title, body, url: '/', tag: `${type}-${clipId}` }).catch(
-			(err) => log.error({ err }, 'push notification failed')
-		);
-	}
-	await db.insert(notifications).values({
-		id: uuid(),
-		userId: recipientId,
-		type,
-		clipId,
-		actorId,
-		commentPreview: commentText,
-		createdAt: now
-	});
-}
+});
 
 /** Determine the notification recipient and dispatch. */
 async function dispatchCommentNotification(
 	clipId: string,
 	parentId: string | null,
 	actor: { id: string; username: string },
-	preview: string,
-	now: Date
+	preview: string
 ) {
 	if (parentId) {
 		const parentComment = await db.query.comments.findFirst({
 			where: eq(comments.id, parentId)
 		});
 		if (parentComment && parentComment.userId !== actor.id) {
-			await notifyCommentRecipient(
-				parentComment.userId,
-				actor.username,
-				actor.id,
+			await notifyClipOwner({
+				recipientId: parentComment.userId,
+				actorId: actor.id,
+				actorUsername: actor.username,
 				clipId,
-				preview,
-				'reply',
-				now
-			);
+				type: 'reply',
+				preferenceKey: 'comments',
+				pushTitle: 'New reply',
+				pushBody: `${actor.username} replied: ${preview}`,
+				pushTag: `reply-${clipId}`,
+				commentPreview: preview
+			});
 		}
 	} else {
 		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
 		if (clip && clip.addedBy !== actor.id) {
-			await notifyCommentRecipient(
-				clip.addedBy,
-				actor.username,
-				actor.id,
+			await notifyClipOwner({
+				recipientId: clip.addedBy,
+				actorId: actor.id,
+				actorUsername: actor.username,
 				clipId,
-				preview,
-				'comment',
-				now
-			);
+				type: 'comment',
+				preferenceKey: 'comments',
+				pushTitle: 'New comment',
+				pushBody: `${actor.username}: ${preview}`,
+				pushTag: `comment-${clipId}`,
+				commentPreview: preview
+			});
 		}
 	}
 }
@@ -201,13 +156,7 @@ function validateCommentInput(body: {
 	return { trimmed, hasText, validGifUrl: hasGif ? (body.gifUrl as string) : null };
 }
 
-export const POST: RequestHandler = async ({ request, locals, params }) => {
-	const authError = requireAuth(locals);
-	if (authError) return authError;
-
-	const clipOrError = await requireClipInGroup(params.id, locals.user!.groupId);
-	if (isResponse(clipOrError)) return clipOrError;
-
+export const POST: RequestHandler = withClipAuth(async ({ params, request }, { user }) => {
 	const body = await parseBody<{ text?: string; gifUrl?: string; parentId?: string }>(request);
 	if (isResponse(body)) return body;
 
@@ -231,7 +180,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	await db.insert(comments).values({
 		id: commentId,
 		clipId,
-		userId: locals.user!.id,
+		userId: user.id,
 		parentId: body.parentId || null,
 		text: trimmed,
 		gifUrl: validGifUrl,
@@ -239,7 +188,7 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 	});
 
 	const preview = hasText ? trimmed.slice(0, 80) : '[GIF]';
-	await dispatchCommentNotification(clipId, body.parentId || null, locals.user!, preview, now);
+	await dispatchCommentNotification(clipId, body.parentId || null, user, preview);
 
 	return json(
 		{
@@ -247,9 +196,9 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 				id: commentId,
 				text: trimmed,
 				gifUrl: validGifUrl,
-				userId: locals.user!.id,
-				username: locals.user!.username,
-				avatarPath: locals.user!.avatarPath || null,
+				userId: user.id,
+				username: user.username,
+				avatarPath: user.avatarPath || null,
 				parentId: body.parentId || null,
 				heartCount: 0,
 				hearted: false,
@@ -258,12 +207,9 @@ export const POST: RequestHandler = async ({ request, locals, params }) => {
 		},
 		{ status: 201 }
 	);
-};
+});
 
-export const DELETE: RequestHandler = async ({ request, locals }) => {
-	const authError = requireAuth(locals);
-	if (authError) return authError;
-
+export const DELETE: RequestHandler = withClipAuth(async ({ request }, { user }) => {
 	const body = await parseBody<{ commentId?: string }>(request);
 	if (isResponse(body)) return body;
 
@@ -275,7 +221,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 	// Only allow deleting own comments
 	const comment = await db.query.comments.findFirst({
-		where: and(eq(comments.id, commentId), eq(comments.userId, locals.user!.id))
+		where: and(eq(comments.id, commentId), eq(comments.userId, user.id))
 	});
 
 	if (!comment) {
@@ -300,4 +246,4 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	await db.delete(comments).where(eq(comments.id, commentId));
 
 	return json({ deleted: true, deletedIds: idsToDelete });
-};
+});
