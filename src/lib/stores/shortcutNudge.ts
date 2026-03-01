@@ -9,17 +9,17 @@ function getInitial(): boolean {
 	return localStorage.getItem(STORAGE_KEY) === 'true';
 }
 
-function isIosDevice(): boolean {
+function isAppleDevice(): boolean {
 	if (!browser) return false;
-	return /iPhone|iPad|iPod/.test(navigator.userAgent);
+	return /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 }
 
 export const shortcutNudgeDismissed = writable(getInitial());
 
-/** Show the shortcut nudge only on iOS, when install banner is not visible and nudge hasn't been dismissed */
+/** Show the shortcut nudge on Apple devices (iOS + Mac), when install banner is not visible and nudge hasn't been dismissed */
 export const showShortcutNudge = derived(
 	[shortcutNudgeDismissed, showInstallBanner],
-	([$dismissed, $showInstall]) => isIosDevice() && !$dismissed && !$showInstall
+	([$dismissed, $showInstall]) => isAppleDevice() && !$dismissed && !$showInstall
 );
 
 export function dismissShortcutNudge(): void {
