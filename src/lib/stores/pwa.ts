@@ -45,11 +45,14 @@ export function initInstallPrompt(): void {
 
 export async function triggerInstall(): Promise<boolean> {
 	if (!deferredPrompt) return false;
-	deferredPrompt.prompt();
-	const { outcome } = await deferredPrompt.userChoice;
-	deferredPrompt = null;
-	canInstall.set(false);
-	return outcome === 'accepted';
+	try {
+		deferredPrompt.prompt();
+		const { outcome } = await deferredPrompt.userChoice;
+		return outcome === 'accepted';
+	} finally {
+		deferredPrompt = null;
+		canInstall.set(false);
+	}
 }
 
 export function dismissInstall(): void {
