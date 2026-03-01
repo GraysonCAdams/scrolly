@@ -1,39 +1,50 @@
 <script lang="ts">
+	/** SVG paths for reaction icons (matching ReactionPicker) */
+	const REACTION_ICONS: Record<string, string> = {
+		'👍': 'M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z',
+		'👎': 'M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z',
+		'😂': 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01',
+		'‼️': 'M12 2v12M12 18v2M6 2v12M6 18v2',
+		'❓': 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01'
+	};
+
 	const {
 		favorited,
+		reactedEmoji = null,
 		commentCount,
 		unreadCommentCount = 0,
 		originalUrl,
 		muted = true,
-		onfavorite,
+		uiHidden = false,
+		onsave,
 		oncomment,
-		onreaction,
 		onreactionhold,
 		onmute
 	}: {
 		favorited: boolean;
+		reactedEmoji?: string | null;
 		commentCount: number;
 		unreadCommentCount?: number;
 		originalUrl: string;
 		muted?: boolean;
-		onfavorite: () => void;
+		uiHidden?: boolean;
+		onsave: () => void;
 		oncomment: () => void;
-		onreaction: () => void;
 		onreactionhold?: (x: number, y: number) => void;
 		onmute?: () => void;
 	} = $props();
 
-	let reactionBtnEl: HTMLButtonElement | null = $state(null);
+	let saveBtnEl: HTMLButtonElement | null = $state(null);
 	let holdTimer: ReturnType<typeof setTimeout> | null = null;
 	let holdFired = false;
 
-	let justFaved = $state(false);
+	let justSaved = $state(false);
 	let prevFavorited = $state(false);
 	$effect(() => {
 		if (favorited && !prevFavorited) {
-			justFaved = true;
+			justSaved = true;
 			setTimeout(() => {
-				justFaved = false;
+				justSaved = false;
 			}, 300);
 		}
 		prevFavorited = favorited;
@@ -43,26 +54,26 @@
 		e.stopPropagation();
 	}
 
-	function handleReactionDown(e: PointerEvent) {
+	function handleSaveDown(e: PointerEvent) {
 		e.stopPropagation();
 		holdFired = false;
 		holdTimer = setTimeout(() => {
 			holdFired = true;
-			if (onreactionhold && reactionBtnEl) {
-				const rect = reactionBtnEl.getBoundingClientRect();
+			if (onreactionhold && saveBtnEl) {
+				const rect = saveBtnEl.getBoundingClientRect();
 				onreactionhold(rect.left + rect.width / 2, rect.top);
 			}
 		}, 350);
 	}
 
-	function handleReactionUp(e: PointerEvent) {
+	function handleSaveUp(e: PointerEvent) {
 		e.stopPropagation();
 		if (holdTimer) {
 			clearTimeout(holdTimer);
 			holdTimer = null;
 		}
 		if (!holdFired) {
-			onreaction();
+			onsave();
 		}
 		holdFired = false;
 	}
@@ -74,7 +85,7 @@
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- only external URLs in this component -->
-<div class="action-sidebar">
+<div class="action-sidebar" class:ui-hidden={uiHidden}>
 	{#if onmute}
 		<button
 			class="sidebar-btn"
@@ -118,25 +129,37 @@
 	<button
 		class="sidebar-btn"
 		class:active={favorited}
-		onclick={(e) => {
-			stop(e);
-			onfavorite();
-		}}
-		aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+		bind:this={saveBtnEl}
+		onpointerdown={handleSaveDown}
+		onpointerup={handleSaveUp}
+		aria-label={favorited ? 'Unsave' : 'Save'}
 	>
-		<span class="icon-circle" class:pop={justFaved}>
-			<svg
-				viewBox="0 0 24 24"
-				fill={favorited ? 'currentColor' : 'none'}
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path
-					d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-				/>
-			</svg>
+		<span class="icon-circle" class:pop={justSaved}>
+			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_ICONS[reactedEmoji]}
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d={REACTION_ICONS[reactedEmoji]} />
+				</svg>
+			{:else}
+				<svg
+					viewBox="0 0 24 24"
+					fill={favorited ? 'currentColor' : 'none'}
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path
+						d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+					/>
+				</svg>
+			{/if}
 		</span>
 	</button>
 
@@ -165,30 +188,6 @@
 		{#if commentCount > 0}
 			<span class="sidebar-count">{formatCount(commentCount)}</span>
 		{/if}
-	</button>
-
-	<button
-		class="sidebar-btn"
-		bind:this={reactionBtnEl}
-		onpointerdown={handleReactionDown}
-		onpointerup={handleReactionUp}
-		aria-label="React"
-	>
-		<span class="icon-circle">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<circle cx="12" cy="12" r="10" />
-				<path d="M8 14s1.5 2 4 2 4-2 4-2" />
-				<line x1="9" y1="9" x2="9.01" y2="9" />
-				<line x1="15" y1="9" x2="15.01" y2="9" />
-			</svg>
-		</span>
 	</button>
 
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
@@ -221,12 +220,18 @@
 	.action-sidebar {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(116px + env(safe-area-inset-bottom));
+		bottom: calc(148px + env(safe-area-inset-bottom));
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: var(--space-lg);
 		z-index: 5;
+		transition: opacity 0.3s ease;
+	}
+
+	.action-sidebar.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.sidebar-btn {

@@ -1,38 +1,38 @@
 export function trackVideoTime(
-	videoEl: HTMLVideoElement,
+	mediaEl: HTMLVideoElement | HTMLAudioElement,
 	onUpdate: (currentTime: number, duration: number, paused: boolean) => void,
 	onMetadata: (duration: number) => void,
 	onWatchProgress: (percent: number) => void
 ): () => void {
 	function handleTimeUpdate() {
-		const d = videoEl.duration || 0;
-		onUpdate(videoEl.currentTime, d, videoEl.paused);
-		if (d > 0) onWatchProgress((videoEl.currentTime / d) * 100);
+		const d = mediaEl.duration || 0;
+		onUpdate(mediaEl.currentTime, d, mediaEl.paused);
+		if (d > 0) onWatchProgress((mediaEl.currentTime / d) * 100);
 	}
 
 	function handleLoadedMetadata() {
-		onMetadata(videoEl.duration || 0);
+		onMetadata(mediaEl.duration || 0);
 	}
 
 	function handlePlayPause() {
-		onUpdate(videoEl.currentTime, videoEl.duration || 0, videoEl.paused);
+		onUpdate(mediaEl.currentTime, mediaEl.duration || 0, mediaEl.paused);
 	}
 
-	videoEl.addEventListener('timeupdate', handleTimeUpdate);
-	videoEl.addEventListener('loadedmetadata', handleLoadedMetadata);
-	videoEl.addEventListener('play', handlePlayPause);
-	videoEl.addEventListener('pause', handlePlayPause);
+	mediaEl.addEventListener('timeupdate', handleTimeUpdate);
+	mediaEl.addEventListener('loadedmetadata', handleLoadedMetadata);
+	mediaEl.addEventListener('play', handlePlayPause);
+	mediaEl.addEventListener('pause', handlePlayPause);
 
-	if (videoEl.duration) {
-		onMetadata(videoEl.duration);
-		onUpdate(videoEl.currentTime, videoEl.duration, videoEl.paused);
+	if (mediaEl.duration) {
+		onMetadata(mediaEl.duration);
+		onUpdate(mediaEl.currentTime, mediaEl.duration, mediaEl.paused);
 	}
 
 	return () => {
-		videoEl.removeEventListener('timeupdate', handleTimeUpdate);
-		videoEl.removeEventListener('loadedmetadata', handleLoadedMetadata);
-		videoEl.removeEventListener('play', handlePlayPause);
-		videoEl.removeEventListener('pause', handlePlayPause);
+		mediaEl.removeEventListener('timeupdate', handleTimeUpdate);
+		mediaEl.removeEventListener('loadedmetadata', handleLoadedMetadata);
+		mediaEl.removeEventListener('play', handlePlayPause);
+		mediaEl.removeEventListener('pause', handlePlayPause);
 	};
 }
 
@@ -51,7 +51,7 @@ export function sendWatchPercent(clipId: string, maxPercent: number): void {
 			headers: { 'Content-Type': 'application/json' },
 			body,
 			keepalive: true
-		}).catch(() => {});
+		}).catch((err) => console.warn('[watch-beacon]', err));
 	}
 }
 

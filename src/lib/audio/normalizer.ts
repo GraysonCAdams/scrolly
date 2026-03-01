@@ -8,7 +8,9 @@ let audioCtx: AudioContext | null = null;
 const connectedElements = new WeakSet<HTMLMediaElement>();
 
 function isSupported(): boolean {
-	return typeof window !== 'undefined' && ('AudioContext' in window || 'webkitAudioContext' in window);
+	return (
+		typeof window !== 'undefined' && ('AudioContext' in window || 'webkitAudioContext' in window)
+	);
 }
 
 /**
@@ -18,7 +20,10 @@ function isSupported(): boolean {
 export function initAudioContext(): void {
 	if (!isSupported()) return;
 	if (!audioCtx) {
-		audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+		audioCtx = new (
+			window.AudioContext ||
+			(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+		)();
 	}
 	if (audioCtx.state === 'suspended') {
 		audioCtx.resume().catch(() => {});

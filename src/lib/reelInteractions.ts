@@ -1,11 +1,14 @@
-import { onTapHold, type TapHoldEvent } from '$lib/gestures';
+import { onTapHold } from '$lib/gestures';
 
 const IGNORE_SELECTORS = [
 	'.action-sidebar',
 	'.reel-overlay',
 	'.progress-bar',
 	'.speed-pill',
-	'.comment-prompt'
+	'.comment-prompt',
+	'.play-btn',
+	'.progress-row',
+	'.platform-links'
 ];
 
 function shouldIgnoreTarget(e: { clientX: number; clientY: number }): boolean {
@@ -17,27 +20,31 @@ function shouldIgnoreTarget(e: { clientX: number; clientY: number }): boolean {
 export interface GestureCallbacks {
 	togglePlayPause: () => void;
 	fireHeartReaction: (cx: number, cy: number) => void;
-	openPicker: (cx: number, cy: number, drag: boolean) => void;
-	isMusic: boolean;
+	toggleUiVisibility: () => void;
 }
 
 export function setupDesktopGestures(
 	element: HTMLElement,
-	callbacks: GestureCallbacks
+	callbacks: GestureCallbacks,
+	shouldSuppress?: () => boolean
 ): () => void {
 	let mouseDownTimer: ReturnType<typeof setTimeout> | null = null;
 	let mouseHoldFired = false;
 	let mouseDownX = 0;
 	let mouseDownY = 0;
 
+	function isSuppressed(e: MouseEvent) {
+		return shouldSuppress?.() || shouldIgnoreTarget(e);
+	}
+
 	function handleMouseDown(e: MouseEvent) {
-		if (shouldIgnoreTarget(e)) return;
+		if (isSuppressed(e)) return;
 		mouseHoldFired = false;
 		mouseDownX = e.clientX;
 		mouseDownY = e.clientY;
 		mouseDownTimer = setTimeout(() => {
 			mouseHoldFired = true;
-			callbacks.openPicker(e.clientX, e.clientY, true);
+			callbacks.toggleUiVisibility();
 		}, 350);
 	}
 
@@ -61,12 +68,12 @@ export function setupDesktopGestures(
 			mouseHoldFired = false;
 			return;
 		}
-		if (shouldIgnoreTarget(e)) return;
-		if (!callbacks.isMusic) callbacks.togglePlayPause();
+		if (isSuppressed(e)) return;
+		callbacks.togglePlayPause();
 	}
 
 	function handleDblClick(e: MouseEvent) {
-		if (shouldIgnoreTarget(e)) return;
+		if (isSuppressed(e)) return;
 		callbacks.fireHeartReaction(e.clientX, e.clientY);
 	}
 
@@ -88,20 +95,19 @@ export function setupDesktopGestures(
 
 export function setupMobileGestures(
 	element: HTMLElement,
-	callbacks: GestureCallbacks
+	callbacks: GestureCallbacks,
+	shouldSuppress?: () => boolean
 ): () => void {
 	return onTapHold(element, {
-		onSingleTap(e: TapHoldEvent) {
-			if (shouldIgnoreTarget(e)) return;
-			if (!callbacks.isMusic) callbacks.togglePlayPause();
+		shouldIgnore: (e) => shouldSuppress?.() || shouldIgnoreTarget(e),
+		onSingleTap() {
+			callbacks.togglePlayPause();
 		},
-		onDoubleTap(e: TapHoldEvent) {
-			if (shouldIgnoreTarget(e)) return;
+		onDoubleTap(e) {
 			callbacks.fireHeartReaction(e.clientX, e.clientY);
 		},
-		onHoldStart(e: TapHoldEvent) {
-			if (shouldIgnoreTarget(e)) return;
-			callbacks.openPicker(e.clientX, e.clientY, true);
+		onHoldStart() {
+			callbacks.toggleUiVisibility();
 		}
 	});
 }
@@ -113,7 +119,6 @@ export interface KeyboardCallbacks {
 	stepSpeedDown: () => void;
 	showSpeedChange: () => void;
 	seek: (seconds: number) => void;
-	isMusic: boolean;
 }
 
 export function setupReelKeyboard(
@@ -139,21 +144,19 @@ export function setupReelKeyboard(
 				break;
 		}
 
-		if (!callbacks.isMusic) {
-			switch (e.key) {
-				case ' ':
-					e.preventDefault();
-					callbacks.togglePlayPause();
-					break;
-				case 'ArrowLeft':
-					e.preventDefault();
-					callbacks.seek(-5);
-					break;
-				case 'ArrowRight':
-					e.preventDefault();
-					callbacks.seek(5);
-					break;
-			}
+		switch (e.key) {
+			case ' ':
+				e.preventDefault();
+				callbacks.togglePlayPause();
+				break;
+			case 'ArrowLeft':
+				e.preventDefault();
+				callbacks.seek(-5);
+				break;
+			case 'ArrowRight':
+				e.preventDefault();
+				callbacks.seek(5);
+				break;
 		}
 	}
 
