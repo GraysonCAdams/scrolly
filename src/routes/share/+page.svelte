@@ -8,6 +8,10 @@
 		detectPlatform,
 		isPlatformAllowed
 	} from '$lib/url-validation';
+	import XCircleIcon from 'phosphor-svelte/lib/XCircleIcon';
+	import ProhibitIcon from 'phosphor-svelte/lib/ProhibitIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 
 	const shareUrl = $derived($page.data.shareUrl as string);
 	const platform = $derived(platformLabel(shareUrl));
@@ -61,18 +65,7 @@
 	<div class="share-card">
 		{#if !isValid}
 			<div class="icon-wrap error">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="10" />
-					<line x1="15" y1="9" x2="9" y2="15" />
-					<line x1="9" y1="9" x2="15" y2="15" />
-				</svg>
+				<XCircleIcon size={28} />
 			</div>
 			<h1 class="share-title">Unsupported link</h1>
 			<p class="share-desc">This URL isn't from a supported platform.</p>
@@ -80,17 +73,7 @@
 			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
 		{:else if !platformAllowed}
 			<div class="icon-wrap error">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="10" />
-					<line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-				</svg>
+				<ProhibitIcon size={28} />
 			</div>
 			<h1 class="share-title">Platform not allowed</h1>
 			<p class="share-desc">{platform} links aren't allowed in this group.</p>
@@ -98,31 +81,13 @@
 			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
 		{:else if success}
 			<div class="icon-wrap success">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="20 6 9 17 4 12" />
-				</svg>
+				<CheckIcon size={28} weight="bold" />
 			</div>
 			<h1 class="share-title">Added!</h1>
 			<p class="share-desc">Taking you to the feed...</p>
 		{:else}
 			<div class="icon-wrap">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
-				</svg>
+				<ExportIcon size={28} />
 			</div>
 			<h1 class="share-title">Add to feed</h1>
 			{#if platform}
@@ -175,11 +140,6 @@
 		align-items: center;
 		justify-content: center;
 		margin-bottom: var(--space-sm);
-	}
-
-	.icon-wrap svg {
-		width: 28px;
-		height: 28px;
 		color: var(--accent-primary);
 	}
 
@@ -188,15 +148,8 @@
 		animation: pop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
-	.icon-wrap.success svg {
-		color: var(--accent-primary);
-	}
-
 	.icon-wrap.error {
 		background: color-mix(in srgb, var(--error) 12%, transparent);
-	}
-
-	.icon-wrap.error svg {
 		color: var(--error);
 	}
 

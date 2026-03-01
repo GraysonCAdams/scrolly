@@ -5,6 +5,11 @@
 	import { toast } from '$lib/stores/toasts';
 	import SetupStepCard from '$lib/components/settings/SetupStepCard.svelte';
 	import SetupDoneState from '$lib/components/settings/SetupDoneState.svelte';
+	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import InfoIcon from 'phosphor-svelte/lib/InfoIcon';
 
 	const appUrl = $derived($page.data.appUrl as string);
 	const shortcutUrl = $derived($page.data.shortcutUrl as string | null);
@@ -58,16 +63,7 @@
 <div class="setup-page">
 	<nav class="setup-nav">
 		<a href={resolve('/settings')} class="back-link">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<polyline points="15 18 9 12 15 6" />
-			</svg>
+			<CaretLeftIcon size={20} />
 			Settings
 		</a>
 		{#if !allDone}
@@ -89,16 +85,7 @@
 						aria-label="Step {i + 1}"
 					>
 						{#if completedSteps.has(i)}
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="3"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
+							<CheckIcon size={14} weight="bold" />
 						{/if}
 					</button>
 				{/each}
@@ -113,18 +100,7 @@
 					manual steps below.
 				</p>
 				<a href={shortcutUrl} class="icloud-btn" target="_blank" rel="external noopener">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-						<polyline points="7 10 12 15 17 10" />
-						<line x1="12" y1="15" x2="12" y2="3" />
-					</svg>
+					<DownloadSimpleIcon size={22} />
 					Get Shortcut
 				</a>
 				<div class="divider">
@@ -181,18 +157,7 @@
 				identifies who shared the clip.
 			</p>
 			<div class="info-box">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="10" />
-					<line x1="12" y1="16" x2="12" y2="12" />
-					<line x1="12" y1="8" x2="12.01" y2="8" />
-				</svg>
+				<InfoIcon size={18} />
 				<span>Your phone number must match the one you signed up with in scrolly.</span>
 			</div>
 		</SetupStepCard>
@@ -262,16 +227,7 @@
 			<div class="step-nav">
 				{#if currentStep > 0}
 					<button class="nav-btn nav-back" onclick={prevStep}>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="15 18 9 12 15 6" />
-						</svg>
+						<CaretLeftIcon size={18} />
 						Back
 					</button>
 				{:else}
@@ -280,16 +236,7 @@
 				<button class="nav-btn nav-next" onclick={nextStep}>
 					{isLastStep ? "I'm done" : 'Next'}
 					{#if !isLastStep}
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="9 18 15 12 9 6" />
-						</svg>
+						<CaretRightIcon size={18} />
 					{/if}
 				</button>
 			</div>
@@ -322,7 +269,7 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 	}
-	.back-link svg {
+	.back-link :global(svg) {
 		width: 20px;
 		height: 20px;
 	}
@@ -368,7 +315,7 @@
 		border-color: var(--accent-primary);
 		background: var(--accent-primary);
 	}
-	.dot.completed svg {
+	.dot.completed :global(svg) {
 		width: 14px;
 		height: 14px;
 		color: var(--bg-primary);
@@ -409,7 +356,7 @@
 	.icloud-btn:active {
 		transform: scale(0.97);
 	}
-	.icloud-btn svg {
+	.icloud-btn :global(svg) {
 		width: 22px;
 		height: 22px;
 	}
@@ -453,7 +400,7 @@
 	.nav-btn:active {
 		transform: scale(0.97);
 	}
-	.nav-btn svg {
+	.nav-btn :global(svg) {
 		width: 18px;
 		height: 18px;
 	}

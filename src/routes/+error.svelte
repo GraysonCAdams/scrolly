@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import MapPinIcon from 'phosphor-svelte/lib/MapPinIcon';
+	import ShieldIcon from 'phosphor-svelte/lib/ShieldIcon';
+	import SmileySadIcon from 'phosphor-svelte/lib/SmileySadIcon';
 
 	const messages: Record<number, { title: string; subtitle: string }> = {
 		404: {
@@ -34,51 +37,11 @@
 
 	<div class="error-icon">
 		{#if page.status === 404}
-			<!-- map-pin-off -->
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M12.75 7.09a3 3 0 0 1 2.16 2.16" />
-				<path d="M17.072 17.072L12 22l-7-7a7 7 0 0 1 9.9-9.9" />
-				<path d="M6.929 6.929A7 7 0 0 1 19 15" />
-				<line x1="2" y1="2" x2="22" y2="22" />
-			</svg>
+			<MapPinIcon size={56} />
 		{:else if page.status === 403}
-			<!-- shield-x -->
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path
-					d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
-				/>
-				<path d="m14.5 9.5-5 5" />
-				<path d="m9.5 9.5 5 5" />
-			</svg>
+			<ShieldIcon size={56} />
 		{:else}
-			<!-- sad face -->
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<circle cx="12" cy="12" r="10" />
-				<path d="M16 16s-1.5-2-4-2-4 2-4 2" />
-				<line x1="9" y1="9" x2="9.01" y2="9" />
-				<line x1="15" y1="9" x2="15.01" y2="9" />
-			</svg>
+			<SmileySadIcon size={56} />
 		{/if}
 	</div>
 
@@ -118,16 +81,9 @@
 	}
 
 	.error-icon {
-		width: 56px;
-		height: 56px;
 		color: var(--accent-primary);
 		opacity: 0.8;
 		margin-bottom: var(--space-xl);
-	}
-
-	.error-icon svg {
-		width: 100%;
-		height: 100%;
 	}
 
 	h1 {
