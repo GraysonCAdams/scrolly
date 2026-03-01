@@ -135,14 +135,14 @@ jobs:
           tags: scrolly:security-scan
           load: true
 
+      - name: Install Trivy
+        run: |
+          TRIVY_VERSION=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          curl -sSfL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.deb" -o trivy.deb
+          sudo dpkg -i trivy.deb
+
       - name: Run Trivy
-        uses: aquasecurity/trivy-action@0.31.0
-        with:
-          image-ref: scrolly:security-scan
-          format: table
-          severity: MEDIUM,HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: 1
+        run: trivy image --severity MEDIUM,HIGH,CRITICAL --ignore-unfixed --exit-code 1 scrolly:security-scan
 
   semgrep:
     runs-on: ubuntu-latest
