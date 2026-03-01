@@ -5,6 +5,9 @@
 		triggerInstall,
 		dismissInstall
 	} from '$lib/stores/pwa';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 
 	let showingInstructions = $state(false);
 
@@ -26,17 +29,7 @@
 		<div class="smart-banner" role="alert">
 			<div class="smart-banner-row">
 				<button class="smart-close" onclick={dismissInstall} aria-label="Close">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
+					<XIcon size={16} />
 				</button>
 				<img class="smart-icon" src="/icons/apple-touch-icon.png" alt="scrolly" />
 				<div class="smart-text">
@@ -54,19 +47,7 @@
 						<span class="smart-step-num">1</span>
 						<span>
 							Tap
-							<svg
-								class="inline-share-icon"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-								<polyline points="16 6 12 2 8 6" />
-								<line x1="12" y1="2" x2="12" y2="15" />
-							</svg>
+							<ExportIcon size={16} class="inline-share-icon" />
 							<strong>Share</strong> in Safari
 						</span>
 					</div>
@@ -87,18 +68,7 @@
 		<div class="install-banner" role="alert">
 			<div class="install-content">
 				<div class="install-icon">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-						<polyline points="7 10 12 15 17 10" />
-						<line x1="12" y1="15" x2="12" y2="3" />
-					</svg>
+					<DownloadSimpleIcon size={18} />
 				</div>
 				<div class="install-text">
 					<strong>Install scrolly</strong>
@@ -108,17 +78,7 @@
 			<div class="install-actions">
 				<button class="install-btn" onclick={handleInstall}>Install</button>
 				<button class="dismiss-btn" onclick={dismissInstall} aria-label="Dismiss">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
+					<XIcon size={16} />
 				</button>
 			</div>
 		</div>
@@ -159,7 +119,7 @@
 		justify-content: center;
 	}
 
-	.smart-close svg {
+	.smart-close :global(svg) {
 		width: 16px;
 		height: 16px;
 	}
@@ -252,7 +212,7 @@
 		color: var(--text-secondary);
 	}
 
-	.inline-share-icon {
+	.smart-step :global(.inline-share-icon) {
 		display: inline-block;
 		vertical-align: middle;
 		width: 16px;
@@ -319,7 +279,7 @@
 		color: var(--accent-primary);
 	}
 
-	.install-icon svg {
+	.install-icon :global(svg) {
 		width: 18px;
 		height: 18px;
 	}
@@ -378,7 +338,7 @@
 		justify-content: center;
 	}
 
-	.dismiss-btn svg {
+	.dismiss-btn :global(svg) {
 		width: 16px;
 		height: 16px;
 	}

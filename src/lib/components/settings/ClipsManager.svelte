@@ -4,6 +4,8 @@
 	import ClipRow from './ClipRow.svelte';
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import { formatSize, groupClipsByMonth, fetchClipsList, deleteClips } from '$lib/clipsManager';
 	import type { MonthGroup } from '$lib/clipsManager';
 	import type { ClipSummary } from '$lib/types';
@@ -179,16 +181,7 @@
 					<button class="month-select-btn" onclick={() => selectAllInMonth(group)}>
 						<div class="checkbox" class:checked={group.clips.every((c) => selected.has(c.id))}>
 							{#if group.clips.every((c) => selected.has(c.id))}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="3"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<polyline points="20 6 9 17 4 12" />
-								</svg>
+								<CheckIcon size={12} weight="bold" />
 							{/if}
 						</div>
 					</button>
@@ -205,19 +198,7 @@
 						onclick={() => deleteMonth(group)}
 						aria-label="Delete all clips from {group.label}"
 					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="3 6 5 6 21 6" />
-							<path
-								d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-							/>
-						</svg>
+						<TrashIcon size={16} />
 					</button>
 				</div>
 
@@ -386,7 +367,7 @@
 		color: var(--error);
 		background: color-mix(in srgb, var(--error) 10%, transparent);
 	}
-	.month-delete-btn svg {
+	.month-delete-btn :global(svg) {
 		width: 16px;
 		height: 16px;
 	}
@@ -407,7 +388,7 @@
 		background: var(--accent-primary);
 		border-color: var(--accent-primary);
 	}
-	.checkbox svg {
+	.checkbox :global(svg) {
 		width: 12px;
 		height: 12px;
 		color: var(--bg-primary);

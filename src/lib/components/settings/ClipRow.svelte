@@ -2,6 +2,8 @@
 	import PlatformIcon from '$lib/components/PlatformIcon.svelte';
 	import { formatSize, formatDate } from '$lib/clipsManager';
 	import type { ClipSummary } from '$lib/types';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 
 	let {
 		clip,
@@ -20,16 +22,7 @@
 	<button class="clip-select-btn" onclick={() => ontoggle(clip.id)}>
 		<div class="checkbox" class:checked={selected}>
 			{#if selected}
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="20 6 9 17 4 12" />
-				</svg>
+				<CheckIcon size={12} weight="bold" />
 			{/if}
 		</div>
 	</button>
@@ -57,16 +50,7 @@
 	<div class="clip-actions">
 		<span class="clip-size">{formatSize(clip.sizeMb)}</span>
 		<button class="clip-delete-btn" onclick={() => ondelete(clip)} aria-label="Delete clip">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M18 6L6 18M6 6l12 12" />
-			</svg>
+			<XIcon size={14} />
 		</button>
 	</div>
 </div>
@@ -111,7 +95,7 @@
 		background: var(--accent-primary);
 		border-color: var(--accent-primary);
 	}
-	.checkbox svg {
+	.checkbox :global(svg) {
 		width: 12px;
 		height: 12px;
 		color: var(--bg-primary);
@@ -204,7 +188,7 @@
 		color: var(--error);
 		background: color-mix(in srgb, var(--error) 10%, transparent);
 	}
-	.clip-delete-btn svg {
+	.clip-delete-btn :global(svg) {
 		width: 14px;
 		height: 14px;
 	}

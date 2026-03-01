@@ -8,6 +8,10 @@
 	} from '$lib/url-validation';
 	import { addToast } from '$lib/stores/toasts';
 	import { page } from '$app/stores';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import ClipboardIcon from 'phosphor-svelte/lib/ClipboardIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 
 	const {
 		onsubmitted,
@@ -118,19 +122,7 @@
 
 {#if !hasProvider}
 	<div class="add-video no-provider-state">
-		<svg
-			class="no-provider-icon"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.5"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-			<polyline points="7 10 12 15 17 10" />
-			<line x1="12" y1="15" x2="12" y2="3" />
-		</svg>
+		<DownloadSimpleIcon size={40} class="no-provider-icon" />
 		<p class="no-provider-title">No download provider set up</p>
 		<p class="no-provider-desc">Ask your group host to configure one in Settings.</p>
 	</div>
@@ -145,18 +137,7 @@
 		{#if clipboardSuggestion}
 			<div class="clipboard-suggestion">
 				<div class="suggestion-content">
-					<svg
-						class="suggestion-icon"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-						<rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-					</svg>
+					<ClipboardIcon size={18} class="suggestion-icon" />
 					<div class="suggestion-text">
 						<span class="suggestion-label">Paste from {clipboardSuggestion.label}?</span>
 						<span class="suggestion-url">{clipboardSuggestion.url}</span>
@@ -172,17 +153,7 @@
 						onclick={dismissClipboard}
 						aria-label="Dismiss"
 					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<line x1="18" y1="6" x2="6" y2="18" />
-							<line x1="6" y1="6" x2="18" y2="18" />
-						</svg>
+						<XIcon size={16} />
 					</button>
 				</div>
 			</div>
@@ -200,17 +171,7 @@
 				{#if loading}
 					<span class="spinner"></span>
 				{:else}
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="5" y1="12" x2="19" y2="12" />
-						<polyline points="12 5 19 12 12 19" />
-					</svg>
+					<ArrowRightIcon size={20} weight="bold" />
 				{/if}
 			</button>
 		</div>
@@ -252,7 +213,7 @@
 		flex: 1;
 	}
 
-	.suggestion-icon {
+	.suggestion-content :global(.suggestion-icon) {
 		width: 18px;
 		height: 18px;
 		color: var(--accent-primary);
@@ -311,7 +272,7 @@
 		margin: 0;
 	}
 
-	.suggestion-dismiss svg {
+	.suggestion-dismiss :global(svg) {
 		width: 16px;
 		height: 16px;
 	}
@@ -383,7 +344,7 @@
 			opacity 0.15s ease;
 	}
 
-	button svg {
+	button :global(svg) {
 		width: 20px;
 		height: 20px;
 	}
@@ -426,7 +387,7 @@
 		padding: var(--space-2xl) var(--space-lg);
 	}
 
-	.no-provider-icon {
+	.no-provider-state :global(.no-provider-icon) {
 		width: 40px;
 		height: 40px;
 		color: var(--text-muted);

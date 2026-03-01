@@ -2,6 +2,11 @@
 	import { resolve } from '$app/paths';
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
+	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 
 	let {
 		shortcutToken: token,
@@ -96,33 +101,12 @@
 
 <div class="shortcut-manager">
 	<a href={resolve('/share/setup')} class="setup-link">
-		<svg
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<circle cx="12" cy="12" r="10" />
-			<path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
-			<line x1="12" y1="17" x2="12.01" y2="17" />
-		</svg>
+		<QuestionIcon size={20} />
 		<div class="setup-link-text">
 			<span class="setup-link-title">How to create the shortcut</span>
 			<span class="setup-link-desc">Step-by-step setup guide for group members</span>
 		</div>
-		<svg
-			class="setup-link-chevron"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<polyline points="9 18 15 12 9 6" />
-		</svg>
+		<CaretRightIcon size={16} class="setup-link-chevron" />
 	</a>
 
 	<div class="how-it-works">
@@ -145,46 +129,15 @@
 		<div class="action-row">
 			<button class="btn-copy" onclick={copyApiUrl}>
 				{#if copiedUrl}
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polyline points="20 6 9 17 4 12" />
-					</svg>
+					<CheckIcon size={15} weight="bold" />
 					Copied!
 				{:else}
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-						<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-					</svg>
+					<CopyIcon size={15} />
 					Copy URL
 				{/if}
 			</button>
 			<button class="btn-regen" onclick={handleRegenerate} disabled={regenerating}>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M21 2v6h-6" />
-					<path d="M3 12a9 9 0 0115.36-6.36L21 8" />
-					<path d="M3 22v-6h6" />
-					<path d="M21 12a9 9 0 01-15.36 6.36L3 16" />
-				</svg>
+				<ArrowClockwiseIcon size={15} />
 				{regenerating ? 'Regenerating...' : 'New Token'}
 			</button>
 		</div>
@@ -233,7 +186,7 @@
 		transform: scale(0.98);
 	}
 
-	.setup-link > svg:first-child {
+	.setup-link > :global(svg:first-child) {
 		width: 20px;
 		height: 20px;
 		flex-shrink: 0;
@@ -259,7 +212,7 @@
 		color: var(--text-muted);
 	}
 
-	.setup-link-chevron {
+	.setup-link :global(.setup-link-chevron) {
 		width: 16px;
 		height: 16px;
 		flex-shrink: 0;
@@ -347,7 +300,7 @@
 		cursor: not-allowed;
 	}
 
-	.action-row button svg {
+	.action-row button :global(svg) {
 		width: 15px;
 		height: 15px;
 		flex-shrink: 0;

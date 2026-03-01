@@ -1,4 +1,6 @@
 <script lang="ts">
+	import GifIcon from 'phosphor-svelte/lib/GifIcon';
+
 	const {
 		replyingTo,
 		submitting,
@@ -63,26 +65,7 @@
 		aria-label={gifEnabled ? 'Attach GIF' : 'GIFs not available — host must configure GIPHY'}
 		title={gifEnabled ? '' : 'Host must configure GIPHY API key'}
 	>
-		<svg
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.8"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<rect x="2" y="4" width="20" height="16" rx="3" />
-			<text
-				x="12"
-				y="14.5"
-				text-anchor="middle"
-				font-size="7.5"
-				font-weight="800"
-				fill="currentColor"
-				stroke="none"
-				font-family="system-ui, sans-serif">GIF</text
-			>
-		</svg>
+		<GifIcon size={26} />
 	</button>
 	<input
 		type="text"
@@ -202,7 +185,7 @@
 		cursor: pointer;
 		transition: color 0.2s ease;
 	}
-	.gif-btn svg {
+	.gif-btn :global(svg) {
 		width: 26px;
 		height: 26px;
 	}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ACCENT_COLORS, type AccentColorKey } from '$lib/colors';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 
 	let {
 		currentAccent,
@@ -22,16 +23,7 @@
 			title={color.label}
 		>
 			{#if currentAccent === key}
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="20 6 9 17 4 12" />
-				</svg>
+				<CheckIcon size={16} weight="bold" />
 			{/if}
 		</button>
 	{/each}
@@ -72,7 +64,7 @@
 		border-color: var(--text-primary);
 		transform: scale(1.1);
 	}
-	.color-swatch svg {
+	.color-swatch :global(svg) {
 		width: 16px;
 		height: 16px;
 		color: var(--bg-primary);

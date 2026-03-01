@@ -2,6 +2,8 @@
 	import { untrack } from 'svelte';
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 
 	const {
 		groupId: _groupId,
@@ -164,16 +166,7 @@
 						onclick={() => handleRemove(member)}
 						aria-label="Remove {member.username}"
 					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M18 6L6 18M6 6l12 12" />
-						</svg>
+						<XIcon size={16} />
 					</button>
 				{/if}
 			</div>
@@ -225,16 +218,7 @@
 			</div>
 		{:else}
 			<button class="btn-add-member" onclick={() => (showAddForm = true)}>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M12 5v14M5 12h14" />
-				</svg>
+				<PlusIcon size={18} />
 				Add member
 			</button>
 		{/if}
@@ -344,7 +328,7 @@
 		background: color-mix(in srgb, var(--error) 20%, transparent);
 	}
 
-	.remove-btn svg {
+	.remove-btn :global(svg) {
 		width: 16px;
 		height: 16px;
 	}
@@ -373,7 +357,7 @@
 		transform: scale(0.97);
 	}
 
-	.btn-add-member svg {
+	.btn-add-member :global(svg) {
 		width: 18px;
 		height: 18px;
 	}

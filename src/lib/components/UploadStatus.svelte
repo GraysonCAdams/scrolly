@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { showShortcutNudge, dismissShortcutNudge } from '$lib/stores/shortcutNudge';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 
 	const {
 		phase,
@@ -37,17 +39,7 @@
 </script>
 
 <button class="close-btn" onclick={ondismiss} aria-label="Close">
-	<svg
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="2"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-	>
-		<line x1="18" y1="6" x2="6" y2="18" />
-		<line x1="6" y1="6" x2="18" y2="18" />
-	</svg>
+	<XIcon size={20} />
 </button>
 
 <div class="upload-screen">
@@ -73,30 +65,9 @@
 				{#if phase === 'uploading'}
 					<div class="pulse-dot"></div>
 				{:else if phase === 'done'}
-					<svg
-						class="check-icon"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polyline points="20 6 9 17 4 12" />
-					</svg>
+					<CheckIcon size={36} weight="bold" class="check-icon" />
 				{:else}
-					<svg
-						class="error-icon"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
+					<XIcon size={32} class="error-icon" />
 				{/if}
 			</div>
 		</div>
@@ -131,17 +102,7 @@
 						Share clips faster from other apps
 					</a>
 					<button class="nudge-dismiss" onclick={dismissShortcutNudge} aria-label="Dismiss">
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<line x1="18" y1="6" x2="6" y2="18" />
-							<line x1="6" y1="6" x2="18" y2="18" />
-						</svg>
+						<XIcon size={14} />
 					</button>
 				</div>
 			{/if}
@@ -171,7 +132,7 @@
 		color: var(--reel-text);
 		cursor: pointer;
 	}
-	.close-btn svg {
+	.close-btn :global(svg) {
 		width: 20px;
 		height: 20px;
 	}
@@ -253,13 +214,13 @@
 		background: var(--accent-primary);
 		animation: pulse 1.5s ease-in-out infinite;
 	}
-	.check-icon {
+	.circle-inner :global(.check-icon) {
 		width: 36px;
 		height: 36px;
 		color: var(--accent-primary);
 		animation: check-pop 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 	}
-	.error-icon {
+	.circle-inner :global(.error-icon) {
 		width: 32px;
 		height: 32px;
 		color: var(--error);
@@ -349,7 +310,7 @@
 		color: rgba(255, 255, 255, 0.3);
 		cursor: pointer;
 	}
-	.nudge-dismiss svg {
+	.nudge-dismiss :global(svg) {
 		width: 14px;
 		height: 14px;
 	}
