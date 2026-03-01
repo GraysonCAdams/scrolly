@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.3.0...scrolly-v1.4.0) (2026-03-01)
+
+
+### Features
+
+* GIF picker overhaul, self-reaction prevention, and UI polish ([#26](https://github.com/312-dev/scrolly/issues/26)) ([4dfd720](https://github.com/312-dev/scrolly/commit/4dfd720dbfa50c3041e9e9678482071a74a5f7c9))
+
+
+### Bug Fixes
+
+* auto-trigger CI checks on release-please PR updates ([#24](https://github.com/312-dev/scrolly/issues/24)) ([c1a39a1](https://github.com/312-dev/scrolly/commit/c1a39a1f9740eae8e3efc21545b210bb70e607c3))
+
 ## [1.3.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.2.0...scrolly-v1.3.0) (2026-03-01)
 
 
