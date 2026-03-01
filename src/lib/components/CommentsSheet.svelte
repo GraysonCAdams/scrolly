@@ -45,6 +45,7 @@
 		id: string;
 		url: string;
 		stillUrl: string;
+		shareUrl: string;
 		width: number;
 		height: number;
 	} | null>(null);
@@ -373,16 +374,18 @@
 	.comment-gif,
 	.reply-gif {
 		display: block;
-		border-radius: var(--radius-sm);
-		margin-top: var(--space-xs);
+		border-radius: var(--radius-md);
+		margin-top: var(--space-sm);
 		object-fit: contain;
+		background: var(--bg-surface);
+		padding: 2px;
 	}
 	.comment-gif {
-		max-width: 200px;
-		max-height: 160px;
+		max-width: 150px;
+		max-height: 150px;
 	}
 	.reply-gif {
-		max-width: 160px;
+		max-width: 120px;
 		max-height: 120px;
 	}
 	.comment-actions {

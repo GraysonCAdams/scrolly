@@ -27,14 +27,18 @@ export const GET: RequestHandler = withAuth(async ({ url }, _auth) => {
 			id: string;
 			title: string;
 			images: {
-				fixed_width: { url: string; width: string; height: string };
+				fixed_width: { url: string; webp: string; width: string; height: string };
 				fixed_width_still: { url: string; width: string; height: string };
+				downsized: { url: string; width: string; height: string };
 			};
 		}) => ({
 			id: g.id,
 			title: g.title,
-			url: g.images.fixed_width.url,
+			// Use WEBP for grid preview (smaller, faster than GIF)
+			url: g.images.fixed_width.webp || g.images.fixed_width.url,
 			stillUrl: g.images.fixed_width_still.url,
+			// Larger rendition for sharing in comments
+			shareUrl: g.images.downsized?.url || g.images.fixed_width.url,
 			width: parseInt(g.images.fixed_width.width),
 			height: parseInt(g.images.fixed_width.height)
 		})
