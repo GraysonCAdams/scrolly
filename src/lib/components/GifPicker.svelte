@@ -206,6 +206,7 @@
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
 		display: flex;
+		align-items: flex-start;
 		gap: 3px;
 		padding: 0 var(--space-sm) var(--space-sm);
 	}
@@ -240,6 +241,7 @@
 		padding: 0;
 		transition: transform 0.1s ease;
 		display: block;
+		flex-shrink: 0;
 	}
 	.gif-item:active {
 		transform: scale(0.97);
