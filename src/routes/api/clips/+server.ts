@@ -31,6 +31,7 @@ import {
 	mapUsersByIds,
 	safeInt
 } from '$lib/server/api-utils';
+import { extractMentions, notifyMentions } from '$lib/server/mentions';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clips');
@@ -179,11 +180,13 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 		);
 	}
 
-	const body = await parseBody<{ url?: string; title?: string }>(request);
+	const body = await parseBody<{ url?: string; title?: string; message?: string }>(request);
 	if (isResponse(body)) return body;
 
 	const { url: videoUrl } = body;
 	const title = typeof body.title === 'string' ? body.title.trim().slice(0, 500) || null : null;
+	const message =
+		typeof body.message === 'string' ? body.message.trim().slice(0, 500) || null : null;
 
 	if (!videoUrl) return json({ error: 'URL required' }, { status: 400 });
 
@@ -265,6 +268,33 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	}
 
 	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
+
+	// Auto-post message as the first comment on the clip
+	if (message) {
+		const commentId = uuid();
+		await db.insert(comments).values({
+			id: commentId,
+			clipId,
+			userId: user.id,
+			parentId: null,
+			text: message,
+			gifUrl: null,
+			createdAt: now
+		});
+
+		// Notify @mentioned users
+		const mentionedUsernames = extractMentions(message);
+		if (mentionedUsernames.length > 0) {
+			notifyMentions({
+				mentionedUsernames,
+				actorId: user.id,
+				actorUsername: user.username,
+				clipId,
+				groupId: user.groupId,
+				commentPreview: message.slice(0, 80)
+			}).catch((err) => log.error({ err, clipId }, 'mention notifications failed'));
+		}
+	}
 
 	return json({ clip: { id: clipId, status: 'downloading', contentType } }, { status: 201 });
 });

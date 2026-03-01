@@ -93,6 +93,22 @@
 			</button>
 		</div>
 
+		<div class="setting-row">
+			<div class="setting-label">
+				<span class="setting-name">Mentions</span>
+				<span class="setting-desc">When someone @mentions you</span>
+			</div>
+			<button
+				class="toggle"
+				class:active={prefs.mentions && pushEnabled}
+				disabled={!pushEnabled}
+				onclick={() => onUpdatePref('mentions', !prefs.mentions)}
+				aria-label="Toggle mention notifications"
+			>
+				<span class="toggle-thumb"></span>
+			</button>
+		</div>
+
 		<div class="setting-row last">
 			<div class="setting-label">
 				<span class="setting-name">Daily reminder</span>

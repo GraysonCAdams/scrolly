@@ -9,6 +9,7 @@
 	import { globalMuted } from '$lib/stores/mute';
 	import { initAudioContext } from '$lib/audio/normalizer';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import { fetchGroupMembers } from '$lib/stores/members';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
@@ -26,6 +27,7 @@
 
 	onMount(() => {
 		startPolling();
+		fetchGroupMembers();
 		// Initialize mute state from user preference
 		const user = page.data?.user;
 		if (user) {

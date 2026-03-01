@@ -1,5 +1,6 @@
 <script lang="ts">
 	import InlineError from './InlineError.svelte';
+	import MentionInput from './MentionInput.svelte';
 	import {
 		isSupportedUrl,
 		platformLabel,
@@ -8,6 +9,7 @@
 	} from '$lib/url-validation';
 	import { addToast } from '$lib/stores/toasts';
 	import { page } from '$app/stores';
+	import type { GroupMember } from '$lib/types';
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import ClipboardIcon from 'phosphor-svelte/lib/ClipboardIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
@@ -15,13 +17,15 @@
 
 	const {
 		onsubmitted,
-		initialUrl
+		initialUrl,
+		members = []
 	}: {
 		onsubmitted?: (
 			clip: { id: string; status: string; contentType: string },
 			caption: string
 		) => void;
 		initialUrl?: string;
+		members?: GroupMember[];
 	} = $props();
 
 	const hasProvider = $derived(!!$page.data.group?.downloadProvider);
@@ -32,9 +36,11 @@
 			: null
 	);
 	let url = $state('');
+	let message = $state('');
 	let error = $state('');
 	let loading = $state(false);
 	let urlInput = $state<HTMLInputElement | null>(null);
+	let messageInput = $state<ReturnType<typeof MentionInput> | null>(null);
 	let clipboardSuggestion = $state<{ url: string; label: string } | null>(null);
 
 	const detectedPlatform = $derived(url.trim() ? detectPlatform(url.trim()) : null);
@@ -42,6 +48,11 @@
 		detectedPlatform
 			? !isPlatformAllowed(detectedPlatform, platformFilterMode, platformFilterList)
 			: false
+	);
+
+	// Hide clipboard suggestion if the URL input already matches it
+	const showClipboard = $derived(
+		clipboardSuggestion !== null && url.trim() !== clipboardSuggestion.url
 	);
 
 	export function focus() {
@@ -55,7 +66,7 @@
 
 	// Attempt clipboard read on mount (requires user gesture — modal tap counts)
 	$effect(() => {
-		if (initialUrl) return; // Skip if URL was provided externally
+		if (initialUrl) return;
 		(async () => {
 			try {
 				const text = await navigator.clipboard.readText();
@@ -70,7 +81,7 @@
 					}
 				}
 			} catch {
-				// Clipboard permission denied or API unavailable — silently ignore
+				// Clipboard permission denied or API unavailable
 			}
 		})();
 	});
@@ -86,14 +97,25 @@
 		clipboardSuggestion = null;
 	}
 
+	function handleUrlKeydown(e: KeyboardEvent) {
+		if (e.key === 'Tab' && !e.shiftKey) {
+			e.preventDefault();
+			messageInput?.focus();
+		}
+	}
+
 	async function handleSubmit() {
 		error = '';
 		loading = true;
 		try {
+			const trimmedMessage = message.trim();
 			const res = await fetch('/api/clips', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ url: url.trim() })
+				body: JSON.stringify({
+					url: url.trim(),
+					...(trimmedMessage ? { message: trimmedMessage } : {})
+				})
 			});
 			const data = await res.json();
 			if (!res.ok) {
@@ -101,9 +123,8 @@
 				return;
 			}
 			url = '';
-			// Always create a processing toast — persists in global ToastStack
-			// even if modal is dismissed/destroyed. AddVideoModal removes it
-			// when UploadStatus takes over as the feedback mechanism.
+			message = '';
+			messageInput?.clear();
 			addToast({
 				type: 'processing',
 				message: `Adding ${data.clip.contentType === 'music' ? 'song' : 'video'} to feed...`,
@@ -134,13 +155,13 @@
 			handleSubmit();
 		}}
 	>
-		{#if clipboardSuggestion}
+		{#if showClipboard}
 			<div class="clipboard-suggestion">
 				<div class="suggestion-content">
 					<ClipboardIcon size={18} class="suggestion-icon" />
 					<div class="suggestion-text">
-						<span class="suggestion-label">Paste from {clipboardSuggestion.label}?</span>
-						<span class="suggestion-url">{clipboardSuggestion.url}</span>
+						<span class="suggestion-label">Paste from {clipboardSuggestion?.label}?</span>
+						<span class="suggestion-url">{clipboardSuggestion?.url}</span>
 					</div>
 				</div>
 				<div class="suggestion-actions">
@@ -159,22 +180,49 @@
 			</div>
 		{/if}
 
-		<div class="input-wrap" class:has-error={!!error}>
-			<input
-				bind:this={urlInput}
-				type="url"
-				bind:value={url}
-				placeholder="Paste a link..."
-				disabled={loading}
-			/>
-			<button type="submit" disabled={loading || !url.trim() || platformBlocked}>
-				{#if loading}
-					<span class="spinner"></span>
-				{:else}
-					<ArrowRightIcon size={20} weight="bold" />
-				{/if}
-			</button>
+		<div class="compose-fields">
+			<div class="field-row">
+				<span class="field-label">Link</span>
+				<div class="field-input-wrap" class:has-error={!!error}>
+					<input
+						bind:this={urlInput}
+						type="url"
+						bind:value={url}
+						placeholder="Paste a link..."
+						disabled={loading}
+						onkeydown={handleUrlKeydown}
+					/>
+					<button
+						type="submit"
+						class="submit-btn"
+						disabled={loading || !url.trim() || platformBlocked}
+					>
+						{#if loading}
+							<span class="spinner"></span>
+						{:else}
+							<ArrowRightIcon size={20} weight="bold" />
+						{/if}
+					</button>
+				</div>
+			</div>
+
+			<div class="field-divider"></div>
+
+			<div class="field-row message-row">
+				<span class="field-label">Message</span>
+				<MentionInput
+					bind:this={messageInput}
+					placeholder="Add a message (optional)"
+					maxlength={500}
+					disabled={loading}
+					{members}
+					onchange={(text) => {
+						message = text;
+					}}
+				/>
+			</div>
 		</div>
+
 		{#if platformBlocked}
 			<p class="platform-blocked">{platformLabel(url.trim())} links aren't allowed in this group</p>
 		{/if}
@@ -187,11 +235,10 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: var(--space-sm);
+		gap: var(--space-md);
 		padding: var(--space-sm) var(--space-lg) var(--space-lg);
 	}
 
-	/* Clipboard suggestion banner */
 	.clipboard-suggestion {
 		display: flex;
 		align-items: center;
@@ -204,7 +251,6 @@
 		padding: var(--space-sm) var(--space-md);
 		animation: slide-in 0.2s ease;
 	}
-
 	.suggestion-content {
 		display: flex;
 		align-items: center;
@@ -212,26 +258,22 @@
 		min-width: 0;
 		flex: 1;
 	}
-
 	.suggestion-content :global(.suggestion-icon) {
 		width: 18px;
 		height: 18px;
 		color: var(--accent-primary);
 		flex-shrink: 0;
 	}
-
 	.suggestion-text {
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
 	}
-
 	.suggestion-label {
 		font-size: 0.8125rem;
 		font-weight: 600;
 		color: var(--text-primary);
 	}
-
 	.suggestion-url {
 		font-size: 0.6875rem;
 		color: var(--text-muted);
@@ -239,14 +281,12 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-
 	.suggestion-actions {
 		display: flex;
 		align-items: center;
 		gap: var(--space-xs);
 		flex-shrink: 0;
 	}
-
 	.suggestion-confirm {
 		padding: var(--space-xs) var(--space-md);
 		background: var(--accent-primary);
@@ -260,7 +300,6 @@
 		height: auto;
 		margin: 0;
 	}
-
 	.suggestion-dismiss {
 		background: none;
 		border: none;
@@ -271,12 +310,10 @@
 		height: auto;
 		margin: 0;
 	}
-
 	.suggestion-dismiss :global(svg) {
 		width: 16px;
 		height: 16px;
 	}
-
 	@keyframes slide-in {
 		from {
 			opacity: 0;
@@ -288,49 +325,101 @@
 		}
 	}
 
-	.input-wrap {
-		display: flex;
-		align-items: center;
+	/* iMessage-style compose fields */
+	.compose-fields {
 		width: 100%;
 		background: var(--bg-elevated);
 		border: 1.5px solid var(--border);
-		border-radius: var(--radius-full);
+		border-radius: var(--radius-md);
+		overflow: hidden;
 		transition:
 			border-color 0.2s ease,
 			box-shadow 0.2s ease;
-		overflow: hidden;
 	}
 
-	.input-wrap:focus-within {
+	.compose-fields:focus-within {
 		border-color: var(--accent-primary);
 		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
 	}
 
-	.input-wrap.has-error {
-		border-color: var(--error);
+	.field-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		padding: var(--space-xs) var(--space-md);
 	}
 
-	input {
+	.message-row {
+		align-items: flex-start;
+		padding-top: var(--space-sm);
+		padding-bottom: var(--space-sm);
+	}
+
+	.field-label {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		flex-shrink: 0;
+		min-width: 56px;
+	}
+
+	.message-row .field-label {
+		padding-top: var(--space-xs);
+	}
+
+	.field-divider {
+		height: 1px;
+		background: var(--border);
+		margin: 0 var(--space-md);
+	}
+
+	.field-input-wrap {
+		display: flex;
+		align-items: center;
 		flex: 1;
-		padding: 14px 0 14px 20px;
+		min-width: 0;
+	}
+
+	.field-input-wrap.has-error input {
+		color: var(--error);
+	}
+
+	.field-input-wrap input {
+		flex: 1;
+		padding: 10px 0;
 		border: none;
 		background: transparent;
 		color: var(--text-primary);
-		font-size: 1rem;
+		font-size: 0.9375rem;
 		font-family: var(--font-body);
 		outline: none;
 		min-width: 0;
 	}
 
-	input::placeholder {
+	.field-input-wrap input::placeholder {
 		color: var(--text-muted);
 	}
 
-	button {
+	.field-row :global(.mention-input-wrap) {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.field-row :global(.mention-input-wrap .input-container) {
+		border: none;
+		background: transparent;
+	}
+	.field-row :global(.mention-input-wrap .overlay-input),
+	.field-row :global(.mention-input-wrap .highlight-mirror) {
+		padding: var(--space-xs) 0;
+		font-size: 0.9375rem;
+	}
+
+	.submit-btn {
 		flex-shrink: 0;
-		width: 42px;
-		height: 42px;
-		margin: 3px;
+		width: 36px;
+		height: 36px;
+		margin: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -344,23 +433,23 @@
 			opacity 0.15s ease;
 	}
 
-	button :global(svg) {
-		width: 20px;
-		height: 20px;
+	.submit-btn :global(svg) {
+		width: 18px;
+		height: 18px;
 	}
 
-	button:active {
+	.submit-btn:active {
 		transform: scale(0.92);
 	}
 
-	button:disabled {
+	.submit-btn:disabled {
 		opacity: 0.35;
 		cursor: not-allowed;
 	}
 
 	.spinner {
-		width: 18px;
-		height: 18px;
+		width: 16px;
+		height: 16px;
 		border: 2.5px solid rgba(0, 0, 0, 0.15);
 		border-top-color: var(--bg-primary);
 		border-radius: var(--radius-full);

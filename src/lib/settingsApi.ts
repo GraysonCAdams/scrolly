@@ -4,6 +4,7 @@ export type NotificationPrefs = {
 	newAdds: boolean;
 	reactions: boolean;
 	comments: boolean;
+	mentions: boolean;
 	dailyReminder: boolean;
 };
 
@@ -66,7 +67,7 @@ export async function saveAccentColor(key: AccentColorKey): Promise<void> {
 export async function fetchNotificationPrefs(): Promise<NotificationPrefs> {
 	const res = await fetch('/api/notifications/preferences');
 	if (res.ok) return res.json();
-	return { newAdds: true, reactions: true, comments: true, dailyReminder: false };
+	return { newAdds: true, reactions: true, comments: true, mentions: true, dailyReminder: false };
 }
 
 export async function updateNotificationPref(key: string, value: boolean): Promise<void> {

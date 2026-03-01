@@ -1,11 +1,14 @@
 <script lang="ts">
 	import GifIcon from 'phosphor-svelte/lib/GifIcon';
+	import MentionInput from './MentionInput.svelte';
+	import type { GroupMember } from '$lib/types';
 
 	const {
 		replyingTo,
 		submitting,
 		gifEnabled = false,
 		attachedGif = null,
+		members = [],
 		onsubmit,
 		oncancelreply,
 		ongiftoggle,
@@ -15,6 +18,7 @@
 		submitting: boolean;
 		gifEnabled?: boolean;
 		attachedGif: { url: string; stillUrl: string } | null;
+		members?: GroupMember[];
 		onsubmit: (text: string, gifUrl?: string) => void;
 		oncancelreply: () => void;
 		ongiftoggle: () => void;
@@ -22,16 +26,17 @@
 	} = $props();
 
 	let text = $state('');
-	let inputEl: HTMLInputElement | null = $state(null);
+	let mentionInputRef = $state<ReturnType<typeof MentionInput> | null>(null);
 
 	const canSubmit = $derived(text.trim().length > 0 || !!attachedGif);
 
 	export function focus() {
-		inputEl?.focus();
+		mentionInputRef?.focus();
 	}
 
 	export function clear() {
 		text = '';
+		mentionInputRef?.clear();
 	}
 
 	function handleSubmit(e: SubmitEvent) {
@@ -67,13 +72,19 @@
 	>
 		<GifIcon size={26} />
 	</button>
-	<input
-		type="text"
-		bind:value={text}
-		bind:this={inputEl}
+	<MentionInput
+		bind:this={mentionInputRef}
 		placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : 'Add a comment...'}
 		maxlength={500}
 		disabled={submitting}
+		{members}
+		singleLine
+		onchange={(t) => {
+			text = t;
+		}}
+		onsubmit={() => {
+			if (canSubmit && !submitting) onsubmit(text.trim(), attachedGif?.url);
+		}}
 	/>
 	<button type="submit" disabled={!canSubmit || submitting}>Send</button>
 </form>
@@ -146,28 +157,23 @@
 
 	.input-bar {
 		display: flex;
+		align-items: center;
 		gap: var(--space-sm);
 		padding: var(--space-md) var(--space-lg);
 		border-top: 1px solid var(--border);
 		background: var(--bg-surface);
 		padding-bottom: max(12px, env(safe-area-inset-bottom));
 	}
-	.input-bar input {
+	.input-bar :global(.mention-input-wrap) {
 		flex: 1;
-		padding: var(--space-sm) var(--space-md);
-		border: 1px solid var(--border);
+		min-width: 0;
+	}
+	.input-bar :global(.mention-input-wrap .input-container) {
 		border-radius: var(--radius-full);
-		background: var(--bg-elevated);
-		color: var(--text-primary);
+	}
+	.input-bar :global(.mention-input-wrap .overlay-input),
+	.input-bar :global(.mention-input-wrap .highlight-mirror) {
 		font-size: 1rem;
-		outline: none;
-		transition: border-color 0.2s ease;
-	}
-	.input-bar input:focus {
-		border-color: var(--accent-primary);
-	}
-	.input-bar input::placeholder {
-		color: var(--text-muted);
 	}
 
 	.gif-btn {
