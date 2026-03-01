@@ -61,7 +61,7 @@ export async function notifyMentions(opts: {
 			sendNotification(recipient.id, {
 				title: `${opts.actorUsername} mentioned you`,
 				body: opts.commentPreview,
-				url: '/',
+				url: `/?clip=${opts.clipId}&comments=true`,
 				tag: `mention-${opts.clipId}`
 			}).catch((err) => log.error({ err }, 'mention push notification failed'));
 		}

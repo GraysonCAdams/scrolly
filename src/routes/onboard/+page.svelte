@@ -1,15 +1,47 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import InlineError from '$lib/components/InlineError.svelte';
+	import { rawDigits, formatPhone, toE164 } from '$lib/phone';
 
 	let step = $state<'info' | 'verify'>('info');
 	let username = $state('');
-	let phone = $state('');
+	let phoneDisplay = $state('');
 	let code = $state('');
 	let error = $state('');
 	let loading = $state(false);
 	let resendCountdown = $state(0);
 	let resendTimer: ReturnType<typeof setInterval> | null = null;
+
+	$effect(() => {
+		return () => {
+			if (resendTimer) clearInterval(resendTimer);
+		};
+	});
+
+	function handlePhoneInput(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const digits = rawDigits(input.value).slice(0, 10);
+		phoneDisplay = formatPhone(digits);
+		requestAnimationFrame(() => {
+			input.setSelectionRange(phoneDisplay.length, phoneDisplay.length);
+		});
+	}
+
+	function handlePhoneKeydown(e: KeyboardEvent) {
+		if (e.key === 'Backspace' && phoneDisplay.length > 0) {
+			e.preventDefault();
+			const digits = rawDigits(phoneDisplay);
+			phoneDisplay = formatPhone(digits.slice(0, -1));
+		}
+	}
+
+	const phoneValid = $derived(rawDigits(phoneDisplay).length === 10);
+	const phoneE164 = $derived(toE164(phoneDisplay));
+
+	function handleCodeInput(e: Event) {
+		const input = e.target as HTMLInputElement;
+		code = input.value.replace(/\D/g, '').slice(0, 6);
+	}
 
 	function startResendTimer() {
 		resendCountdown = 60;
@@ -29,7 +61,7 @@
 			const res = await fetch('/api/auth', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'send-code', phone: phone.trim() })
+				body: JSON.stringify({ action: 'send-code', phone: phoneE164 })
 			});
 			const data = await res.json();
 			if (!res.ok) {
@@ -52,7 +84,7 @@
 			const verifyRes = await fetch('/api/auth', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'verify-code', phone: phone.trim(), code: code.trim() })
+				body: JSON.stringify({ action: 'verify-code', phone: phoneE164, code: code.trim() })
 			});
 			const verifyData = await verifyRes.json();
 			if (!verifyRes.ok) {
@@ -66,7 +98,7 @@
 				body: JSON.stringify({
 					action: 'onboard',
 					username: username.trim(),
-					phone: phone.trim()
+					phone: phoneE164
 				})
 			});
 			const onboardData = await onboardRes.json();
@@ -75,7 +107,10 @@
 				return;
 			}
 
-			window.location.href = '/';
+			const params = new URLSearchParams(window.location.search);
+			const returnTo = params.get('returnTo');
+			window.location.href =
+				returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -90,7 +125,7 @@
 			const res = await fetch('/api/auth', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'send-code', phone: phone.trim() })
+				body: JSON.stringify({ action: 'send-code', phone: phoneE164 })
 			});
 			const data = await res.json();
 			if (!res.ok) {
@@ -136,13 +171,19 @@
 
 			<label>
 				<span>Phone number</span>
-				<input
-					type="tel"
-					bind:value={phone}
-					placeholder="+1234567890"
-					autocomplete="tel"
-					disabled={loading}
-				/>
+				<div class="phone-input-group">
+					<span class="country-code">+1</span>
+					<input
+						type="tel"
+						value={phoneDisplay}
+						oninput={handlePhoneInput}
+						onkeydown={handlePhoneKeydown}
+						placeholder="(555) 123-4567"
+						autocomplete="tel"
+						disabled={loading}
+						class="phone-input"
+					/>
+				</div>
 				<small>We'll send you a verification code</small>
 			</label>
 
@@ -167,12 +208,12 @@
 			</p>
 			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 
-			<button type="submit" disabled={loading || !username.trim() || !phone.trim()}>
+			<button type="submit" disabled={loading || !username.trim() || !phoneValid}>
 				{loading ? 'Sending...' : 'Send Verification Code'}
 			</button>
 		</form>
 	{:else}
-		<p>Enter the 6-digit code we sent to {phone}</p>
+		<p>Enter the 6-digit code we sent to +1 {phoneDisplay}</p>
 
 		<form
 			onsubmit={(e) => {
@@ -184,11 +225,11 @@
 				<span>Verification code</span>
 				<input
 					type="text"
-					bind:value={code}
+					value={code}
+					oninput={handleCodeInput}
 					placeholder="000000"
 					autocomplete="one-time-code"
 					inputmode="numeric"
-					maxlength="6"
 					disabled={loading}
 					class="code-input"
 				/>
@@ -227,6 +268,7 @@
 		justify-content: center;
 		min-height: 100dvh;
 		padding: var(--space-lg);
+		padding-bottom: calc(var(--space-lg) + 72px);
 		background: var(--bg-primary);
 	}
 
@@ -283,6 +325,51 @@
 	input:focus {
 		outline: none;
 		border-color: var(--accent-primary);
+	}
+
+	.phone-input-group {
+		display: flex;
+		align-items: center;
+		background: var(--bg-surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-full);
+		overflow: hidden;
+		transition: border-color 0.2s ease;
+	}
+
+	.phone-input-group:focus-within {
+		border-color: var(--accent-primary);
+	}
+
+	.country-code {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: 1rem;
+		color: var(--text-muted);
+		padding: var(--space-md) 0 var(--space-md) var(--space-lg);
+		user-select: none;
+		flex-shrink: 0;
+	}
+
+	.phone-input {
+		flex: 1;
+		padding: var(--space-md) var(--space-lg) var(--space-md) var(--space-sm);
+		border: none;
+		border-radius: 0;
+		font-size: 1rem;
+		font-weight: 500;
+		letter-spacing: 0.02em;
+		background: transparent;
+		color: var(--text-primary);
+	}
+
+	.phone-input::placeholder {
+		color: var(--text-muted);
+		font-weight: 400;
+	}
+
+	.phone-input:focus {
+		outline: none;
 	}
 
 	.code-input {

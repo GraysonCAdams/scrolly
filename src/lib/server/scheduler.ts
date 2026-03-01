@@ -18,6 +18,13 @@ let lastBackupDate: string | null = null;
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 const REMINDER_HOUR = 9; // 9 AM server time
 const BACKUP_HOUR = 2; // 2 AM server time
+const REMINDER_BODIES = [
+	'Your group has been sharing — catch up!',
+	'New stuff from your crew awaits.',
+	'See what your friends have been posting.',
+	"You're falling behind — time to scroll.",
+	'Fresh clips in the feed. Take a look!'
+];
 
 export function startScheduler(): void {
 	checkAndSendReminders();
@@ -96,7 +103,7 @@ async function sendDailyReminders(): Promise<void> {
 					and(
 						eq(clips.groupId, user.groupId),
 						eq(clips.status, 'ready'),
-						sql`${clips.id} NOT IN (SELECT ${watched.clipId} FROM ${watched} WHERE ${watched.userId} = ${user.id})`
+						sql`NOT EXISTS (SELECT 1 FROM ${watched} WHERE ${watched.clipId} = ${clips.id} AND ${watched.userId} = ${user.id})`
 					)
 				);
 
@@ -105,7 +112,7 @@ async function sendDailyReminders(): Promise<void> {
 
 			await sendNotification(user.id, {
 				title: `${unwatchedCount} unwatched ${unwatchedCount === 1 ? 'clip' : 'clips'}`,
-				body: 'Check out what your group has been sharing!',
+				body: REMINDER_BODIES[Math.floor(Math.random() * REMINDER_BODIES.length)],
 				url: '/',
 				tag: 'daily-reminder'
 			});

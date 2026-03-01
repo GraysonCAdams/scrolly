@@ -1,7 +1,7 @@
 <script lang="ts">
 	/* eslint-disable max-lines */
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import {
 		isPushSupported,
 		getExistingSubscription,
@@ -34,11 +34,12 @@
 	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
 	import PlatformFilter from '$lib/components/settings/PlatformFilter.svelte';
 	import ShortcutManager from '$lib/components/settings/ShortcutManager.svelte';
+	import UsernameEdit from '$lib/components/settings/UsernameEdit.svelte';
 	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
 
-	const vapidPublicKey = $derived($page.data.vapidPublicKey as string);
-	const user = $derived($page.data.user);
-	const group = $derived($page.data.group);
+	const vapidPublicKey = $derived(page.data.vapidPublicKey as string);
+	const user = $derived(page.data.user);
+	const group = $derived(page.data.group);
 	const isHost = $derived(group?.createdBy === user?.id);
 
 	let activeTab = $state<'me' | 'group'>('me');
@@ -116,14 +117,16 @@
 	}
 
 	function toggleAutoScroll() {
-		autoScrollOverride = !autoScroll;
-		saveAutoScroll(!autoScroll);
+		const newValue = !autoScroll;
+		autoScrollOverride = newValue;
+		saveAutoScroll(newValue);
 	}
 
 	function toggleMutedByDefault() {
-		mutedByDefaultOverride = !mutedByDefault;
-		globalMuted.set(!mutedByDefault);
-		saveMutedByDefault(!mutedByDefault);
+		const newValue = !mutedByDefault;
+		mutedByDefaultOverride = newValue;
+		globalMuted.set(newValue);
+		saveMutedByDefault(newValue);
 	}
 
 	async function togglePush() {
@@ -147,7 +150,7 @@
 		saveAccentColor(key);
 	}
 
-	function handleUpdatePref(key: string, value: boolean) {
+	function handleUpdatePref(key: keyof NotificationPrefs, value: boolean) {
 		prefs = { ...prefs, [key]: value };
 		updateNotificationPref(key, value);
 	}
@@ -188,7 +191,7 @@
 				{#if avatarPath}
 					<button class="remove-photo-btn" onclick={handleRemoveAvatar}>Remove photo</button>
 				{/if}
-				<h2 class="profile-name">{user?.username}</h2>
+				<UsernameEdit initialUsername={user?.username ?? ''} />
 				<span class="profile-phone">{user?.phone}</span>
 				{#if group}
 					<span class="group-pill">{group.name}</span>
@@ -483,14 +486,6 @@
 		font-weight: 600;
 		cursor: pointer;
 		padding: 0;
-	}
-
-	.profile-name {
-		font-family: var(--font-display);
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: var(--text-primary);
-		margin: 0;
 	}
 
 	.profile-phone {

@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { toast } from '$lib/stores/toasts';
+	import { saveUsername } from '$lib/settingsApi';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 
-	const { initialName }: { initialName: string } = $props();
+	const { initialUsername }: { initialUsername: string } = $props();
 
-	let savedName = $state(initialName);
-	let name = $state(initialName);
+	let savedName = $state(initialUsername);
+	let name = $state(initialUsername);
 	let saving = $state(false);
 	let saved = $state(false);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -34,20 +35,15 @@
 
 		saving = true;
 		try {
-			const res = await fetch('/api/group/name', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: trimmed })
-			});
-			if (res.ok) {
-				const data = await res.json();
-				savedName = data.name;
-				name = data.name;
+			const result = await saveUsername(trimmed);
+			if (result) {
+				savedName = result.username;
+				name = result.username;
 				saved = true;
 				savedFeedbackTimer = setTimeout(() => (saved = false), 2000);
 			} else {
 				name = savedName;
-				toast.error('Failed to save group name');
+				toast.error('Failed to save username');
 			}
 		} finally {
 			saving = false;
@@ -68,9 +64,9 @@
 		onblur={save}
 		oninput={debouncedSave}
 		onkeydown={handleKeydown}
-		maxlength="50"
+		maxlength="30"
 		disabled={saving}
-		placeholder="Group name"
+		placeholder="Your name"
 	/>
 	{#if saved}
 		<span class="saved-indicator">
@@ -88,19 +84,26 @@
 
 	input {
 		width: 100%;
-		padding: var(--space-md) var(--space-lg);
-		background: var(--bg-surface);
-		border: 1px solid var(--border);
+		padding: var(--space-sm) var(--space-md);
+		background: transparent;
+		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
-		font-size: 1rem;
-		font-weight: 500;
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 700;
 		color: var(--text-primary);
+		text-align: center;
 		transition: border-color 0.2s ease;
+	}
+
+	input:hover {
+		border-color: var(--border);
 	}
 
 	input:focus {
 		outline: none;
 		border-color: var(--accent-primary);
+		background: var(--bg-surface);
 	}
 
 	input:disabled {
@@ -113,7 +116,7 @@
 
 	.saved-indicator {
 		position: absolute;
-		right: var(--space-md);
+		right: var(--space-sm);
 		color: var(--success);
 		display: flex;
 		align-items: center;

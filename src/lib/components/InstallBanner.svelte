@@ -7,7 +7,6 @@
 	} from '$lib/stores/pwa';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
-	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 
 	let showingInstructions = $state(false);
 
@@ -64,23 +63,17 @@
 			{/if}
 		</div>
 	{:else}
-		<!-- Android / Chrome install banner -->
+		<!-- Android / Chrome smart app banner -->
 		<div class="install-banner" role="alert">
-			<div class="install-content">
-				<div class="install-icon">
-					<DownloadSimpleIcon size={18} />
-				</div>
-				<div class="install-text">
-					<strong>Install scrolly</strong>
-					<span>Add to your home screen for the best experience</span>
-				</div>
+			<button class="banner-close" onclick={dismissInstall} aria-label="Close">
+				<XIcon size={14} />
+			</button>
+			<img class="banner-icon" src="/icons/icon-192.png" alt="" />
+			<div class="banner-text">
+				<strong>scrolly</strong>
+				<span>Your crew's private feed</span>
 			</div>
-			<div class="install-actions">
-				<button class="install-btn" onclick={handleInstall}>Install</button>
-				<button class="dismiss-btn" onclick={dismissInstall} aria-label="Dismiss">
-					<XIcon size={16} />
-				</button>
-			</div>
+			<button class="banner-action" onclick={handleInstall}>INSTALL</button>
 		</div>
 	{/if}
 {/if}
@@ -237,110 +230,87 @@
 		opacity: 0.6;
 	}
 
-	/* ========== Android install banner ========== */
+	/* ========== Android smart app banner ========== */
 
 	.install-banner {
 		position: fixed;
-		bottom: calc(80px + env(safe-area-inset-bottom) + var(--space-sm));
-		left: 50%;
-		transform: translateX(-50%);
+		bottom: 0;
+		left: 0;
+		right: 0;
 		z-index: 200;
-		width: calc(100% - var(--space-lg) * 2);
-		max-width: 400px;
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-sm);
-		padding: var(--space-md);
+		gap: var(--space-md);
+		padding: var(--space-md) var(--space-lg);
+		padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
 		background: var(--bg-elevated);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-		animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+		border-top: 1px solid var(--border);
+		box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+		animation: slide-up 0.3s cubic-bezier(0.2, 0, 0, 1);
 	}
 
-	.install-content {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		flex: 1;
-		min-width: 0;
-	}
-
-	.install-icon {
+	.banner-close {
 		flex-shrink: 0;
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-		border-radius: var(--radius-sm);
-		color: var(--accent-primary);
-	}
-
-	.install-icon :global(svg) {
-		width: 18px;
-		height: 18px;
-	}
-
-	.install-text {
-		display: flex;
-		flex-direction: column;
-		gap: 1px;
-		min-width: 0;
-	}
-
-	.install-text strong {
-		font-family: var(--font-display);
-		font-size: 0.8125rem;
-		font-weight: 700;
-		color: var(--text-primary);
-	}
-
-	.install-text span {
-		font-size: 0.6875rem;
-		color: var(--text-muted);
-		line-height: 1.3;
-	}
-
-	.install-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-		flex-shrink: 0;
-	}
-
-	.install-btn {
-		padding: var(--space-xs) var(--space-md);
-		background: var(--accent-primary);
-		color: var(--bg-primary);
-		border: none;
-		border-radius: var(--radius-full);
-		font-size: 0.75rem;
-		font-weight: 700;
-		cursor: pointer;
-		font-family: var(--font-body);
-	}
-
-	.install-btn:active {
-		transform: scale(0.97);
-	}
-
-	.dismiss-btn {
 		background: none;
 		border: none;
 		color: var(--text-muted);
 		cursor: pointer;
 		padding: 4px;
+		margin: -4px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 	}
 
-	.dismiss-btn :global(svg) {
-		width: 16px;
-		height: 16px;
+	.banner-close :global(svg) {
+		width: 14px;
+		height: 14px;
+	}
+
+	.banner-icon {
+		flex-shrink: 0;
+		width: 40px;
+		height: 40px;
+		border-radius: var(--radius-sm);
+		object-fit: cover;
+	}
+
+	.banner-text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+
+	.banner-text strong {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		line-height: 1.3;
+	}
+
+	.banner-text span {
+		font-size: 0.6875rem;
+		color: var(--text-muted);
+		line-height: 1.3;
+	}
+
+	.banner-action {
+		flex-shrink: 0;
+		background: none;
+		border: none;
+		color: var(--accent-blue);
+		font-size: 0.8125rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		cursor: pointer;
+		padding: var(--space-xs) var(--space-sm);
+		font-family: var(--font-body);
+	}
+
+	.banner-action:active {
+		opacity: 0.6;
 	}
 
 	/* ========== Animations ========== */
@@ -359,11 +329,11 @@
 	@keyframes slide-up {
 		from {
 			opacity: 0;
-			transform: translateX(-50%) translateY(12px);
+			transform: translateY(100%);
 		}
 		to {
 			opacity: 1;
-			transform: translateX(-50%) translateY(0);
+			transform: translateY(0);
 		}
 	}
 

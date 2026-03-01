@@ -16,7 +16,7 @@
 		prefs: NotificationPrefs;
 		prefsLoading: boolean;
 		onTogglePush: () => void;
-		onUpdatePref: (key: string, value: boolean) => void;
+		onUpdatePref: (key: keyof NotificationPrefs, value: boolean) => void;
 	} = $props();
 </script>
 

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { get } from 'svelte/store';
 	import { isPointerFine } from '$lib/gestures';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
+	import { openCommentsSignal } from '$lib/stores/toasts';
 	import { globalMuted } from '$lib/stores/mute';
 	import { globalPlaybackSpeed, stepSpeedUp, stepSpeedDown } from '$lib/stores/playbackSpeed';
 	import { connectNormalizer } from '$lib/audio/normalizer';
@@ -65,18 +65,12 @@
 
 	let itemEl: HTMLDivElement | null = $state(null);
 	let hasMarkedWatched = $state(false);
-	let muted = $state(get(globalMuted));
+	let muted = $derived($globalMuted);
 	let showMuteIndicator = $state(false);
 	let muteIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
-	let speed = $state(get(globalPlaybackSpeed));
+	let speed = $derived($globalPlaybackSpeed);
 	let showSpeedIndicator = $state(false);
 	let speedIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
-	const unsubMute = globalMuted.subscribe((v) => {
-		muted = v;
-	});
-	const unsubSpeed = globalPlaybackSpeed.subscribe((v) => {
-		speed = v;
-	});
 
 	let isDesktop = $state(false);
 	let videoEl: HTMLVideoElement | null = $state(null);
@@ -115,8 +109,9 @@
 		isDesktop = isPointerFine();
 	});
 	onDestroy(() => {
-		unsubMute();
-		unsubSpeed();
+		if (muteIndicatorTimer) clearTimeout(muteIndicatorTimer);
+		if (speedIndicatorTimer) clearTimeout(speedIndicatorTimer);
+		if (playIndicatorTimer) clearTimeout(playIndicatorTimer);
 		if (scrubberTimerId) clearTimeout(scrubberTimerId);
 		sendWatchPercent(clip.id, maxPercent);
 	});
@@ -154,6 +149,14 @@
 			wasActive = false;
 			sendWatchPercent(clip.id, maxPercent);
 			maxPercent = 0;
+		}
+	});
+	// Deep-link: open comments sheet when signaled (e.g., from push notification)
+	$effect(() => {
+		const target = $openCommentsSignal;
+		if (target === clip.id && active) {
+			openCommentsSignal.set(null);
+			showComments = true;
 		}
 	});
 
