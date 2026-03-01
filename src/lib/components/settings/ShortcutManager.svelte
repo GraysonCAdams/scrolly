@@ -291,12 +291,10 @@
 		align-items: center;
 		gap: var(--space-xs);
 	}
-
 	.platform-desc :global(.check-icon) {
 		color: var(--success);
 		flex-shrink: 0;
 	}
-
 	.ios-row {
 		background: none;
 		border: none;

@@ -209,13 +209,12 @@ async function fetchShortcutPlist(icloudUrl: string): Promise<FetchResult> {
 	let metadata: Record<string, unknown>;
 	try {
 		const res = await fetch(`${ICLOUD_API}/${shortcutId}`);
-		if (!res.ok) {
+		if (!res.ok)
 			return fail(
 				null,
 				'fetch_failed',
 				'Could not fetch this shortcut from iCloud. The link may be invalid or expired.'
 			);
-		}
 		metadata = await res.json();
 	} catch (err) {
 		log.error({ err }, 'Failed to fetch shortcut metadata');
@@ -409,14 +408,10 @@ function checkImportQuestions(importQuestions: ImportQuestion[]): ValidationWarn
 
 	if (nonPhoneQuestions.length === 0) return warnings;
 
-	const urlTokenQuestions = nonPhoneQuestions.filter(
-		(q) =>
-			matchesKeywords(q.Text ?? '', URL_KEYWORDS) || matchesKeywords(q.Text ?? '', TOKEN_KEYWORDS)
-	);
-	const otherQuestions = nonPhoneQuestions.filter(
-		(q) =>
-			!matchesKeywords(q.Text ?? '', URL_KEYWORDS) && !matchesKeywords(q.Text ?? '', TOKEN_KEYWORDS)
-	);
+	const isUrlOrToken = (q: ImportQuestion) =>
+		matchesKeywords(q.Text ?? '', URL_KEYWORDS) || matchesKeywords(q.Text ?? '', TOKEN_KEYWORDS);
+	const urlTokenQuestions = nonPhoneQuestions.filter(isUrlOrToken);
+	const otherQuestions = nonPhoneQuestions.filter((q) => !isUrlOrToken(q));
 
 	if (urlTokenQuestions.length > 0) {
 		const count = urlTokenQuestions.length;

@@ -470,7 +470,6 @@
 		color: var(--error);
 		text-align: center;
 	}
-
 	.no-provider-state {
 		align-items: center;
 		justify-content: center;
