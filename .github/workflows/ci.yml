@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths-ignore: ['*.md']
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  lint-and-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (ratcheted)
+        run: npm run lint:ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Coverage report
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Production build
+        run: npm run build
+
+  ci:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint-and-check]
+    steps:
+      - name: Check CI status
+        run: |
+          if [[ "${{ needs.lint-and-check.result }}" == "failure" || "${{ needs.lint-and-check.result }}" == "cancelled" ]]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "CI passed"
