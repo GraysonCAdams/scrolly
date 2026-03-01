@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.4.0...scrolly-v1.5.0) (2026-03-01)
+
+
+### Features
+
+* comments overhaul, shortcut simplification, and minor fixes ([#27](https://github.com/312-dev/scrolly/issues/27)) ([4807181](https://github.com/312-dev/scrolly/commit/4807181f5721e02b4e4a6c8a7ac533b5682b6c2a))
+
 ## [1.4.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.3.0...scrolly-v1.4.0) (2026-03-01)
 
 
