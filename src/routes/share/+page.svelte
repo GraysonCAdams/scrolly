@@ -8,6 +8,7 @@
 		detectPlatform,
 		isPlatformAllowed
 	} from '$lib/url-validation';
+	import { addToast } from '$lib/stores/toasts';
 	import XCircleIcon from 'phosphor-svelte/lib/XCircleIcon';
 	import ProhibitIcon from 'phosphor-svelte/lib/ProhibitIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
@@ -32,6 +33,8 @@
 	let loading = $state(false);
 	let error = $state('');
 	let success = $state(false);
+	let clipId = $state('');
+	let contentType = $state('');
 
 	async function handleSubmit() {
 		error = '';
@@ -47,13 +50,28 @@
 				error = data.error || 'Failed to add clip';
 				return;
 			}
+			clipId = data.clip.id;
+			contentType = data.clip.contentType ?? 'video';
 			success = true;
-			setTimeout(() => goto(resolve('/')), 1500);
 		} catch {
 			error = 'Something went wrong';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function openFeed() {
+		if (clipId) {
+			const label = contentType === 'music' ? 'song' : 'video';
+			addToast({
+				type: 'processing',
+				message: `Adding ${label} to feed...`,
+				clipId,
+				contentType,
+				autoDismiss: 0
+			});
+		}
+		goto(resolve('/'));
 	}
 </script>
 
@@ -84,7 +102,8 @@
 				<CheckIcon size={28} weight="bold" />
 			</div>
 			<h1 class="share-title">Added!</h1>
-			<p class="share-desc">Taking you to the feed...</p>
+			<p class="share-desc">Your clip is downloading.</p>
+			<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
 		{:else}
 			<div class="icon-wrap">
 				<ExportIcon size={28} />

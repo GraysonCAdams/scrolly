@@ -227,11 +227,18 @@
 		const el = feedWrapper;
 		let startX = 0;
 		let startY = 0;
+		let tracking = false;
 		let decided = false;
 		let isHorizontal = false;
 
 		function onTouchStart(e: TouchEvent) {
 			if (swipeAnimating) return;
+			const target = e.target as HTMLElement;
+			if (target.closest('.progress-bar')) {
+				tracking = false;
+				return;
+			}
+			tracking = true;
 			startX = e.touches[0].clientX;
 			startY = e.touches[0].clientY;
 			decided = false;
@@ -240,7 +247,7 @@
 		}
 
 		function onTouchMove(e: TouchEvent) {
-			if (swipeAnimating) return;
+			if (!tracking || swipeAnimating) return;
 			const dx = e.touches[0].clientX - startX;
 			const dy = e.touches[0].clientY - startY;
 
@@ -261,13 +268,15 @@
 		}
 
 		function onTouchEnd() {
-			if (!isHorizontal || swipeX === 0) {
+			if (!tracking || !isHorizontal || swipeX === 0) {
+				tracking = false;
 				decided = false;
 				isHorizontal = false;
 				isHorizontalSwiping = false;
 				return;
 			}
 
+			tracking = false;
 			decided = false;
 			isHorizontal = false;
 			isHorizontalSwiping = false;
