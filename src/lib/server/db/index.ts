@@ -50,6 +50,7 @@ migrate(db, { migrationsFolder });
 // Backfill shortcut tokens for existing groups that don't have one
 import { isNull, eq } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
+import crypto from 'node:crypto';
 
 const groupsWithoutToken = db
 	.select({ id: schema.groups.id })
@@ -59,6 +60,32 @@ const groupsWithoutToken = db
 
 for (const g of groupsWithoutToken) {
 	db.update(schema.groups).set({ shortcutToken: uuid() }).where(eq(schema.groups.id, g.id)).run();
+}
+
+// Auto-create the group on first run if the database is empty
+const groupCount = db.select({ id: schema.groups.id }).from(schema.groups).limit(1).all();
+if (groupCount.length === 0) {
+	const groupId = uuid();
+	const inviteCode = crypto.randomBytes(4).toString('hex');
+
+	db.insert(schema.groups)
+		.values({
+			id: groupId,
+			name: process.env.GROUP_NAME || 'Scrolly',
+			inviteCode,
+			shortcutToken: uuid(),
+			createdAt: new Date()
+		})
+		.run();
+
+	const appUrl = process.env.PUBLIC_APP_URL || 'http://localhost:3000';
+	const joinLink = `${appUrl}/join/${inviteCode}`;
+	log.info('');
+	log.info('========================================');
+	log.info('  First-time setup: group created!');
+	log.info(`  Join as host: ${joinLink}`);
+	log.info('========================================');
+	log.info('');
 }
 
 const version = process.env.APP_VERSION || 'dev';

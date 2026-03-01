@@ -123,6 +123,14 @@ async function handleOnboard(userId: string, body: Record<string, string>) {
 	await db.update(users).set({ username, phone }).where(eq(users.id, userId));
 
 	const data = await getUserWithGroup(userId);
+
+	// First user to complete onboarding becomes the host
+	if (data?.group && !data.group.createdBy) {
+		await db.update(groups).set({ createdBy: userId }).where(eq(groups.id, data.group.id));
+		data.group = { ...data.group, createdBy: userId };
+		log.info({ userId, username, groupId: data.group.id }, 'first user set as host');
+	}
+
 	return json({ user: data?.user, group: data?.group });
 }
 
