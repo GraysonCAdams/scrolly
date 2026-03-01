@@ -3,25 +3,73 @@
 
 	const {
 		filter,
-		onfilter
+		onfilter,
+		swipeProgress = 0,
+		swiping = false,
+		hidden = false
 	}: {
 		filter: FeedFilter;
 		onfilter: (f: FeedFilter) => void;
+		swipeProgress?: number;
+		swiping?: boolean;
+		hidden?: boolean;
 	} = $props();
 
-	const filters: FeedFilter[] = ['unwatched', 'all', 'watched', 'favorites'];
-	const labels = ['New', 'All', 'Watched', 'Faves'];
+	const filters: FeedFilter[] = ['unwatched', 'watched', 'favorites'];
+	const labels = ['New', 'Watched', 'Faves'];
 	const activeIndex = $derived(filters.indexOf(filter));
+
+	let containerEl: HTMLDivElement | undefined = $state();
+	let labelEls: HTMLSpanElement[] = $state([]);
+	let indicatorStyle = $state('');
+
+	function getLabelPos(idx: number) {
+		const el = labelEls[idx];
+		if (!el || !containerEl) return null;
+		const containerRect = containerEl.getBoundingClientRect();
+		const labelRect = el.getBoundingClientRect();
+		return {
+			left: labelRect.left - containerRect.left,
+			width: labelRect.width
+		};
+	}
+
+	$effect(() => {
+		const idx = activeIndex;
+		const progress = swipeProgress;
+		const base = getLabelPos(idx);
+		if (!base) return;
+
+		let left = base.left;
+		let width = base.width;
+
+		if (progress !== 0) {
+			const targetIdx = idx + (progress > 0 ? 1 : -1);
+			const target = getLabelPos(targetIdx);
+			if (target) {
+				const t = Math.abs(progress);
+				left = base.left + (target.left - base.left) * t;
+				width = base.width + (target.width - base.width) * t;
+			}
+		}
+
+		indicatorStyle = `left:${left}px;width:${width}px`;
+	});
 </script>
 
-<div class="filter-bar">
-	<div class="filter-tabs">
-		<div class="indicator" style="transform: translateX({activeIndex * 100}%)"></div>
+<div class="filter-bar" class:ui-hidden={hidden}>
+	<div class="filter-tabs" role="tablist" bind:this={containerEl}>
 		{#each filters as f, i (f)}
-			<button class:active={filter === f} onclick={() => onfilter(f)}>
-				<span class="tab-label">{labels[i]}</span>
+			<button
+				role="tab"
+				aria-selected={filter === f}
+				class:active={filter === f}
+				onclick={() => onfilter(f)}
+			>
+				<span class="tab-label" bind:this={labelEls[i]}>{labels[i]}</span>
 			</button>
 		{/each}
+		<div class="tab-indicator" class:instant={swiping} style={indicatorStyle}></div>
 	</div>
 </div>
 
@@ -37,43 +85,28 @@
 		padding: max(var(--space-md), env(safe-area-inset-top)) var(--space-lg) var(--space-sm);
 		background: linear-gradient(
 			to bottom,
-			rgba(0, 0, 0, 0.6) 0%,
-			rgba(0, 0, 0, 0.3) 70%,
+			var(--reel-gradient-soft) 0%,
+			var(--reel-gradient-faint) 70%,
 			transparent 100%
 		);
 		pointer-events: none;
+		transition: opacity 0.3s ease;
+	}
+
+	.filter-bar.ui-hidden {
+		opacity: 0;
 	}
 
 	.filter-tabs {
+		position: relative;
 		display: flex;
 		gap: 0;
 		pointer-events: auto;
-		position: relative;
-	}
-
-	.indicator {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 25%;
-		display: flex;
-		justify-content: center;
-		transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
-		pointer-events: none;
-	}
-
-	.indicator::after {
-		content: '';
-		width: 20px;
-		height: 3px;
-		background: var(--text-primary);
-		border-radius: var(--radius-full);
 	}
 
 	.filter-tabs button {
 		position: relative;
-		flex-shrink: 0;
-		padding: 8px 16px;
+		padding: 8px var(--space-md);
 		background: none;
 		color: rgba(255, 255, 255, 0.5);
 		border: none;
@@ -86,11 +119,21 @@
 	}
 
 	.filter-tabs button.active {
-		color: #fff;
+		color: var(--reel-text);
 	}
 
-	.tab-label {
-		position: relative;
-		display: inline-block;
+	.tab-indicator {
+		position: absolute;
+		bottom: 0;
+		height: 3px;
+		background: var(--text-primary);
+		border-radius: var(--radius-full);
+		transition:
+			left 0.25s cubic-bezier(0.32, 0.72, 0, 1),
+			width 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+		pointer-events: none;
+	}
+	.tab-indicator.instant {
+		transition: none;
 	}
 </style>
