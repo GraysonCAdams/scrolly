@@ -176,37 +176,42 @@
 	.toast {
 		display: flex;
 		align-items: center;
-		gap: var(--space-sm);
-		padding: var(--space-md) var(--space-md);
+		gap: var(--space-md);
+		padding: var(--space-md) var(--space-lg);
 		background: var(--bg-elevated);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-lg);
 		color: var(--text-primary);
 		font-family: var(--font-body);
-		font-size: 0.8125rem;
+		font-size: 0.875rem;
+		font-weight: 500;
 		pointer-events: auto;
-		animation: toast-in 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+		animation: toast-in 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 		position: relative;
 		overflow: hidden;
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 	}
 
 	.toast-success {
-		border-color: color-mix(in srgb, var(--success) 40%, transparent);
+		background: color-mix(in srgb, var(--success) 10%, var(--bg-elevated));
 	}
 
 	.toast-error {
-		border-color: color-mix(in srgb, var(--error) 40%, transparent);
+		background: color-mix(in srgb, var(--error) 10%, var(--bg-elevated));
 	}
 
 	.toast-info {
-		border-color: color-mix(in srgb, var(--accent-blue) 40%, transparent);
+		background: color-mix(in srgb, var(--accent-blue) 10%, var(--bg-elevated));
+	}
+
+	.toast-processing {
+		background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-elevated));
 	}
 
 	.toast-icon {
 		flex-shrink: 0;
-		width: 18px;
-		height: 18px;
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-full);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -218,15 +223,22 @@
 	}
 
 	.toast-success .toast-icon {
+		background: color-mix(in srgb, var(--success) 20%, transparent);
 		color: var(--success);
 	}
 
 	.toast-error .toast-icon {
+		background: color-mix(in srgb, var(--error) 20%, transparent);
 		color: var(--error);
 	}
 
 	.toast-info .toast-icon {
+		background: color-mix(in srgb, var(--accent-blue) 20%, transparent);
 		color: var(--accent-blue);
+	}
+
+	.toast-processing .toast-icon {
+		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
 	}
 
 	.toast-message {
@@ -237,19 +249,20 @@
 
 	.toast-view {
 		flex-shrink: 0;
-		background: none;
+		background: var(--accent-primary);
 		border: none;
-		color: var(--accent-primary);
+		color: var(--bg-primary);
 		cursor: pointer;
-		padding: 2px 4px;
-		font-family: var(--font-body);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		transition: opacity 0.15s ease;
+		padding: var(--space-xs) var(--space-md);
+		font-family: var(--font-display);
+		font-size: 0.75rem;
+		font-weight: 700;
+		border-radius: var(--radius-full);
+		transition: transform 0.15s ease;
 	}
 
 	.toast-view:active {
-		opacity: 0.7;
+		transform: scale(0.95);
 	}
 
 	.toast-dismiss {
@@ -258,15 +271,16 @@
 		border: none;
 		color: var(--text-muted);
 		cursor: pointer;
-		padding: 2px;
+		padding: var(--space-xs);
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		border-radius: var(--radius-full);
 		transition: color 0.15s ease;
 	}
 
 	.toast-dismiss:active {
-		color: var(--text-primary);
+		color: var(--text-secondary);
 	}
 
 	.toast-dismiss :global(svg) {
@@ -279,22 +293,22 @@
 		bottom: 0;
 		left: 0;
 		right: 0;
-		height: 2px;
-		background: var(--bg-subtle);
+		height: 3px;
+		background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
 	}
 
 	.progress-bar {
 		height: 100%;
 		width: 40%;
 		background: var(--accent-primary);
-		border-radius: 1px;
+		border-radius: 2px;
 		animation: indeterminate 1.5s ease-in-out infinite;
 	}
 
 	.spinner-ring {
 		width: 16px;
 		height: 16px;
-		border: 2px solid var(--bg-subtle);
+		border: 2px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
 		border-top-color: var(--accent-primary);
 		border-radius: var(--radius-full);
 		animation: spin 0.8s linear infinite;
@@ -321,7 +335,7 @@
 	@keyframes toast-in {
 		from {
 			opacity: 0;
-			transform: translateY(12px) scale(0.97);
+			transform: translateY(16px) scale(0.95);
 		}
 		to {
 			opacity: 1;
@@ -336,7 +350,7 @@
 	@keyframes toast-out {
 		to {
 			opacity: 0;
-			transform: translateY(12px) scale(0.97);
+			transform: translateY(16px) scale(0.95);
 		}
 	}
 </style>
