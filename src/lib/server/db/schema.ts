@@ -199,5 +199,6 @@ export const notificationPreferences = sqliteTable('notification_preferences', {
 	newAdds: integer('new_adds', { mode: 'boolean' }).notNull().default(true),
 	reactions: integer('reactions', { mode: 'boolean' }).notNull().default(true),
 	comments: integer('comments', { mode: 'boolean' }).notNull().default(true),
+	mentions: integer('mentions', { mode: 'boolean' }).notNull().default(true),
 	dailyReminder: integer('daily_reminder', { mode: 'boolean' }).notNull().default(false)
 });
