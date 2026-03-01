@@ -183,7 +183,8 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	const body = await parseBody<{ url?: string; title?: string }>(request);
 	if (isResponse(body)) return body;
 
-	const { url: videoUrl, title } = body;
+	const { url: videoUrl } = body;
+	const title = typeof body.title === 'string' ? body.title.trim().slice(0, 500) || null : null;
 
 	if (!videoUrl) return json({ error: 'URL required' }, { status: 400 });
 

@@ -32,6 +32,12 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user }) => {
 
 	const filename = `${user.id}.jpg`;
 	const filePath = resolve(DATA_DIR, filename);
+
+	// Prevent directory traversal
+	if (!filePath.startsWith(DATA_DIR)) {
+		return json({ error: 'Invalid path' }, { status: 400 });
+	}
+
 	const buffer = Buffer.from(await file.arrayBuffer());
 
 	writeFileSync(filePath, buffer); // eslint-disable-line security/detect-non-literal-fs-filename
@@ -43,6 +49,11 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user }) => {
 export const DELETE: RequestHandler = withAuth(async (_event, { user }) => {
 	const filename = `${user.id}.jpg`;
 	const filePath = resolve(DATA_DIR, filename);
+
+	// Prevent directory traversal
+	if (!filePath.startsWith(DATA_DIR)) {
+		return json({ error: 'Invalid path' }, { status: 400 });
+	}
 
 	if (existsSync(filePath)) {
 		// eslint-disable-line security/detect-non-literal-fs-filename

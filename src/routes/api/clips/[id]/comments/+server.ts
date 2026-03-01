@@ -233,17 +233,17 @@ export const DELETE: RequestHandler = withClipAuth(async ({ request }, { user })
 		where: eq(comments.parentId, commentId)
 	});
 
-	// Delete hearts on all affected comments
+	// Delete hearts, replies, and parent in a single transaction to avoid race conditions
 	const idsToDelete = [commentId, ...childReplies.map((r) => r.id)];
-	if (idsToDelete.length > 0) {
-		await db.delete(commentHearts).where(inArray(commentHearts.commentId, idsToDelete));
-	}
-
-	// Delete replies first, then parent
-	if (childReplies.length > 0) {
-		await db.delete(comments).where(eq(comments.parentId, commentId));
-	}
-	await db.delete(comments).where(eq(comments.id, commentId));
+	db.transaction((tx) => {
+		if (idsToDelete.length > 0) {
+			tx.delete(commentHearts).where(inArray(commentHearts.commentId, idsToDelete)).run();
+		}
+		if (childReplies.length > 0) {
+			tx.delete(comments).where(eq(comments.parentId, commentId)).run();
+		}
+		tx.delete(comments).where(eq(comments.id, commentId)).run();
+	});
 
 	return json({ deleted: true, deletedIds: idsToDelete });
 });

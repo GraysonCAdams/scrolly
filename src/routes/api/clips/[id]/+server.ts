@@ -58,7 +58,7 @@ export const PATCH: RequestHandler = withClipAuth(async ({ params, request }, { 
 	const body = await parseBody<{ title?: string }>(request);
 	if (isResponse(body)) return body;
 
-	const title = typeof body.title === 'string' ? body.title.trim() : null;
+	const title = typeof body.title === 'string' ? body.title.trim().slice(0, 500) : null;
 
 	await db
 		.update(clips)

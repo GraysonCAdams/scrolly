@@ -36,11 +36,22 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 			const chunkSize = end - start + 1;
 
 			const stream = createReadStream(filePath, { start, end }); // eslint-disable-line security/detect-non-literal-fs-filename
+			let cancelled = false;
 			const readable = new ReadableStream({
 				start(controller) {
-					stream.on('data', (chunk: Buffer) => controller.enqueue(chunk));
-					stream.on('end', () => controller.close());
-					stream.on('error', (err) => controller.error(err));
+					stream.on('data', (chunk: Buffer) => {
+						if (!cancelled) controller.enqueue(chunk);
+					});
+					stream.on('end', () => {
+						if (!cancelled) controller.close();
+					});
+					stream.on('error', (err) => {
+						if (!cancelled) controller.error(err);
+					});
+				},
+				cancel() {
+					cancelled = true;
+					stream.destroy();
 				}
 			});
 
@@ -57,11 +68,22 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	const stream = createReadStream(filePath); // eslint-disable-line security/detect-non-literal-fs-filename
+	let cancelled = false;
 	const readable = new ReadableStream({
 		start(controller) {
-			stream.on('data', (chunk: Buffer) => controller.enqueue(chunk));
-			stream.on('end', () => controller.close());
-			stream.on('error', (err) => controller.error(err));
+			stream.on('data', (chunk: Buffer) => {
+				if (!cancelled) controller.enqueue(chunk);
+			});
+			stream.on('end', () => {
+				if (!cancelled) controller.close();
+			});
+			stream.on('error', (err) => {
+				if (!cancelled) controller.error(err);
+			});
+		},
+		cancel() {
+			cancelled = true;
+			stream.destroy();
 		}
 	});
 
