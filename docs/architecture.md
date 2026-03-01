@@ -95,7 +95,6 @@ scrolly/
 │   │   │       ├── InviteLink.svelte
 │   │   │       ├── MemberList.svelte
 │   │   │       ├── RetentionPicker.svelte
-│   │   │       ├── StorageStats.svelte
 │   │   │       └── ClipsManager.svelte
 │   │   ├── stores/
 │   │   │   ├── notifications.ts     # Notification polling + unread count

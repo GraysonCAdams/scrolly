@@ -103,6 +103,9 @@
 		--reel-spinner-track: rgba(255, 255, 255, 0.2);
 		--reel-spinner-head: rgba(255, 255, 255, 0.7);
 
+		/* Constant white — used for toggle thumbs, badge text, and other elements that stay white in both themes */
+		--constant-white: #fff;
+
 		--radius-sm: 8px;
 		--radius-md: 12px;
 		--radius-lg: 16px;
