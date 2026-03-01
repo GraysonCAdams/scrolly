@@ -8,7 +8,6 @@
 	} = $props();
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <button
 	class="view-badge"
 	onclick={(e) => {
@@ -41,12 +40,12 @@
 		-webkit-backdrop-filter: blur(8px);
 		border: none;
 		border-radius: var(--radius-full);
-		color: #fff;
+		color: var(--reel-text);
 		font-size: 0.75rem;
 		font-weight: 700;
 		cursor: pointer;
 		min-height: 32px;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 		transition: transform 0.1s ease;
 	}
 
@@ -57,6 +56,6 @@
 	.view-badge svg {
 		width: 14px;
 		height: 14px;
-		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+		filter: drop-shadow(0 1px 2px var(--reel-text-shadow));
 	}
 </style>

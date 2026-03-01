@@ -162,13 +162,13 @@
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		border: none;
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		width: 40px;
 		height: 40px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #fff;
+		color: var(--reel-text);
 		cursor: pointer;
 	}
 	.close-btn svg {
@@ -249,7 +249,7 @@
 	.pulse-dot {
 		width: 10px;
 		height: 10px;
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		background: var(--accent-primary);
 		animation: pulse 1.5s ease-in-out infinite;
 	}
@@ -270,7 +270,7 @@
 		font-family: var(--font-display);
 		font-size: 1.125rem;
 		font-weight: 700;
-		color: #fff;
+		color: var(--reel-text);
 		margin: 0 0 4px;
 		text-align: center;
 	}
@@ -292,7 +292,7 @@
 		background: rgba(255, 255, 255, 0.08);
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		border-radius: var(--radius-md);
-		color: #fff;
+		color: var(--reel-text);
 		font-size: 1rem;
 		font-family: var(--font-body);
 		text-align: center;
@@ -310,7 +310,7 @@
 	.primary-btn {
 		padding: 14px 32px;
 		background: var(--accent-primary);
-		color: #000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 0.9375rem;

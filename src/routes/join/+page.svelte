@@ -543,7 +543,7 @@
 		gap: var(--space-sm);
 		padding: var(--space-md) var(--space-xl);
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 1rem;
@@ -615,9 +615,9 @@
 	.spinner {
 		width: 16px;
 		height: 16px;
-		border: 2px solid rgba(0, 0, 0, 0.2);
-		border-top-color: #000000;
-		border-radius: 50%;
+		border: 2px solid color-mix(in srgb, var(--bg-primary) 20%, transparent);
+		border-top-color: var(--bg-primary);
+		border-radius: var(--radius-full);
 		animation: spin 0.6s linear infinite;
 	}
 

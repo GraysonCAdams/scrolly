@@ -4,7 +4,14 @@
 
 <div class="offline-container">
 	<div class="offline-icon">
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.5"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
 			<line x1="1" y1="1" x2="23" y2="23" />
 			<path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
 			<path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
@@ -63,7 +70,7 @@
 	button {
 		padding: var(--space-md) var(--space-2xl);
 		background: var(--accent-primary);
-		color: #000000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 1rem;

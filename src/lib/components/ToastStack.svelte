@@ -333,7 +333,7 @@
 		height: 16px;
 		border: 2px solid var(--bg-subtle);
 		border-top-color: var(--accent-primary);
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		animation: spin 0.8s linear infinite;
 	}
 
