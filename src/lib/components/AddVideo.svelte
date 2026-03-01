@@ -405,17 +405,14 @@
 		min-width: 0;
 	}
 
-	.field-row :global(.mention-input-wrap input),
-	.field-row :global(.mention-input-wrap textarea) {
+	.field-row :global(.mention-input-wrap .input-container) {
 		border: none;
 		background: transparent;
+	}
+	.field-row :global(.mention-input-wrap .overlay-input),
+	.field-row :global(.mention-input-wrap .highlight-mirror) {
 		padding: var(--space-xs) 0;
 		font-size: 0.9375rem;
-	}
-
-	.field-row :global(.mention-input-wrap input:focus),
-	.field-row :global(.mention-input-wrap textarea:focus) {
-		border-color: transparent;
 	}
 
 	.submit-btn {

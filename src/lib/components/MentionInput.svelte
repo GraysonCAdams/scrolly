@@ -21,14 +21,54 @@
 
 	let text = $state('');
 	let inputEl = $state<HTMLInputElement | HTMLTextAreaElement | null>(null);
+	let mirrorEl = $state<HTMLDivElement | null>(null);
 	let showDropdown = $state(false);
 	let filteredMembers = $state<GroupMember[]>([]);
 	let selectedIndex = $state(0);
 	let mentionStart = $state(-1);
+	let isFocused = $state(false);
+
+	interface Segment {
+		type: 'text' | 'mention';
+		value: string;
+	}
+
+	const memberUsernames = $derived(new Set(members.map((m) => m.username.toLowerCase())));
+
+	const textSegments = $derived.by(() => {
+		const result: Segment[] = [];
+		const regex = /@(\w+)/g;
+		let lastIndex = 0;
+		let match;
+
+		while ((match = regex.exec(text)) !== null) {
+			const username = match[1].toLowerCase();
+			const isMember = memberUsernames.has(username);
+			if (match.index > lastIndex) {
+				result.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+			}
+			result.push({ type: isMember ? 'mention' : 'text', value: match[0] });
+			lastIndex = regex.lastIndex;
+		}
+
+		if (lastIndex < text.length) {
+			result.push({ type: 'text', value: text.slice(lastIndex) });
+		}
+
+		return result;
+	});
 
 	function handleInput() {
 		onchange?.(text);
 		checkForMention();
+		syncScroll();
+	}
+
+	function syncScroll() {
+		if (mirrorEl && inputEl) {
+			mirrorEl.scrollLeft = inputEl.scrollLeft;
+			mirrorEl.scrollTop = inputEl.scrollTop;
+		}
 	}
 
 	function checkForMention() {
@@ -89,6 +129,11 @@
 		}
 	}
 
+	function handleClick() {
+		checkForMention();
+		syncScroll();
+	}
+
 	export function focus() {
 		inputEl?.focus();
 	}
@@ -128,31 +173,52 @@
 		</div>
 	{/if}
 
-	{#if singleLine}
-		<input
-			bind:this={inputEl}
-			bind:value={text}
-			type="text"
-			{placeholder}
-			{maxlength}
-			{disabled}
-			oninput={handleInput}
-			onkeydown={handleKeydown}
-			onclick={checkForMention}
-		/>
-	{:else}
-		<textarea
-			bind:this={inputEl}
-			bind:value={text}
-			{placeholder}
-			{maxlength}
-			{disabled}
-			rows="2"
-			oninput={handleInput}
-			onkeydown={handleKeydown}
-			onclick={checkForMention}
-		></textarea>
-	{/if}
+	<div class="input-container" class:focused={isFocused}>
+		<div
+			class="highlight-mirror"
+			class:single-line={singleLine}
+			bind:this={mirrorEl}
+			aria-hidden="true"
+		>
+			{#each textSegments as seg, i (i)}{#if seg.type === 'mention'}<span class="mention-hl"
+						>{seg.value}</span
+					>{:else}{seg.value}{/if}{/each}
+		</div>
+
+		{#if singleLine}
+			<input
+				bind:this={inputEl}
+				bind:value={text}
+				type="text"
+				class="overlay-input"
+				{placeholder}
+				{maxlength}
+				{disabled}
+				oninput={handleInput}
+				onkeydown={handleKeydown}
+				onclick={handleClick}
+				onfocus={() => (isFocused = true)}
+				onblur={() => (isFocused = false)}
+				onscroll={syncScroll}
+			/>
+		{:else}
+			<textarea
+				bind:this={inputEl}
+				bind:value={text}
+				class="overlay-input"
+				{placeholder}
+				{maxlength}
+				{disabled}
+				rows="2"
+				oninput={handleInput}
+				onkeydown={handleKeydown}
+				onclick={handleClick}
+				onfocus={() => (isFocused = true)}
+				onblur={() => (isFocused = false)}
+				onscroll={syncScroll}
+			></textarea>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -161,32 +227,76 @@
 		width: 100%;
 	}
 
-	input,
-	textarea {
-		width: 100%;
-		padding: var(--space-sm) var(--space-md);
+	.input-container {
+		position: relative;
+		background: var(--bg-elevated);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
-		background: var(--bg-elevated);
-		color: var(--text-primary);
-		font-size: 0.9375rem;
-		font-family: var(--font-body);
-		outline: none;
+		overflow: hidden;
 		transition: border-color 0.2s ease;
-		box-sizing: border-box;
 	}
 
-	input::placeholder,
-	textarea::placeholder {
-		color: var(--text-muted);
-	}
-
-	input:focus,
-	textarea:focus {
+	.input-container.focused {
 		border-color: var(--accent-primary);
 	}
 
-	textarea {
+	.highlight-mirror {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		padding: var(--space-sm) var(--space-md);
+		font-size: 0.9375rem;
+		font-family: var(--font-body);
+		color: var(--text-primary);
+		pointer-events: none;
+		overflow: hidden;
+		z-index: 1;
+	}
+
+	.highlight-mirror.single-line {
+		white-space: nowrap;
+		display: flex;
+		align-items: center;
+	}
+
+	.highlight-mirror:not(.single-line) {
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
+		line-height: 1.4;
+	}
+
+	.mention-hl {
+		color: var(--accent-blue);
+		font-weight: 700;
+	}
+
+	.overlay-input {
+		position: relative;
+		z-index: 2;
+		width: 100%;
+		padding: var(--space-sm) var(--space-md);
+		border: none;
+		background: transparent;
+		color: transparent;
+		caret-color: var(--text-primary);
+		font-size: 0.9375rem;
+		font-family: var(--font-body);
+		outline: none;
+		box-sizing: border-box;
+	}
+
+	.overlay-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.overlay-input::selection {
+		background: rgba(74, 158, 255, 0.3);
+	}
+
+	textarea.overlay-input {
 		resize: none;
 		line-height: 1.4;
 	}

@@ -168,15 +168,12 @@
 		flex: 1;
 		min-width: 0;
 	}
-	.input-bar :global(.mention-input-wrap input) {
-		padding: var(--space-sm) var(--space-md);
-		border: 1px solid var(--border);
+	.input-bar :global(.mention-input-wrap .input-container) {
 		border-radius: var(--radius-full);
-		background: var(--bg-elevated);
-		font-size: 1rem;
 	}
-	.input-bar :global(.mention-input-wrap input:focus) {
-		border-color: var(--accent-primary);
+	.input-bar :global(.mention-input-wrap .overlay-input),
+	.input-bar :global(.mention-input-wrap .highlight-mirror) {
+		font-size: 1rem;
 	}
 
 	.gif-btn {
