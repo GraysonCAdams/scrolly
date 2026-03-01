@@ -10,7 +10,7 @@
 
 	interface Notification {
 		id: string;
-		type: 'reaction' | 'comment';
+		type: 'reaction' | 'comment' | 'mention';
 		clipId: string;
 		emoji: string | null;
 		commentPreview: string | null;
@@ -129,6 +129,9 @@
 		if (n.type === 'reaction') {
 			return `reacted ${n.emoji} to your clip`;
 		}
+		if (n.type === 'mention') {
+			return 'mentioned you';
+		}
 		return 'commented on your clip';
 	}
 </script>
@@ -183,7 +186,7 @@
 										<span class="actor-name">{n.actorUsername}</span>
 										{description(n)}
 									</p>
-									{#if n.type === 'comment' && n.commentPreview}
+									{#if (n.type === 'comment' || n.type === 'mention') && n.commentPreview}
 										<p class="comment-preview">{n.commentPreview}</p>
 									{/if}
 									<span class="notification-time">{relativeTime(n.createdAt)}</span>

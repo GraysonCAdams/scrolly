@@ -92,6 +92,7 @@
 		newAdds: true,
 		reactions: true,
 		comments: true,
+		mentions: true,
 		dailyReminder: false
 	});
 
