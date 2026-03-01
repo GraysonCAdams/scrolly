@@ -1,31 +1,5 @@
 <script lang="ts">
-	/** SVG icon paths for each reaction (Lucide-style, 24x24 viewBox) */
-	const REACTIONS: { emoji: string; path: string }[] = [
-		{
-			emoji: '❤️',
-			path: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'
-		},
-		{
-			emoji: '👍',
-			path: 'M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z'
-		},
-		{
-			emoji: '👎',
-			path: 'M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z'
-		},
-		{
-			emoji: '😂',
-			path: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01'
-		},
-		{
-			emoji: '‼️',
-			path: 'M12 2v12M12 18v2M6 2v12M6 18v2'
-		},
-		{
-			emoji: '❓',
-			path: 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01'
-		}
-	];
+	import { REACTIONS } from '$lib/icons';
 
 	const RADIUS = 140;
 	const START_DEG = 120;
@@ -147,6 +121,7 @@
 	aria-label="Reaction picker"
 >
 	{#each REACTIONS as reaction, i (reaction.emoji)}
+		{@const ReactionIcon = reaction.component}
 		<button
 			class="reaction-btn"
 			class:visible
@@ -160,16 +135,7 @@
 			}}
 			aria-label="React with {reaction.emoji}"
 		>
-			<svg
-				viewBox="0 0 24 24"
-				fill={i === 0 ? 'currentColor' : 'none'}
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d={reaction.path} />
-			</svg>
+			<ReactionIcon size={26} weight={reaction.weight} />
 		</button>
 	{/each}
 </div>
@@ -215,11 +181,11 @@
 		color: var(--accent-magenta);
 	}
 
-	.reaction-btn:hover:not(.hovered) svg {
+	.reaction-btn:hover:not(.hovered) :global(svg) {
 		transform: scale(1.15);
 	}
 
-	.reaction-btn svg {
+	.reaction-btn :global(svg) {
 		width: 26px;
 		height: 26px;
 		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 8px rgba(0, 0, 0, 0.4));

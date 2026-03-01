@@ -1,12 +1,10 @@
 <script lang="ts">
-	/** SVG paths for reaction icons (matching ReactionPicker) */
-	const REACTION_ICONS: Record<string, string> = {
-		'👍': 'M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z',
-		'👎': 'M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z',
-		'😂': 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01',
-		'‼️': 'M12 2v12M12 18v2M6 2v12M6 18v2',
-		'❓': 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01'
-	};
+	import { REACTION_MAP } from '$lib/icons';
+	import SpeakerXIcon from 'phosphor-svelte/lib/SpeakerXIcon';
+	import SpeakerHighIcon from 'phosphor-svelte/lib/SpeakerHighIcon';
+	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
+	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 
 	const {
 		favorited,
@@ -97,30 +95,9 @@
 		>
 			<span class="icon-circle">
 				{#if muted}
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-						<line x1="23" y1="9" x2="17" y2="15" />
-						<line x1="17" y1="9" x2="23" y2="15" />
-					</svg>
+					<SpeakerXIcon size={24} />
 				{:else}
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-						<path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-					</svg>
+					<SpeakerHighIcon size={24} />
 				{/if}
 			</span>
 		</button>
@@ -135,30 +112,12 @@
 		aria-label={favorited ? 'Unsave' : 'Save'}
 	>
 		<span class="icon-circle" class:pop={justSaved}>
-			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_ICONS[reactedEmoji]}
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d={REACTION_ICONS[reactedEmoji]} />
-				</svg>
+			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_MAP.has(reactedEmoji)}
+				{@const def = REACTION_MAP.get(reactedEmoji)!}
+				{@const ReactionIcon = def.component}
+				<ReactionIcon size={24} weight={def.weight} />
 			{:else}
-				<svg
-					viewBox="0 0 24 24"
-					fill={favorited ? 'currentColor' : 'none'}
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path
-						d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-					/>
-				</svg>
+				<HeartIcon size={24} weight={favorited ? 'fill' : 'regular'} />
 			{/if}
 		</span>
 	</button>
@@ -171,16 +130,7 @@
 		}}
 	>
 		<span class="icon-circle">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-			</svg>
+			<ChatIcon size={24} />
 			{#if unreadCommentCount > 0}
 				<span class="unread-badge">{unreadCommentCount > 9 ? '9+' : unreadCommentCount}</span>
 			{/if}
@@ -200,18 +150,7 @@
 		aria-label="Open original"
 	>
 		<span class="icon-circle">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-				<polyline points="15 3 21 3 21 9" />
-				<line x1="10" y1="14" x2="21" y2="3" />
-			</svg>
+			<ArrowSquareOutIcon size={24} />
 		</span>
 	</a>
 </div>
@@ -268,7 +207,7 @@
 		transform: scale(0.93);
 	}
 
-	.icon-circle svg {
+	.icon-circle :global(svg) {
 		width: 24px;
 		height: 24px;
 		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
