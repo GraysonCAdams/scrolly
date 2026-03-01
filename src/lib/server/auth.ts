@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { env } from '$env/dynamic/private';
 
 const COOKIE_NAME = 'scrolly_session';
-const MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+const MAX_AGE = 60 * 60 * 24 * 365 * 10; // 10 years
 
 function getSecret(): string {
 	const secret = env.SESSION_SECRET;
@@ -69,5 +69,10 @@ export async function validateInviteCode(code: string) {
 	const group = await db.query.groups.findFirst({
 		where: eq(groups.inviteCode, code)
 	});
+	return group ?? null;
+}
+
+export async function getDefaultGroup() {
+	const group = await db.query.groups.findFirst();
 	return group ?? null;
 }

@@ -495,12 +495,9 @@ export async function validateShortcut(
 		warnings.push({ code: 'no_api_call', message: "<b>Can't read API URL</b> from the shortcut." });
 	}
 
-	warnings.push(
-		...checkBodyFields(bodyFieldKeys, bodyVariableRefs, downloadAction.WFWorkflowActionParameters)
-	);
-	warnings.push(
-		...checkPhone(actions, downloadAction.WFWorkflowActionParameters, hasPhoneImportQuestion)
-	);
+	const dlParams = downloadAction.WFWorkflowActionParameters;
+	warnings.push(...checkBodyFields(bodyFieldKeys, bodyVariableRefs, dlParams));
+	warnings.push(...checkPhone(actions, dlParams, hasPhoneImportQuestion));
 	warnings.push(...checkImportQuestions(importQuestions));
 
 	return { name, warnings };

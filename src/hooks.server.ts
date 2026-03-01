@@ -1,5 +1,5 @@
 import type { Handle, RequestEvent } from '@sveltejs/kit';
-import { getUserIdFromCookies, getUserWithGroup } from '$lib/server/auth';
+import { getUserIdFromCookies, getUserWithGroup, getDefaultGroup } from '$lib/server/auth';
 import { getAccentColor } from '$lib/colors';
 import { startScheduler } from '$lib/server/scheduler';
 import { createLogger } from '$lib/server/logger';
@@ -101,6 +101,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 			event.locals.user = data.user;
 			event.locals.group = data.group;
 		}
+	}
+
+	// For unauthenticated requests, still resolve the group so accent color,
+	// dynamic icons, and PWA branding work on /join, /onboard, etc.
+	if (!event.locals.group) {
+		event.locals.group = await getDefaultGroup();
 	}
 
 	const response = await resolve(event, {
