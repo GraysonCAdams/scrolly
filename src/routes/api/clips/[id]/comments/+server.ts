@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { comments, commentHearts, clips } from '$lib/server/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { comments, commentHearts, commentViews, clips, reactions } from '$lib/server/db/schema';
+import { eq, and, ne, inArray } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import {
 	withClipAuth,
@@ -20,25 +20,44 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 		where: eq(comments.clipId, clipId)
 	});
 
-	if (allComments.length === 0) {
-		return json({ comments: [] });
-	}
-
-	// Look up users (username + avatarPath)
-	const usersMap = await mapUsersByIds(allComments.map((c) => c.userId));
+	// Fetch clip reactions for the reaction events stream
+	const clipReactions = await db.query.reactions.findMany({
+		where: eq(reactions.clipId, clipId)
+	});
 
 	// Fetch all hearts for these comments
 	const commentIds = allComments.map((c) => c.id);
-	const allHearts = await db.query.commentHearts.findMany({
-		where: inArray(commentHearts.commentId, commentIds)
-	});
+	const allHearts =
+		commentIds.length > 0
+			? await db.query.commentHearts.findMany({
+					where: inArray(commentHearts.commentId, commentIds)
+				})
+			: [];
+
+	// Batch user lookup: comment authors + heart users + reaction users
+	const allUserIds = [
+		...allComments.map((c) => c.userId),
+		...allHearts.map((h) => h.userId),
+		...clipReactions.map((r) => r.userId)
+	];
+	const usersMap = await mapUsersByIds(allUserIds);
 
 	const heartCounts = new Map<string, number>();
 	const userHearted = new Set<string>();
+	const heartUsersByComment = new Map<string, string[]>();
 	for (const h of allHearts) {
 		heartCounts.set(h.commentId, (heartCounts.get(h.commentId) || 0) + 1);
 		if (h.userId === user.id) userHearted.add(h.commentId);
+		const names = heartUsersByComment.get(h.commentId) || [];
+		const u = usersMap.get(h.userId);
+		if (u) names.push(u.username);
+		heartUsersByComment.set(h.commentId, names);
 	}
+
+	// Fetch other users' comment views for this clip (for canEdit checks)
+	const otherViews = await db.query.commentViews.findMany({
+		where: and(eq(commentViews.clipId, clipId), ne(commentViews.userId, user.id))
+	});
 
 	// Separate top-level vs replies
 	const topLevel = allComments.filter((c) => !c.parentId);
@@ -52,6 +71,11 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 	// Format a comment for the response
 	function formatComment(c: (typeof allComments)[0]) {
 		const u = usersMap.get(c.userId);
+		// canEdit: only for own comments, and only if no other user has viewed comments since it was posted
+		let canEdit = false;
+		if (c.userId === user.id) {
+			canEdit = !otherViews.some((v) => v.viewedAt >= c.createdAt);
+		}
 		return {
 			id: c.id,
 			text: c.text,
@@ -62,6 +86,8 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 			parentId: c.parentId || null,
 			heartCount: heartCounts.get(c.id) || 0,
 			hearted: userHearted.has(c.id),
+			heartUsers: heartUsersByComment.get(c.id) || [],
+			canEdit,
 			createdAt: c.createdAt.toISOString()
 		};
 	}
@@ -85,7 +111,16 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 		};
 	});
 
-	return json({ comments: formatted });
+	// Format reaction events (read-only, not stored as comments)
+	const reactionEvents = clipReactions
+		.map((r) => ({
+			emoji: r.emoji,
+			username: usersMap.get(r.userId)?.username || 'Unknown',
+			createdAt: r.createdAt.toISOString()
+		}))
+		.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+	return json({ comments: formatted, reactionEvents });
 });
 
 /** Determine the notification recipient and dispatch. Returns recipient ID or null. */
@@ -233,7 +268,49 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 	);
 });
 
-export const DELETE: RequestHandler = withClipAuth(async ({ request }, { user }) => {
+/** Check if any other user has viewed the clip's comments since the given date. */
+async function hasBeenSeenByOthers(clipId: string, since: Date, excludeUserId: string) {
+	const views = await db.query.commentViews.findMany({
+		where: and(eq(commentViews.clipId, clipId), ne(commentViews.userId, excludeUserId))
+	});
+	return views.some((v) => v.viewedAt >= since);
+}
+
+export const PATCH: RequestHandler = withClipAuth(async ({ params, request }, { user }) => {
+	const body = await parseBody<{ commentId?: string; text?: string; gifUrl?: string }>(request);
+	if (isResponse(body)) return body;
+
+	const { commentId } = body;
+	if (!commentId) return json({ error: 'Comment ID required' }, { status: 400 });
+
+	const comment = await db.query.comments.findFirst({
+		where: and(eq(comments.id, commentId), eq(comments.userId, user.id))
+	});
+	if (!comment) return json({ error: 'Comment not found or not yours' }, { status: 404 });
+
+	if (await hasBeenSeenByOthers(params.id, comment.createdAt, user.id)) {
+		return json({ error: 'Comment can no longer be edited' }, { status: 403 });
+	}
+
+	const validation = validateCommentInput(body);
+	if ('error' in validation) return json({ error: validation.error }, { status: 400 });
+	const { trimmed, validGifUrl } = validation;
+
+	await db
+		.update(comments)
+		.set({ text: trimmed, gifUrl: validGifUrl })
+		.where(eq(comments.id, commentId));
+
+	return json({
+		comment: {
+			id: commentId,
+			text: trimmed,
+			gifUrl: validGifUrl
+		}
+	});
+});
+
+export const DELETE: RequestHandler = withClipAuth(async ({ params, request }, { user }) => {
 	const body = await parseBody<{ commentId?: string }>(request);
 	if (isResponse(body)) return body;
 
@@ -250,6 +327,11 @@ export const DELETE: RequestHandler = withClipAuth(async ({ request }, { user })
 
 	if (!comment) {
 		return json({ error: 'Comment not found or not yours' }, { status: 404 });
+	}
+
+	// Only allow deletion if no one else has seen the comments since this was posted
+	if (await hasBeenSeenByOthers(params.id, comment.createdAt, user.id)) {
+		return json({ error: 'Comment can no longer be deleted' }, { status: 403 });
 	}
 
 	// Find child replies (if this is a top-level comment)

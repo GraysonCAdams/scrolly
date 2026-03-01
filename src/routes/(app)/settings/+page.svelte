@@ -216,15 +216,14 @@
 				{/if}
 			</div>
 
-			{#if showShareCta}
-				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-				<a href="/share/setup" class="share-cta">
+			{#if showShareCta && group?.shortcutUrl}
+				<a href={group.shortcutUrl} class="share-cta" target="_blank" rel="external noopener">
 					<ExportIcon size={18} class="share-cta-icon" />
 					<div class="share-cta-content">
 						<span class="share-cta-title">Share from other apps</span>
-						<span class="share-cta-desc">Add clips directly from supported platforms</span>
+						<span class="share-cta-desc">Install the iOS Shortcut to share clips directly</span>
 					</div>
-					<span class="share-cta-btn">Set up</span>
+					<span class="share-cta-btn">Get</span>
 				</a>
 			{/if}
 
@@ -342,14 +341,12 @@
 					/>
 				</div>
 			</div>
-			{#if group.shortcutToken}
-				<div class="settings-section">
-					<h3 class="section-title">iOS Shortcut</h3>
-					<div class="card">
-						<ShortcutManager shortcutToken={group.shortcutToken} shortcutUrl={group.shortcutUrl} />
-					</div>
+			<div class="settings-section">
+				<h3 class="section-title">iOS Shortcut</h3>
+				<div class="card">
+					<ShortcutManager shortcutUrl={group.shortcutUrl} />
 				</div>
-			{/if}
+			</div>
 
 			<div class="settings-section">
 				<h3 class="section-title">Max Clip Size</h3>

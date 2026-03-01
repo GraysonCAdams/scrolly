@@ -432,6 +432,7 @@
 	$effect(() => {
 		const tap = $homeTapSignal;
 		if (tap > 0) {
+			homeTapSignal.set(0);
 			if (filter !== 'unwatched') setFilter('unwatched');
 			else {
 				activeIndex = 0;

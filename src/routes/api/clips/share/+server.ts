@@ -21,21 +21,48 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('share');
 
-export const POST: RequestHandler = async ({ request, url }) => {
-	// 1. Token auth (query param, not session cookie)
-	const token = url.searchParams.get('token');
-	if (!token) {
-		return json({ error: 'Token required' }, { status: 401 });
+type AuthUser = { id: string; groupId: string | null; phone: string };
+type AuthResult = { user: AuthUser; group: typeof groups.$inferSelect } | { error: Response };
+
+/** Authenticate via token + phone numbers (backwards-compat path). */
+async function authenticateWithToken(
+	tokenParam: string | null,
+	phones: string[] | undefined
+): Promise<AuthResult> {
+	if (!tokenParam) {
+		return { error: json({ error: 'Not logged in' }, { status: 401 }) };
 	}
 
 	const group = await db.query.groups.findFirst({
-		where: eq(groups.shortcutToken, token)
+		where: eq(groups.shortcutToken, tokenParam)
 	});
 	if (!group) {
-		return json({ error: 'Invalid token' }, { status: 401 });
+		return { error: json({ error: 'Invalid token' }, { status: 401 }) };
 	}
 
-	// 2. Parse body
+	if (!phones || !Array.isArray(phones) || phones.length === 0) {
+		return { error: json({ error: 'Phone numbers required for token auth' }, { status: 400 }) };
+	}
+
+	const normalizedPhones = normalizePhones(phones as string[]);
+	if (normalizedPhones.length === 0) {
+		return { error: json({ error: 'No valid phone numbers provided' }, { status: 400 }) };
+	}
+
+	const groupMembers = await db.query.users.findMany({
+		where: and(eq(users.groupId, group.id), isNull(users.removedAt))
+	});
+
+	const matchedUser = groupMembers.find((u) => normalizedPhones.includes(u.phone));
+	if (!matchedUser) {
+		return { error: json({ error: 'No matching user found in this group' }, { status: 403 }) };
+	}
+
+	return { user: matchedUser, group };
+}
+
+export const POST: RequestHandler = async ({ request, url, locals }) => {
+	// 1. Parse body upfront (before auth, since token path needs phones from body)
 	const body = await parseBody<{ url?: string; phones?: string[] }>(request);
 	if (isResponse(body)) return body;
 
@@ -45,27 +72,18 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		return json({ error: 'URL required' }, { status: 400 });
 	}
 
-	if (!phones || !Array.isArray(phones) || phones.length === 0) {
-		return json({ error: 'Phone numbers required' }, { status: 400 });
+	// 2. Authenticate — cookie first, then token+phone fallback
+	let authResult: AuthResult;
+	if (locals.user && locals.group) {
+		authResult = { user: locals.user, group: locals.group };
+	} else {
+		authResult = await authenticateWithToken(url.searchParams.get('token'), phones);
 	}
 
-	// 3. Normalize phones and find matching user in the group
-	const normalizedPhones = normalizePhones(phones as string[]);
-	if (normalizedPhones.length === 0) {
-		return json({ error: 'No valid phone numbers provided' }, { status: 400 });
-	}
+	if ('error' in authResult) return authResult.error;
+	const { user: matchedUser, group } = authResult;
 
-	const groupMembers = await db.query.users.findMany({
-		where: and(eq(users.groupId, group.id), isNull(users.removedAt))
-	});
-
-	const matchedUser = groupMembers.find((u) => normalizedPhones.includes(u.phone));
-
-	if (!matchedUser) {
-		return json({ error: 'No matching user found in this group' }, { status: 403 });
-	}
-
-	// 4. Check download provider
+	// 3. Check download provider
 	const provider = await getActiveProvider(group.id);
 	if (!provider) {
 		return json(
@@ -74,7 +92,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		);
 	}
 
-	// 5. Validate URL
+	// 4. Validate URL
 	if (!isSupportedUrl(videoUrl)) {
 		return json(
 			{
@@ -85,7 +103,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		);
 	}
 
-	// 6. Platform filter
+	// 5. Platform filter
 	const platform = detectPlatform(videoUrl)!;
 	const filterList = group.platformFilterList ? JSON.parse(group.platformFilterList) : null;
 	if (!isPlatformAllowed(platform, group.platformFilterMode, filterList)) {
@@ -95,11 +113,11 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		);
 	}
 
-	// 7. Content type and normalize URL
+	// 6. Content type and normalize URL
 	const contentType = getContentType(platform);
 	const normalizedVideoUrl = normalizeUrl(videoUrl);
 
-	// 8. Duplicate check
+	// 7. Duplicate check
 	const existing = await db.query.clips.findFirst({
 		where: and(eq(clips.groupId, group.id), eq(clips.originalUrl, normalizedVideoUrl))
 	});
@@ -107,7 +125,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		return json({ error: 'This link has already been added to the feed.' }, { status: 409 });
 	}
 
-	// 9. Create clip
+	// 8. Create clip
 	const clipId = uuid();
 	await db.insert(clips).values({
 		id: clipId,
@@ -121,7 +139,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		createdAt: new Date()
 	});
 
-	// 10. Auto-mark as watched by uploader
+	// 9. Auto-mark as watched by uploader
 	await db.insert(watched).values({
 		clipId,
 		userId: matchedUser.id,
@@ -129,7 +147,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		watchedAt: new Date()
 	});
 
-	// 11. Async download
+	// 10. Async download
 	const markFailedOnError = async (err: unknown) => {
 		log.error({ err, clipId }, 'download failed');
 		await db

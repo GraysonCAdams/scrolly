@@ -3,15 +3,16 @@
 	import { toast } from '$lib/stores/toasts';
 	import { onDestroy } from 'svelte';
 	import CommentInput from './CommentInput.svelte';
+	import CommentRow from './CommentRow.svelte';
 	import GifPicker from './GifPicker.svelte';
 	import BaseSheet from './BaseSheet.svelte';
-	import MentionText from './MentionText.svelte';
-	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 	import type { GroupMember } from '$lib/types';
 	import {
 		type Comment,
+		type ReactionEvent,
 		fetchComments,
 		postComment,
+		editComment as apiEditComment,
 		deleteComment as apiDeleteComment,
 		toggleCommentHeart,
 		markCommentsRead
@@ -36,6 +37,7 @@
 	const memberUsernames = $derived(members.map((m) => m.username));
 
 	let comments = $state<Comment[]>([]);
+	let reactionEvents = $state<ReactionEvent[]>([]);
 	let loading = $state(true);
 	let submitting = $state(false);
 	let replyingTo = $state<{ id: string; username: string } | null>(null);
@@ -55,6 +57,10 @@
 	let justHeartedIds = $state(new Set<string>());
 	let justPostedId = $state<string | null>(null);
 	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
+	let editingId = $state<string | null>(null);
+	let editText = $state('');
+	let heartPopoverId = $state<string | null>(null);
+	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let timers: ReturnType<typeof setTimeout>[] = [];
 
@@ -66,14 +72,15 @@
 
 	onDestroy(() => timers.forEach(clearTimeout));
 
-	// Load comments
 	$effect(() => {
 		loadComments();
 	});
 
 	async function loadComments() {
 		loading = true;
-		comments = await fetchComments(clipId);
+		const result = await fetchComments(clipId);
+		comments = result.comments;
+		reactionEvents = result.reactionEvents;
 		loading = false;
 		markCommentsRead(clipId);
 		if (autoFocus) safeTimeout(() => commentInput?.focus(), 350);
@@ -123,6 +130,44 @@
 		}
 	}
 
+	function startEdit(comment: Comment) {
+		editingId = comment.id;
+		editText = comment.text || '';
+	}
+
+	function cancelEdit() {
+		editingId = null;
+		editText = '';
+	}
+
+	async function handleEdit(commentId: string) {
+		const trimmed = editText.trim();
+		if (!trimmed) return;
+		try {
+			const result = await apiEditComment(clipId, commentId, trimmed);
+			const topComment = comments.find((c) => c.id === commentId);
+			if (topComment) {
+				topComment.text = result.text;
+				topComment.gifUrl = result.gifUrl;
+				comments = [...comments];
+			} else {
+				for (const c of comments) {
+					const reply = c.replies?.find((r) => r.id === commentId);
+					if (reply) {
+						reply.text = result.text;
+						reply.gifUrl = result.gifUrl;
+						comments = [...comments];
+						break;
+					}
+				}
+			}
+			editingId = null;
+			editText = '';
+		} catch {
+			toast.error('Failed to edit comment');
+		}
+	}
+
 	async function toggleHeart(comment: Comment) {
 		const wasHearted = comment.hearted;
 		const prevCount = comment.heartCount;
@@ -152,6 +197,34 @@
 		replyingTo = { id: comment.id, username: comment.username };
 		requestAnimationFrame(() => commentInput?.focus());
 	}
+
+	type FeedItem = { type: 'comment'; data: Comment } | { type: 'reaction'; data: ReactionEvent };
+
+	const feedItems = $derived.by<FeedItem[]>(() => {
+		const items: FeedItem[] = [
+			...comments.map((c) => ({ type: 'comment' as const, data: c })),
+			...reactionEvents.map((r) => ({ type: 'reaction' as const, data: r }))
+		];
+		items.sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt));
+		return items;
+	});
+
+	function startHeartLongPress(commentId: string) {
+		longPressTimer = setTimeout(() => {
+			heartPopoverId = heartPopoverId === commentId ? null : commentId;
+		}, 400);
+	}
+
+	function cancelHeartLongPress() {
+		if (longPressTimer) {
+			clearTimeout(longPressTimer);
+			longPressTimer = null;
+		}
+	}
+
+	function dismissHeartPopover() {
+		heartPopoverId = null;
+	}
 </script>
 
 <div class="comments-sheet-wrapper">
@@ -161,98 +234,65 @@
 		sheetId="comments"
 		{ondismiss}
 	>
-		<div class="comments-list" role="list" aria-label="Comments">
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+		<div class="comments-list" role="list" aria-label="Comments" onclick={dismissHeartPopover}>
 			{#if loading}
 				<p class="empty">Loading...</p>
-			{:else if comments.length === 0}
+			{:else if feedItems.length === 0}
 				<p class="empty">No comments yet</p>
 			{:else}
-				{#each comments as comment (comment.id)}
-					<div class="comment" class:just-posted={comment.id === justPostedId} role="listitem">
-						<div class="comment-avatar">
-							<span>{comment.username.charAt(0).toUpperCase()}</span>
+				{#each feedItems as item (item.type === 'comment' ? item.data.id : `reaction-${item.data.emoji}-${item.data.username}-${item.data.createdAt}`)}
+					{#if item.type === 'reaction'}
+						{@const r = item.data}
+						<div class="reaction-event" role="listitem">
+							<span class="reaction-emoji">{r.emoji}</span>
+							<span class="reaction-text">{r.username} reacted</span>
+							<span class="reaction-time">{relativeTime(r.createdAt)}</span>
 						</div>
-						<div class="comment-body">
-							<div class="comment-header">
-								<span class="comment-username">{comment.username}</span>
-								<span class="comment-time">{relativeTime(comment.createdAt)}</span>
-								{#if comment.userId === currentUserId}
-									<button
-										class="delete-btn"
-										onclick={() => handleDelete(comment.id)}
-										aria-label="Delete comment by {comment.username}">&times;</button
-									>
-								{/if}
+					{:else}
+						{@const comment = item.data}
+						<CommentRow
+							{comment}
+							{currentUserId}
+							{memberUsernames}
+							isEditing={editingId === comment.id}
+							bind:editText
+							isJustPosted={comment.id === justPostedId}
+							isJustHearted={justHeartedIds.has(comment.id)}
+							heartPopoverVisible={heartPopoverId === comment.id}
+							onreply={() => startReply(comment)}
+							ontoggleheart={() => toggleHeart(comment)}
+							onstartedit={() => startEdit(comment)}
+							onsaveedit={() => handleEdit(comment.id)}
+							oncanceledit={cancelEdit}
+							ondelete={() => handleDelete(comment.id)}
+							onstartlongpress={() => startHeartLongPress(comment.id)}
+							oncancellongpress={cancelHeartLongPress}
+						/>
+						{#if comment.replies && comment.replies.length > 0}
+							<div class="replies" role="list" aria-label="Replies to {comment.username}">
+								{#each comment.replies as reply (reply.id)}
+									<CommentRow
+										comment={reply}
+										{currentUserId}
+										{memberUsernames}
+										isReply
+										isEditing={editingId === reply.id}
+										bind:editText
+										isJustHearted={justHeartedIds.has(reply.id)}
+										heartPopoverVisible={heartPopoverId === reply.id}
+										ontoggleheart={() => toggleHeart(reply)}
+										onstartedit={() => startEdit(reply)}
+										onsaveedit={() => handleEdit(reply.id)}
+										oncanceledit={cancelEdit}
+										ondelete={() => handleDelete(reply.id)}
+										onstartlongpress={() => startHeartLongPress(reply.id)}
+										oncancellongpress={cancelHeartLongPress}
+									/>
+								{/each}
 							</div>
-							{#if comment.text}
-								<p class="comment-text">
-									<MentionText text={comment.text} usernames={memberUsernames} />
-								</p>
-							{/if}
-							{#if comment.gifUrl}
-								<img class="comment-gif" src={comment.gifUrl} alt="GIF" loading="lazy" />
-							{/if}
-							<div class="comment-actions">
-								<button class="reply-btn" onclick={() => startReply(comment)}>Reply</button>
-								<button
-									class="heart-btn"
-									class:hearted={comment.hearted}
-									class:heart-pop={justHeartedIds.has(comment.id)}
-									onclick={() => toggleHeart(comment)}
-								>
-									<HeartIcon size={14} weight={comment.hearted ? 'fill' : 'regular'} />
-									{#if comment.heartCount > 0}<span class="heart-count">{comment.heartCount}</span
-										>{/if}
-								</button>
-							</div>
-
-							{#if comment.replies && comment.replies.length > 0}
-								<div class="replies" role="list" aria-label="Replies to {comment.username}">
-									{#each comment.replies as reply (reply.id)}
-										<div class="reply" role="listitem">
-											<div class="reply-avatar">
-												<span>{reply.username.charAt(0).toUpperCase()}</span>
-											</div>
-											<div class="reply-body">
-												<div class="comment-header">
-													<span class="reply-username">{reply.username}</span>
-													<span class="comment-time">{relativeTime(reply.createdAt)}</span>
-													{#if reply.userId === currentUserId}
-														<button
-															class="delete-btn"
-															onclick={() => handleDelete(reply.id)}
-															aria-label="Delete reply by {reply.username}">&times;</button
-														>
-													{/if}
-												</div>
-												{#if reply.text}
-													<p class="reply-text">
-														<MentionText text={reply.text} usernames={memberUsernames} />
-													</p>
-												{/if}
-												{#if reply.gifUrl}
-													<img class="reply-gif" src={reply.gifUrl} alt="GIF" loading="lazy" />
-												{/if}
-												<div class="comment-actions">
-													<button
-														class="heart-btn"
-														class:hearted={reply.hearted}
-														class:heart-pop={justHeartedIds.has(reply.id)}
-														onclick={() => toggleHeart(reply)}
-													>
-														<HeartIcon size={12} weight={reply.hearted ? 'fill' : 'regular'} />
-														{#if reply.heartCount > 0}<span class="heart-count"
-																>{reply.heartCount}</span
-															>{/if}
-													</button>
-												</div>
-											</div>
-										</div>
-									{/each}
-								</div>
-							{/if}
-						</div>
-					</div>
+						{/if}
+					{/if}
 				{/each}
 			{/if}
 		</div>
@@ -311,180 +351,29 @@
 		padding: var(--space-2xl);
 		margin: 0;
 	}
-	.comment {
-		display: flex;
-		gap: var(--space-sm);
-		margin-bottom: var(--space-lg);
-	}
-	.comment-avatar,
-	.reply-avatar {
-		border-radius: var(--radius-full);
-		background: var(--accent-magenta);
-		color: white;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		font-family: var(--font-display);
-		font-weight: 700;
-	}
-	.comment-avatar {
-		width: 28px;
-		height: 28px;
-		font-size: 0.75rem;
-	}
-	.comment-body,
-	.reply-body {
-		flex: 1;
-		min-width: 0;
-	}
-	.comment-header {
+	.reaction-event {
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
-		margin-bottom: 2px;
+		padding: var(--space-xs) 0;
+		opacity: 0.55;
 	}
-	.comment-username {
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--text-primary);
-	}
-	.comment-time {
-		font-size: 0.75rem;
-		color: var(--text-muted);
-	}
-
-	.delete-btn {
-		margin-left: auto;
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		font-size: 1rem;
-		cursor: pointer;
-		padding: 0 4px;
-		line-height: 1;
-		transition: color 0.2s ease;
-	}
-	.delete-btn:hover {
-		color: var(--error);
-	}
-	.comment-text {
+	.reaction-emoji {
 		font-size: 0.875rem;
 	}
-	.comment-gif,
-	.reply-gif {
-		display: block;
-		border-radius: var(--radius-md);
-		margin-top: var(--space-sm);
-		object-fit: contain;
-		background: var(--bg-surface);
-		padding: 2px;
-	}
-	.comment-gif {
-		max-width: 150px;
-		max-height: 150px;
-	}
-	.reply-gif {
-		max-width: 120px;
-		max-height: 120px;
-	}
-	.comment-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-md);
-		margin-top: 4px;
-	}
-	.reply-btn {
-		background: none;
-		border: none;
-		color: var(--text-muted);
+	.reaction-text {
 		font-size: 0.75rem;
-		font-weight: 600;
-		cursor: pointer;
-		padding: 0;
-		transition: color 0.2s ease;
-	}
-	.reply-btn:active {
-		transform: scale(0.97);
-	}
-	.heart-btn {
-		background: none;
-		border: none;
-		display: flex;
-		align-items: center;
-		gap: 3px;
-		cursor: pointer;
-		padding: 0;
 		color: var(--text-muted);
-		transition:
-			color 0.2s ease,
-			transform 0.1s ease;
 	}
-	.heart-btn:active {
-		transform: scale(0.9);
-	}
-	.heart-btn.hearted {
-		color: var(--accent-magenta);
-	}
-	.heart-count {
+	.reaction-time {
 		font-size: 0.6875rem;
+		color: var(--text-muted);
+		margin-left: auto;
 	}
-
 	.replies {
 		margin-top: var(--space-sm);
 		padding-left: 4px;
 		border-left: 2px solid var(--border);
 		margin-left: 2px;
-	}
-	.reply {
-		display: flex;
-		gap: 6px;
-		padding: var(--space-xs) 0 var(--space-xs) var(--space-sm);
-	}
-	.reply-avatar {
-		width: 22px;
-		height: 22px;
-		font-size: 0.625rem;
-	}
-	.reply-username {
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--text-primary);
-	}
-	.comment-text,
-	.reply-text {
-		margin: 0;
-		color: var(--text-secondary);
-		line-height: 1.4;
-	}
-	.reply-text {
-		font-size: 0.8125rem;
-	}
-	.heart-btn.heart-pop :global(svg) {
-		animation: heart-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-	@keyframes heart-pop {
-		0% {
-			transform: scale(1);
-		}
-		50% {
-			transform: scale(1.4);
-		}
-		100% {
-			transform: scale(1);
-		}
-	}
-	.comment.just-posted {
-		animation: comment-slide-in 250ms cubic-bezier(0.32, 0.72, 0, 1);
-	}
-	@keyframes comment-slide-in {
-		from {
-			opacity: 0;
-			transform: translateY(-8px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
 	}
 </style>

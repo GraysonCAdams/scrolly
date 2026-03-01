@@ -16,6 +16,10 @@ export const POST: RequestHandler = withClipAuth(async ({ params }, { user }) =>
 	});
 	if (!comment) return notFound('Comment not found');
 
+	if (comment.userId === userId) {
+		return json({ error: 'Cannot heart your own comment' }, { status: 403 });
+	}
+
 	// Toggle: if exists, delete; if not, insert
 	const existing = await db.query.commentHearts.findFirst({
 		where: and(eq(commentHearts.commentId, commentId), eq(commentHearts.userId, userId))

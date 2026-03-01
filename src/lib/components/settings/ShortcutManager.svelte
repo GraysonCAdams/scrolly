@@ -1,42 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
 	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
-	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
-	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
 
 	let {
-		shortcutToken: token,
 		shortcutUrl: propUrl
 	}: {
-		shortcutToken: string;
 		shortcutUrl: string | null;
 	} = $props();
 
 	let savedUrl = $state(propUrl ?? '');
 	let shortcutUrl = $state(propUrl ?? '');
 	let saving = $state(false);
-	let regenerating = $state(false);
-	let copiedUrl = $state(false);
-
-	const apiUrl = $derived(
-		typeof window !== 'undefined'
-			? `${window.location.origin}/api/clips/share?token=${token}`
-			: `/api/clips/share?token=${token}`
-	);
-
-	async function copyApiUrl() {
-		try {
-			await navigator.clipboard.writeText(apiUrl);
-			copiedUrl = true;
-			setTimeout(() => (copiedUrl = false), 2000);
-		} catch {
-			toast.error('Failed to copy');
-		}
-	}
 
 	async function saveShortcutUrl() {
 		const trimmed = shortcutUrl.trim();
@@ -65,33 +41,6 @@
 		}
 	}
 
-	async function handleRegenerate() {
-		const confirmed = await confirm({
-			title: 'Regenerate Shortcut Token',
-			message:
-				'This will invalidate the current token. All group members will need to recreate their shortcut. Continue?',
-			confirmLabel: 'Regenerate',
-			destructive: true
-		});
-		if (!confirmed) return;
-
-		regenerating = true;
-		try {
-			const res = await fetch('/api/group/shortcut/regenerate-token', { method: 'POST' });
-			if (res.ok) {
-				const data = await res.json();
-				token = data.shortcutToken;
-				toast.success('Token regenerated');
-			} else {
-				toast.error('Failed to regenerate token');
-			}
-		} catch {
-			toast.error('Failed to regenerate token');
-		} finally {
-			regenerating = false;
-		}
-	}
-
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
 			(e.target as HTMLInputElement).blur();
@@ -103,8 +52,10 @@
 	<a href={resolve('/share/setup')} class="setup-link">
 		<QuestionIcon size={20} />
 		<div class="setup-link-text">
-			<span class="setup-link-title">How to create the shortcut</span>
-			<span class="setup-link-desc">Step-by-step setup guide for group members</span>
+			<span class="setup-link-title">How to set up the shortcut</span>
+			<span class="setup-link-desc"
+				>Download the template, customize, and share with your group</span
+			>
 		</div>
 		<CaretRightIcon size={16} class="setup-link-chevron" />
 	</a>
@@ -112,35 +63,10 @@
 	<div class="how-it-works">
 		<div class="subsection-label">How it works</div>
 		<p class="subsection-desc">
-			The shortcut receives a shared URL, grabs the user's phone number to identify them, and POSTs
-			both to the API endpoint below. See the setup guide above for full instructions.
+			The shortcut receives a shared URL and POSTs it to your scrolly instance. It uses the
+			browser's login session (cookie) to identify who shared — no tokens or phone numbers needed.
+			If the user isn't logged in, it opens scrolly in Safari to add the clip manually.
 		</p>
-	</div>
-
-	<div class="subsection">
-		<div class="subsection-label">API Endpoint</div>
-		<p class="subsection-desc">
-			Used in the shortcut's "Get Contents of URL" action. POSTs JSON with
-			<code class="inline-code">url</code> and <code class="inline-code">phones</code> keys.
-		</p>
-		<div class="url-box">
-			<span class="url-text">{apiUrl}</span>
-		</div>
-		<div class="action-row">
-			<button class="btn-copy" onclick={copyApiUrl}>
-				{#if copiedUrl}
-					<CheckIcon size={15} weight="bold" />
-					Copied!
-				{:else}
-					<CopyIcon size={15} />
-					Copy URL
-				{/if}
-			</button>
-			<button class="btn-regen" onclick={handleRegenerate} disabled={regenerating}>
-				<ArrowClockwiseIcon size={15} />
-				{regenerating ? 'Regenerating...' : 'New Token'}
-			</button>
-		</div>
 	</div>
 
 	<div class="divider"></div>
@@ -148,8 +74,8 @@
 	<div class="subsection">
 		<div class="subsection-label">iCloud Shortcut Link</div>
 		<p class="subsection-desc">
-			Once you've created the shortcut, share it via iCloud and paste the link here. Group members
-			will see a "Get Shortcut" button on the setup page so they can install it with one tap.
+			Once you've customized the shortcut, share it via iCloud and paste the link here. Group
+			members on iOS will see a "Get Shortcut" button in their settings.
 		</p>
 		<input
 			type="url"
@@ -225,16 +151,6 @@
 		gap: var(--space-sm);
 	}
 
-	.inline-code {
-		font-family: 'SF Mono', 'Fira Code', monospace;
-		font-size: 0.6875rem;
-		background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-		color: var(--accent-primary);
-		padding: 1px 5px;
-		border-radius: 4px;
-		font-weight: 600;
-	}
-
 	.subsection {
 		display: flex;
 		flex-direction: column;
@@ -252,69 +168,6 @@
 		color: var(--text-muted);
 		margin: 0;
 		line-height: 1.4;
-	}
-
-	.url-box {
-		background: var(--bg-surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		padding: var(--space-md) var(--space-lg);
-		overflow: hidden;
-	}
-
-	.url-text {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-		word-break: break-all;
-		font-family: 'SF Mono', 'Fira Code', monospace;
-	}
-
-	.action-row {
-		display: flex;
-		gap: var(--space-sm);
-	}
-
-	.action-row button {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-xs);
-		padding: var(--space-sm) var(--space-md);
-		border-radius: var(--radius-sm);
-		font-size: 0.8125rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			transform 0.1s ease,
-			opacity 0.2s ease;
-		border: none;
-	}
-
-	.action-row button:active {
-		transform: scale(0.97);
-	}
-
-	.action-row button:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.action-row button :global(svg) {
-		width: 15px;
-		height: 15px;
-		flex-shrink: 0;
-	}
-
-	.btn-copy {
-		background: var(--accent-primary);
-		color: var(--bg-primary);
-	}
-
-	.action-row .btn-regen {
-		background: var(--bg-surface);
-		color: var(--text-primary);
-		border: 1px solid var(--border);
 	}
 
 	.divider {
