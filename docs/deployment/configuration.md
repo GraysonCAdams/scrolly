@@ -12,7 +12,7 @@ Scrolly is a lightweight monolith — a single Node.js process serving the front
 | **RAM** | 512 MB | Node.js (~100 MB) + FFmpeg spikes during downloads |
 | **Disk** | 1 GB + video storage | ~500 MB for the app/dependencies, rest for media |
 | **OS** | Linux (x86_64 or arm64) | Ubuntu 22.04+, Debian 12+, or any Docker-capable host |
-| **Runtime** | Node.js 20+ | Included in Docker image |
+| **Runtime** | Node.js 24+ | Included in Docker image |
 | **Network** | Public IP + HTTPS | Required for Twilio webhooks and push notifications |
 
 ### Recommended
@@ -55,7 +55,8 @@ Scrolly is configured via environment variables. Copy `.env.example` to `.env` a
 | `SESSION_SECRET` | Secret key for signing session cookies. Use a long random string. |
 | `TWILIO_ACCOUNT_SID` | Your Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | Your Twilio auth token |
-| `TWILIO_PHONE_NUMBER` | Your Twilio phone number (E.164 format, e.g. `+12025551234`) |
+| `TWILIO_VERIFY_SERVICE_SID` | Your Twilio Verify service SID (used for phone verification) |
+| `PUBLIC_APP_URL` | Public URL of your instance (e.g. `https://scrolly.example.com`). Required for CSRF, webhooks, and invite links. |
 
 ## Push Notifications
 
@@ -75,14 +76,42 @@ Push notifications won't work without these. The app will still function, but us
 |----------|---------|-------------|
 | `PORT` | `3000` | Port the server listens on |
 | `HOST` | `0.0.0.0` | Host to bind to |
-| `ORIGIN` | — | Public URL of your instance (e.g. `https://scrolly.example.com`). Required for CORS and cookie settings in production. |
+| `VERIFY_CHANNELS` | `sms` | Comma-separated verification channels (e.g. `sms`, `email`) |
+| `SMS_DEV_MODE` | `false` | Set to `true` to bypass Twilio and auto-approve any verification code (dev/testing only) |
+| `GIPHY_API_KEY` | — | Giphy API key for GIF search in comments. Get one at [developers.giphy.com](https://developers.giphy.com/) |
+| `DATA_DIR` | `./data` | Directory for database and media files |
+| `LOG_LEVEL` | `info` | Logging level (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) |
+| `BACKUP_RETENTION_COUNT` | `7` | Number of daily database backups to keep |
+| `PUBLIC_TERMS_URL` | — | URL to your Terms of Service (shown in SMS consent text) |
+| `PUBLIC_PRIVACY_URL` | — | URL to your Privacy Policy (shown in SMS consent text) |
+| `DOMAIN` | — | Domain for Caddy HTTPS (used with `docker-compose.caddy.yml`) |
 
 ## Twilio Setup
 
+```mermaid
+sequenceDiagram
+  participant U as User's Phone
+  participant T as Twilio
+  participant S as Scrolly Server
+
+  Note over U,S: SMS Video Ingestion
+  U->>T: Text a video link
+  T->>S: POST /api/auth (webhook)
+  S->>S: Download video
+  S-->>U: Clip appears in feed
+
+  Note over U,S: Phone Verification
+  S->>T: Send SMS code
+  T->>U: Deliver code
+  U->>S: Submit code
+  S-->>U: Verified
+```
+
 1. Create a [Twilio account](https://www.twilio.com)
-2. Get a phone number with SMS capability
-3. Set the webhook URL for inbound messages to `https://your-domain.com/api/auth`
-4. Add the account SID, auth token, and phone number to your `.env`
+2. Create a Verify service in the Twilio console
+3. Get a phone number with SMS capability (for inbound video ingestion)
+4. Set the webhook URL for inbound messages to `https://your-domain.com/api/auth`
+5. Add the account SID, auth token, and Verify service SID to your `.env`
 
 Twilio is used for:
 - **Phone verification** — SMS codes during onboarding and login

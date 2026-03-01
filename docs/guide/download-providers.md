@@ -8,25 +8,17 @@ This guide walks through adding a new download provider to Scrolly. Providers ar
 
 The provider system has four layers:
 
-```
-┌───────────────────────────────────────────┐
-│  API Endpoints                            │
-│  Install, uninstall, activate providers   │
-│  src/routes/api/group/provider/           │
-├───────────────────────────────────────────┤
-│  Registry                                 │
-│  Known providers, singleton instances,    │
-│  active provider resolution               │
-│  src/lib/server/providers/registry.ts     │
-├───────────────────────────────────────────┤
-│  Provider Implementation                  │
-│  Implements DownloadProvider interface     │
-│  src/lib/server/providers/{id}/index.ts   │
-├───────────────────────────────────────────┤
-│  Binary Utilities                         │
-│  Download, install, remove binaries       │
-│  src/lib/server/providers/binary.ts       │
-└───────────────────────────────────────────┘
+```mermaid
+graph TB
+  A["API Endpoints<br/><code>src/routes/api/group/provider/</code>"] --> B
+  B["Registry<br/><code>src/lib/server/providers/registry.ts</code>"] --> C
+  C["Provider Implementation<br/><code>src/lib/server/providers/{id}/index.ts</code>"] --> D
+  D["Binary Utilities<br/><code>src/lib/server/providers/binary.ts</code>"]
+
+  style A fill:#4A9EFF,color:#fff
+  style B fill:#FF6B35,color:#fff
+  style C fill:#38A169,color:#fff
+  style D fill:#FF2D78,color:#fff
 ```
 
 Downloads are triggered asynchronously from the clip submission endpoint (`POST /api/clips`). The orchestration layer (`src/lib/server/video/download.ts` and `src/lib/server/music/download.ts`) calls the active provider and handles DB updates, file size enforcement, error handling, and deduplication.
@@ -366,30 +358,31 @@ data/videos/
 
 Understanding the full flow helps you know what your provider is responsible for and what the framework handles:
 
-```
-User submits URL → POST /api/clips
-  │
-  ├─ Creates clip record (status: 'downloading')
-  ├─ Sends push notification to group
-  └─ Fires async: downloadVideo(clipId, url) or downloadMusic(clipId, url)
-       │
-       ├─ deduplicatedDownload() checks:
-       │    1. DB for existing clip with same URL → reuses result
-       │    2. In-flight download map → waits for leader
-       │    3. Otherwise → proceeds as download leader
-       │
-       ├─ getMaxFileSize(clipId) → reads group's limit
-       ├─ getActiveProvider(groupId) → returns your provider instance
-       │
-       ├─ provider.downloadVideo(url, options) ← YOUR CODE RUNS HERE
-       │    Returns: { videoPath, thumbnailPath, title, duration }
-       │
-       ├─ Post-download file size check (safety net)
-       ├─ Updates clip in DB (status: 'ready', paths, metadata)
-       └─ On error: cleanupClipFiles(clipId), marks clip as 'failed'
+```mermaid
+flowchart TD
+  A["User submits URL"] --> B["POST /api/clips"]
+  B --> C["Create clip record<br/><em>status: downloading</em>"]
+  B --> D["Push notification to group"]
+  B --> E["Async download"]
+
+  E --> F{"Deduplicate"}
+  F -->|"Same URL exists"| G["Reuse result"]
+  F -->|"In-flight download"| H["Wait for leader"]
+  F -->|"New download"| I["Proceed"]
+
+  I --> J["Get file size limit"]
+  I --> K["Get active provider"]
+  K --> L["provider.downloadVideo()"]
+
+  style L fill:#38A169,color:#fff,stroke-width:3px
+
+  L --> M{"Success?"}
+  M -->|"Yes"| N["File size check"]
+  N --> O["Update clip in DB<br/><em>status: ready</em>"]
+  M -->|"Error"| P["Cleanup files<br/><em>status: failed</em>"]
 ```
 
-Your provider is only responsible for the `downloadVideo` / `downloadAudio` step. Everything else — deduplication, DB updates, file size enforcement, error handling, cleanup — is handled by the orchestration layer.
+Your provider is only responsible for the `downloadVideo` / `downloadAudio` step (highlighted). Everything else — deduplication, DB updates, file size enforcement, error handling, cleanup — is handled by the orchestration layer.
 
 ---
 

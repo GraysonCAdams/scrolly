@@ -4,6 +4,16 @@
 
 Share links from TikTok, Instagram, YouTube, Facebook, and more. Videos are downloaded server-side via a pluggable download provider and re-hosted from your server. The host installs a provider from the Settings UI — no download tools are bundled with Scrolly.
 
+```mermaid
+flowchart LR
+  A["Share a link"] --> B{"How?"}
+  B --> C["SMS to Scrolly number"]
+  B --> D["Paste URL in-app"]
+  B --> E["Android share sheet"]
+  C & D & E --> F["Server downloads video"]
+  F --> G["Appears in group feed"]
+```
+
 **How to share:**
 - **SMS** — Text links to your group's Scrolly phone number (Twilio). Any extra text becomes the caption.
 - **In-app** — Paste a URL into the add-video modal.
@@ -39,7 +49,17 @@ A TikTok-style full-screen vertical feed with:
 
 ## User Identity
 
-Passwordless onboarding: invite code, username, phone number, SMS verification code. Log back in anytime with your phone number.
+Passwordless onboarding — no passwords to remember:
+
+```mermaid
+flowchart LR
+  A["Enter invite code"] --> B["Choose username"]
+  B --> C["Enter phone number"]
+  C --> D["Verify SMS code"]
+  D --> E["You're in!"]
+```
+
+Log back in anytime with your phone number.
 
 Profile includes avatar upload, theme preference (system/light/dark), and playback preferences (mute, auto-scroll, speed).
 

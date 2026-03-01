@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24+
 - npm 10+
 
 ## Quick Start
@@ -43,6 +43,43 @@ npm run preview  # test the production build locally
 | `npm run test` | Run unit tests |
 | `npm run test:coverage` | Run tests with coverage |
 | `npm run check` | SvelteKit diagnostics |
+
+## Architecture
+
+```mermaid
+graph TB
+  subgraph Client["Client (PWA)"]
+    FE["SvelteKit Frontend"]
+    SW["Service Worker"]
+  end
+
+  subgraph Server["SvelteKit Server"]
+    API["API Routes"]
+    Auth["Auth & Sessions"]
+    DL["Download Orchestration"]
+  end
+
+  subgraph Storage["Storage"]
+    DB["SQLite via Drizzle"]
+    FS["Filesystem (videos)"]
+  end
+
+  subgraph External["External Services"]
+    Twilio["Twilio (SMS)"]
+    Push["Web Push (VAPID)"]
+    Odesli["Odesli (music links)"]
+  end
+
+  FE <--> API
+  SW --> Push
+  API --> Auth
+  API --> DL
+  DL --> DB
+  DL --> FS
+  Auth --> Twilio
+  DL --> Odesli
+  Server --> Push
+```
 
 ## Tech Stack
 
