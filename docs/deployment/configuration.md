@@ -29,7 +29,7 @@ Included in the Docker image. For manual deployments, install these:
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| **Node.js** | 20+ | Application runtime |
+| **Node.js** | 24+ | Application runtime |
 | **FFmpeg** | 4.4+ | Media processing and thumbnail generation |
 | **Python 3** | 3.10+ | Required by some download providers |
 

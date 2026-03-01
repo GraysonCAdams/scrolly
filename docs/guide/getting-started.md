@@ -3,7 +3,6 @@
 ## Prerequisites
 
 - Node.js 24+
-- npm 10+
 
 ## Quick Start
 
