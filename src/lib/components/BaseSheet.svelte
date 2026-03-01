@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { pushState } from '$app/navigation';
+	import { pushState, beforeNavigate } from '$app/navigation';
 	import { onDestroy } from 'svelte';
 
 	let {
@@ -22,6 +22,11 @@
 	let visible = $state(false);
 	let closedViaBack = false;
 	let timers: ReturnType<typeof setTimeout>[] = [];
+
+	// Prevent history.back() in cleanup when a real navigation occurs (e.g. clicking a link inside the sheet)
+	beforeNavigate(() => {
+		closedViaBack = true;
+	});
 
 	function safeTimeout(fn: () => void, ms: number) {
 		const id = setTimeout(fn, ms);
