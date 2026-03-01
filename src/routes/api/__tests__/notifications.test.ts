@@ -130,6 +130,7 @@ describe('GET /api/notifications/preferences', () => {
 			newAdds: true,
 			reactions: true,
 			comments: true,
+			mentions: true,
 			dailyReminder: false
 		});
 	});
