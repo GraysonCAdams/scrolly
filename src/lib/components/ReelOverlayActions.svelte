@@ -100,6 +100,7 @@
 		<textarea
 			bind:this={inputEl}
 			bind:value={editValue}
+			autocomplete="off"
 			onkeydown={handleKeydown}
 			maxlength={200}
 			rows={3}

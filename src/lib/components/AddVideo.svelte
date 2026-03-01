@@ -187,6 +187,8 @@
 					<input
 						bind:this={urlInput}
 						type="url"
+						inputmode="url"
+						autocomplete="off"
 						bind:value={url}
 						placeholder="Paste a link..."
 						disabled={loading}
@@ -491,7 +493,6 @@
 		color: var(--text-primary);
 		margin: 0 0 var(--space-xs);
 	}
-
 	.no-provider-desc {
 		font-size: 0.875rem;
 		color: var(--text-muted);

@@ -40,6 +40,7 @@
 
 	/* Dark theme (default) */
 	:global(:root) {
+		font-size: 18px;
 		--bg-primary: #000000;
 		--bg-elevated: #111111;
 		--bg-surface: #1a1a1a;

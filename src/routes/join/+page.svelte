@@ -127,60 +127,13 @@
 		}
 	}
 
-	// Individual code digit inputs
-	let codeDigits = $state<string[]>(['', '', '', '', '', '']);
-	const codeInputs = $state<HTMLInputElement[]>([]);
+	// Single hidden input + visual slots (avoids Android IME maxlength paste truncation)
+	let codeInputEl = $state<HTMLInputElement | null>(null);
 
-	function handleCodeInput(index: number, e: Event) {
+	function handleCodeInput(e: Event) {
 		const input = e.target as HTMLInputElement;
-		const value = input.value.replace(/\D/g, '');
-
-		if (value.length > 1) {
-			// Multi-digit paste via input event (common on Android IME)
-			for (let i = 0; i < 6; i++) {
-				codeDigits[i] = value[i] || '';
-			}
-			code = codeDigits.join('');
-			const nextEmpty = codeDigits.findIndex((d) => d === '');
-			codeInputs[nextEmpty === -1 ? 5 : nextEmpty]?.focus();
-			return;
-		}
-
-		if (value.length > 0) {
-			codeDigits[index] = value[0];
-			// Auto-advance to next input
-			if (index < 5) {
-				codeInputs[index + 1]?.focus();
-			}
-		} else {
-			codeDigits[index] = '';
-		}
-		code = codeDigits.join('');
-	}
-
-	function handleCodeKeydown(index: number, e: KeyboardEvent) {
-		if (e.key === 'Backspace') {
-			if (codeDigits[index] === '' && index > 0) {
-				codeInputs[index - 1]?.focus();
-				codeDigits[index - 1] = '';
-				code = codeDigits.join('');
-			} else {
-				codeDigits[index] = '';
-				code = codeDigits.join('');
-			}
-		}
-	}
-
-	function handleCodePaste(e: ClipboardEvent) {
-		e.preventDefault();
-		const pasted = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
-		for (let i = 0; i < 6; i++) {
-			codeDigits[i] = pasted[i] || '';
-		}
-		code = codeDigits.join('');
-		// Focus the next empty input or the last one
-		const nextEmpty = codeDigits.findIndex((d) => d === '');
-		codeInputs[nextEmpty === -1 ? 5 : nextEmpty]?.focus();
+		code = input.value.replace(/\D/g, '').slice(0, 6);
+		input.value = code;
 	}
 </script>
 
@@ -269,22 +222,26 @@
 						handleVerifyLogin();
 					}}
 				>
-					<div class="code-inputs">
-						{#each codeDigits as digit, i (i)}
-							<input
-								type="text"
-								inputmode="numeric"
-								maxlength="1"
-								value={digit}
-								oninput={(e) => handleCodeInput(i, e)}
-								onkeydown={(e) => handleCodeKeydown(i, e)}
-								onpaste={handleCodePaste}
-								disabled={loading}
-								class="code-box"
-								class:filled={digit !== ''}
-								bind:this={codeInputs[i]}
-								autocomplete={i === 0 ? 'one-time-code' : 'off'}
-							/>
+					<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+					<div class="code-slots" onclick={() => codeInputEl?.focus()}>
+						<input
+							type="text"
+							inputmode="numeric"
+							autocomplete="one-time-code"
+							value={code}
+							oninput={handleCodeInput}
+							disabled={loading}
+							class="code-hidden-input"
+							bind:this={codeInputEl}
+						/>
+						{#each Array(6) as _, i (i)}
+							<div
+								class="code-slot"
+								class:filled={code[i] !== undefined}
+								class:active={i === code.length && codeInputEl === document.activeElement}
+							>
+								{code[i] || ''}
+							</div>
 						{/each}
 					</div>
 
@@ -313,7 +270,6 @@
 								view = 'login';
 								error = '';
 								code = '';
-								codeDigits = ['', '', '', '', '', ''];
 							}}
 						>
 							Change number
@@ -495,18 +451,30 @@
 		outline: none;
 	}
 
-	/* --- Code inputs --- */
-	.code-inputs {
+	/* --- Code slots (single hidden input + visual slots) --- */
+	.code-slots {
+		position: relative;
 		display: flex;
 		gap: var(--space-sm);
 		justify-content: center;
 		margin-bottom: var(--space-sm);
+		cursor: text;
 	}
 
-	.code-box {
+	.code-hidden-input {
+		position: absolute;
+		inset: 0;
+		opacity: 0;
+		font-size: 1rem;
+		caret-color: transparent;
+	}
+
+	.code-slot {
 		width: 46px;
 		height: 56px;
-		text-align: center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		font-family: var(--font-display);
 		font-size: 1.5rem;
 		font-weight: 700;
@@ -517,16 +485,15 @@
 		transition:
 			border-color 0.2s ease,
 			background 0.2s ease;
-		padding: 0;
+		pointer-events: none;
 	}
 
-	.code-box:focus {
-		outline: none;
+	.code-slot.active {
 		border-color: var(--accent-primary);
 		background: var(--bg-subtle);
 	}
 
-	.code-box.filled {
+	.code-slot.filled {
 		border-color: var(--accent-primary);
 	}
 
