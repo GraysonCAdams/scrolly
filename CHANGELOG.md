@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.1.0...scrolly-v1.1.1) (2026-03-01)
+
+
+### Bug Fixes
+
+* correct release automation for PR checks and CodeQL ([#16](https://github.com/312-dev/scrolly/issues/16)) ([69873af](https://github.com/312-dev/scrolly/commit/69873af1ffbe8e98940596eefa50631172f4fa9b))
+* integrate Docker publishing into release workflow ([#14](https://github.com/312-dev/scrolly/issues/14)) ([255b413](https://github.com/312-dev/scrolly/commit/255b413bac64b58ee13ed5d2392f366249a7059b))
+
 ## [1.1.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.0.0...scrolly-v1.1.0) (2026-03-01)
 
 
