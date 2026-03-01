@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/icons/icon-192x192.png" alt="Scrolly" width="100" />
+  <img src="static/icons/icon-192.png" alt="Scrolly" width="100" />
 </p>
 
 <h1 align="center">Scrolly</h1>
@@ -11,7 +11,6 @@
 <p align="center">
   <a href="https://github.com/312-dev/scrolly/actions/workflows/ci.yml"><img src="https://github.com/312-dev/scrolly/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/312-dev/scrolly/actions/workflows/security.yml"><img src="https://github.com/312-dev/scrolly/actions/workflows/security.yml/badge.svg" alt="Security"></a>
-  <a href="https://api.scorecard.dev/projects/github.com/312-dev/scrolly"><img src="https://api.scorecard.dev/projects/github.com/312-dev/scrolly/badge" alt="OpenSSF Scorecard"></a>
   <a href="https://github.com/312-dev/scrolly/releases/latest"><img src="https://img.shields.io/github/v/release/312-dev/scrolly?label=release" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/312-dev/scrolly" alt="License"></a>
 </p>
@@ -57,7 +56,7 @@ Scrolly is a private media playback and sharing platform. On its own, it cannot 
 
 ## Quick Start
 
-**Prerequisites:** Node.js 20+, npm 10+
+**Prerequisites:** Node.js 24+
 
 ```bash
 # Clone and install
@@ -163,6 +162,6 @@ See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnera
 
 ## Legal
 
-[MIT](LICENSE) — Created by [@312-dev](https://github.com/312-dev)
+[MIT](LICENSE)
 
 See [DISCLAIMER.md](DISCLAIMER.md) for content and liability disclaimers, and [NOTICE](NOTICE) for third-party attributions.
