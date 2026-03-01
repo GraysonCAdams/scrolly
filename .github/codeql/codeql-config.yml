@@ -1,0 +1,5 @@
+name: "Scrolly CodeQL config"
+
+paths-ignore:
+  - "scripts/**"
+  - "data/**"
