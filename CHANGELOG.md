@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.5.0...scrolly-v1.6.0) (2026-03-01)
+
+
+### Features
+
+* shortcut setup, pull-to-refresh, and UX polish ([#29](https://github.com/312-dev/scrolly/issues/29)) ([fdd3937](https://github.com/312-dev/scrolly/commit/fdd3937eaed3df1c59451bdcdfcac7ca6d136b67))
+
 ## [1.5.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.4.0...scrolly-v1.5.0) (2026-03-01)
 
 
