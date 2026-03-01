@@ -6,12 +6,13 @@ export const groups = sqliteTable('groups', {
 	inviteCode: text('invite_code').notNull().unique(),
 	retentionDays: integer('retention_days'),
 	maxStorageMb: integer('max_storage_mb'),
-	maxDurationSeconds: integer('max_duration_seconds').notNull().default(300),
 	maxFileSizeMb: integer('max_file_size_mb').default(500),
 	accentColor: text('accent_color').notNull().default('coral'),
 	downloadProvider: text('download_provider'),
 	platformFilterMode: text('platform_filter_mode').notNull().default('all'),
 	platformFilterList: text('platform_filter_list'),
+	shortcutToken: text('shortcut_token').unique(),
+	shortcutUrl: text('shortcut_url'),
 	createdBy: text('created_by'),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
