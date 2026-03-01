@@ -8,11 +8,17 @@
 	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
 	import FilmSlateIcon from 'phosphor-svelte/lib/FilmSlateIcon';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
-	import { addToast, toast, clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
+	import {
+		addToast,
+		toast,
+		clipReadySignal,
+		viewClipSignal,
+		openCommentsSignal
+	} from '$lib/stores/toasts';
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { FeedClip } from '$lib/types';
 	import type { FeedFilter } from '$lib/feed';
 	import {
@@ -63,9 +69,9 @@
 		swipeX !== 0 && typeof window !== 'undefined' ? -swipeX / window.innerWidth : 0
 	);
 
-	const currentUserId = $derived($page.data.user?.id ?? '');
-	const autoScroll = $derived($page.data.user?.autoScroll ?? false);
-	const gifEnabled = $derived(!!$page.data.gifEnabled);
+	const currentUserId = $derived(page.data.user?.id ?? '');
+	const autoScroll = $derived(page.data.user?.autoScroll ?? false);
+	const gifEnabled = $derived(!!page.data.gifEnabled);
 
 	async function loadInitialClips() {
 		loading = true;
@@ -395,7 +401,7 @@
 		if (!targetClipId) return;
 		viewClipSignal.set(null);
 		(async () => {
-			filter = 'unwatched';
+			filter = 'all' as FeedFilter;
 			currentOffset = 0;
 			hasMore = true;
 			const data = await fetchClips('all', PAGE_SIZE);
@@ -506,6 +512,21 @@
 				}
 			})();
 		}
+
+		// Deep-link: jump to a specific clip (and optionally open comments)
+		const params = new URLSearchParams(window.location.search);
+		const deepClipId = params.get('clip');
+		const deepComments = params.get('comments') === 'true';
+		if (deepClipId) {
+			viewClipSignal.set(deepClipId);
+			if (deepComments) openCommentsSignal.set(deepClipId);
+			// Clean URL without triggering navigation
+			const clean = new URL(window.location.href);
+			clean.searchParams.delete('clip');
+			clean.searchParams.delete('comments');
+			history.replaceState(null, '', clean.pathname + clean.search || '/');
+		}
+
 		loadInitialClips();
 	});
 
@@ -650,7 +671,7 @@
 	}
 	.pull-arrow {
 		display: inline-flex;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--reel-text-dim);
 		transform: rotate(180deg);
 		transition:
 			transform 0.2s ease,
@@ -664,7 +685,7 @@
 		display: inline-block;
 		width: 22px;
 		height: 22px;
-		border: 2.5px solid rgba(255, 255, 255, 0.2);
+		border: 2.5px solid var(--reel-spinner-track);
 		border-top-color: var(--accent-primary);
 		border-radius: var(--radius-full);
 		animation: spin 0.8s linear infinite;
@@ -784,7 +805,7 @@
 		position: fixed;
 		inset: 0;
 		z-index: 90;
-		background: rgba(0, 0, 0, 0.75);
+		background: var(--reel-gradient-heavy);
 		display: flex;
 		align-items: center;
 		justify-content: center;

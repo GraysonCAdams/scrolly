@@ -107,8 +107,8 @@ async function dispatchCommentNotification(
 				clipId,
 				type: 'reply',
 				preferenceKey: 'comments',
-				pushTitle: 'New reply',
-				pushBody: `${actor.username} replied: ${preview}`,
+				pushTitle: `${actor.username} replied to you`,
+				pushBody: preview,
 				pushTag: `reply-${clipId}`,
 				commentPreview: preview
 			});
@@ -124,8 +124,8 @@ async function dispatchCommentNotification(
 				clipId,
 				type: 'comment',
 				preferenceKey: 'comments',
-				pushTitle: 'New comment',
-				pushBody: `${actor.username}: ${preview}`,
+				pushTitle: `${actor.username} commented on your clip`,
+				pushBody: preview,
 				pushTag: `comment-${clipId}`,
 				commentPreview: preview
 			});

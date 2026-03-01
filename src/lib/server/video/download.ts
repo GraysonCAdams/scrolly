@@ -31,12 +31,20 @@ async function handleDownloadError(
 			.update(clips)
 			.set({ status: 'failed', title: `Exceeds ${sizeMb} MB limit` })
 			.where(eq(clips.id, clipId));
+		// Still notify — clip is viewable via external link
+		await notifyNewClip(clipId).catch((err2) =>
+			log.error({ err: err2, clipId }, 'push notification failed')
+		);
 		return;
 	}
 
 	log.error({ err, clipId }, 'download failed');
 	await cleanupClipFiles(clipId);
 	await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
+	// Still notify — clip is viewable via external link
+	await notifyNewClip(clipId).catch((err2) =>
+		log.error({ err: err2, clipId }, 'push notification failed')
+	);
 }
 
 async function downloadVideoInner(clipId: string, url: string): Promise<void> {
@@ -51,6 +59,10 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 			.update(clips)
 			.set({ status: 'failed', title: 'No download provider configured' })
 			.where(eq(clips.id, clipId));
+		// Still notify — clip is viewable via external link
+		await notifyNewClip(clipId).catch((err) =>
+			log.error({ err, clipId }, 'push notification failed')
+		);
 		return;
 	}
 
@@ -75,6 +87,10 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 					durationSeconds: result.duration
 				})
 				.where(eq(clips.id, clipId));
+			// Still notify — clip is viewable via external link
+			await notifyNewClip(clipId).catch((err) =>
+				log.error({ err, clipId }, 'push notification failed')
+			);
 			return;
 		}
 

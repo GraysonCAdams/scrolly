@@ -211,10 +211,14 @@ export async function notifyClipOwner(opts: {
 		where: eq(notificationPreferences.userId, opts.recipientId)
 	});
 	if (!prefs || prefs[opts.preferenceKey]) {
+		const url =
+			opts.type === 'comment' || opts.type === 'reply'
+				? `/?clip=${opts.clipId}&comments=true`
+				: `/?clip=${opts.clipId}`;
 		sendNotification(opts.recipientId, {
 			title: opts.pushTitle,
 			body: opts.pushBody,
-			url: '/',
+			url,
 			tag: opts.pushTag
 		}).catch((err) => log.error({ err }, 'push notification failed'));
 	}

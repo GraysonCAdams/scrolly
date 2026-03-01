@@ -51,8 +51,11 @@ export async function sendNotification(
 					payloadStr
 				);
 			} catch (err: unknown) {
-				const pushErr = err as { statusCode?: number };
-				if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
+				const statusCode =
+					typeof err === 'object' && err !== null && 'statusCode' in err
+						? (err as { statusCode: number }).statusCode
+						: undefined;
+				if (statusCode === 410 || statusCode === 404) {
 					await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
 				} else {
 					log.error({ err, subscriptionId: sub.id }, 'push failed for subscription');
@@ -63,7 +66,7 @@ export async function sendNotification(
 }
 
 /**
- * Send push notification to the group after a clip download succeeds.
+ * Send push notification to the group after a clip is published (ready or failed).
  * Called from the download pipeline — NOT from the API endpoint.
  */
 export async function notifyNewClip(clipId: string): Promise<void> {
@@ -82,9 +85,9 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 	await sendGroupNotification(
 		clip.groupId,
 		{
-			title: 'New clip added',
-			body: `${uploader.username} shared a new ${label}`,
-			url: '/',
+			title: `${uploader.username} added a ${label}`,
+			body: clip.title || 'Tap to watch',
+			url: `/?clip=${clipId}`,
 			tag: 'new-clip'
 		},
 		'newAdds',

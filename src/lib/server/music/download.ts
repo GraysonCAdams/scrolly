@@ -41,7 +41,7 @@ interface MusicMetadata {
 
 async function resolveOdesli(url: string): Promise<MusicMetadata> {
 	const apiUrl = `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(url)}`;
-	const res = await fetch(apiUrl);
+	const res = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
 
 	if (!res.ok) {
 		log.error({ status: res.status, url }, 'odesli API error');
@@ -97,6 +97,9 @@ async function finalizeMusicClip(
 				durationSeconds: result.duration
 			})
 			.where(eq(clips.id, clipId));
+		await notifyNewClip(clipId).catch((err) =>
+			log.error({ err, clipId }, 'push notification failed')
+		);
 		return;
 	}
 
@@ -133,6 +136,9 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 			.update(clips)
 			.set({ status: 'failed', title: 'No download provider configured' })
 			.where(eq(clips.id, clipId));
+		await notifyNewClip(clipId).catch((err) =>
+			log.error({ err, clipId }, 'push notification failed')
+		);
 		return;
 	}
 
@@ -187,11 +193,17 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 			// Failed to download audio, but metadata + platform links are still visible
 			await cleanupClipFiles(clipId);
 			await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
+			await notifyNewClip(clipId).catch((err) =>
+				log.error({ err, clipId }, 'push notification failed')
+			);
 		}
 	} catch (err) {
 		log.error({ err, clipId }, 'music download failed');
 		await cleanupClipFiles(clipId);
 		await db.update(clips).set({ status: 'failed' }).where(eq(clips.id, clipId));
+		await notifyNewClip(clipId).catch((err2) =>
+			log.error({ err: err2, clipId }, 'push notification failed')
+		);
 	}
 }
 

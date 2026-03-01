@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { goto, pushState } from '$app/navigation';
+	import { pushState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { relativeTime } from '$lib/utils';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
+	import { viewClipSignal, openCommentsSignal } from '$lib/stores/toasts';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 
@@ -10,7 +11,7 @@
 
 	interface Notification {
 		id: string;
-		type: 'reaction' | 'comment' | 'mention';
+		type: 'reaction' | 'comment' | 'reply' | 'mention';
 		clipId: string;
 		emoji: string | null;
 		commentPreview: string | null;
@@ -79,6 +80,7 @@
 		return () => {
 			document.body.style.overflow = '';
 			window.removeEventListener('popstate', handlePopState);
+			if (fadeTimer) clearTimeout(fadeTimer);
 			if (!closedViaBack) history.back();
 		};
 	});
@@ -88,6 +90,8 @@
 		loadNotifications();
 	});
 
+	let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+
 	async function loadNotifications() {
 		const res = await fetch('/api/notifications?limit=50');
 		if (res.ok) {
@@ -96,18 +100,20 @@
 		}
 		loading = false;
 
-		// Mark all as read on server
-		await fetch('/api/notifications/mark-read', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ all: true })
-		});
-		fetchUnreadCount();
+		// Only mark as read if fetch succeeded
+		if (res.ok) {
+			await fetch('/api/notifications/mark-read', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ all: true })
+			});
+			fetchUnreadCount();
 
-		// Fade out unread backgrounds after a short delay
-		setTimeout(() => {
-			items = items.map((n) => ({ ...n, read: true }));
-		}, 1000);
+			// Fade out unread backgrounds after a short delay
+			fadeTimer = setTimeout(() => {
+				items = items.map((n) => ({ ...n, read: true }));
+			}, 1000);
+		}
 	}
 
 	function dismiss() {
@@ -115,13 +121,15 @@
 		setTimeout(() => ondismiss(), 300);
 	}
 
-	function handleNotificationClick(e: Event, clipId: string) {
+	function handleNotificationClick(e: Event, n: Notification) {
 		e.preventDefault();
 		visible = false;
 		setTimeout(() => {
 			ondismiss();
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- query params appended to resolved base
-			goto(`${resolve('/')}?clip=${clipId}`);
+			viewClipSignal.set(n.clipId);
+			if (n.type !== 'reaction') {
+				openCommentsSignal.set(n.clipId);
+			}
 		}, 300);
 	}
 
@@ -131,6 +139,9 @@
 		}
 		if (n.type === 'mention') {
 			return 'mentioned you';
+		}
+		if (n.type === 'reply') {
+			return 'replied to your comment';
 		}
 		return 'commented on your clip';
 	}
@@ -170,7 +181,7 @@
 								class="notification-item"
 								class:unread={!n.read}
 								style="animation-delay: {Math.min(i, 15) * 30}ms"
-								onclick={(e) => handleNotificationClick(e, n.clipId)}
+								onclick={(e) => handleNotificationClick(e, n)}
 							>
 								<div class="actor-avatar">
 									{#if n.actorAvatar}
