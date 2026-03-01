@@ -27,6 +27,12 @@ export interface FeedClip {
 	createdAt: string;
 }
 
+export interface GroupMember {
+	id: string;
+	username: string;
+	avatarPath: string | null;
+}
+
 export interface ClipSummary {
 	id: string;
 	title: string | null;
