@@ -1,9 +1,13 @@
-name: Build & Publish Docker Image (Manual)
+name: Build & Publish Docker Image
 
-# Manual fallback for Docker publishing.
-# Normally, Docker images are built automatically by the Release workflow.
-# Use this workflow_dispatch if a release was created but the image wasn't published.
 on:
+  # Automatic trigger when a release is published.
+  # NOTE: This only works when releases are created with a GitHub App token
+  # (not GITHUB_TOKEN). Until the App is configured, use workflow_dispatch.
+  release:
+    types: [published]
+
+  # Manual fallback for publishing when the release event doesn't fire.
   workflow_dispatch:
     inputs:
       version:
@@ -32,6 +36,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            # Extract version from release tag (e.g. scrolly-v1.2.0 -> 1.2.0, v1.2.0 -> 1.2.0)
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#scrolly-v}"
+            VERSION="${VERSION#v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -51,7 +68,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ inputs.version }}
+            type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest
 
       - name: Build and push
@@ -63,7 +80,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            APP_VERSION=${{ inputs.version }}
+            APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
