@@ -3,6 +3,8 @@
 	import { resolve } from '$app/paths';
 	import { relativeTime } from '$lib/utils';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 
 	const { ondismiss }: { ondismiss: () => void } = $props();
 
@@ -137,16 +139,7 @@
 	<div class="header">
 		<span class="header-title">Activity</span>
 		<button class="close-btn" onclick={dismiss} aria-label="Close activity">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M18 6L6 18M6 6l12 12" />
-			</svg>
+			<XIcon size={18} />
 		</button>
 	</div>
 
@@ -158,17 +151,7 @@
 		{:else if items.length === 0}
 			<div class="activity-empty">
 				<div class="empty-icon">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-						<path d="M13.73 21a2 2 0 0 1-3.46 0" />
-					</svg>
+					<BellIcon size={48} />
 				</div>
 				<p class="empty-title">No activity yet</p>
 				<p class="empty-sub">Reactions and comments on your clips will show up here</p>
@@ -297,7 +280,7 @@
 		background: var(--bg-subtle);
 	}
 
-	.close-btn svg {
+	.close-btn :global(svg) {
 		width: 18px;
 		height: 18px;
 	}
@@ -345,7 +328,7 @@
 		color: var(--text-muted);
 		margin-bottom: var(--space-sm);
 	}
-	.empty-icon svg {
+	.empty-icon :global(svg) {
 		width: 48px;
 		height: 48px;
 		opacity: 0.4;

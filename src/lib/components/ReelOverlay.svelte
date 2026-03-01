@@ -1,6 +1,9 @@
 <script lang="ts">
 	import PlatformIcon from './PlatformIcon.svelte';
 	import ReelOverlayActions from './ReelOverlayActions.svelte';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
 
 	const {
 		username,
@@ -57,34 +60,14 @@
 					onkeydown={(e) => e.stopPropagation()}
 				>
 					<button class="host-icon-btn" onclick={() => (editing = true)} aria-label="Edit caption">
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-							<path d="m15 5 4 4" />
-						</svg>
+						<PencilSimpleIcon size={13} />
 					</button>
 					<button
 						class="host-icon-btn delete"
 						onclick={() => (confirmingDelete = true)}
 						aria-label="Delete clip"
 					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-							<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-						</svg>
+						<TrashIcon size={13} />
 					</button>
 				</span>
 			{/if}
@@ -113,15 +96,7 @@
 				oncomment();
 			}}
 		>
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg
-			>
+			<ChatIcon size={18} />
 			<span>Add a comment...</span>
 		</button>
 	{/if}
@@ -205,7 +180,7 @@
 		padding: 0;
 		transition: color 0.15s ease;
 	}
-	.host-icon-btn svg {
+	.host-icon-btn :global(svg) {
 		width: 13px;
 		height: 13px;
 		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
@@ -241,7 +216,7 @@
 	.comment-prompt:active {
 		background: var(--reel-frosted-bg-active);
 	}
-	.comment-prompt svg {
+	.comment-prompt :global(svg) {
 		width: 18px;
 		height: 18px;
 		flex-shrink: 0;
