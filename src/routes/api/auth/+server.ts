@@ -13,6 +13,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { sendVerification, checkVerification } from '$lib/server/sms/verify';
 import { dev } from '$app/environment';
 import { createLogger } from '$lib/server/logger';
+import { checkRateLimit, rateLimitResponse } from '$lib/server/rate-limit';
 
 const log = createLogger('auth');
 
@@ -224,12 +225,20 @@ async function handleLoginVerifyCode(body: Record<string, string>) {
 }
 
 // POST /api/auth - Login, join, send/verify phone code, or onboard
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const body = await request.json();
 	const { action } = body;
 
 	// Unauthenticated actions
-	if (action === 'join') return handleJoin(body);
+	if (action === 'join') {
+		const ip = getClientAddress();
+		const result = checkRateLimit(`join:${ip}`, { windowMs: 15 * 60 * 1000, maxRequests: 5 });
+		if (!result.allowed) {
+			log.warn({ ip }, 'join rate limit exceeded');
+			return rateLimitResponse(result.resetAt);
+		}
+		return handleJoin(body);
+	}
 	if (action === 'login-send-code') return handleLoginSendCode(body);
 	if (action === 'login-verify-code') return handleLoginVerifyCode(body);
 

@@ -4,6 +4,7 @@
 	import iconUrl from '$lib/assets/icon.svg?url';
 	import InlineError from '$lib/components/InlineError.svelte';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import { rawDigits, formatPhone, toE164 } from '$lib/phone';
 
 	let view = $state<'login' | 'verify'>('login');
 	let phoneDisplay = $state('');
@@ -20,25 +21,6 @@
 			if (resendTimer) clearInterval(resendTimer);
 		};
 	});
-
-	// Extract raw digits from formatted display
-	function rawDigits(formatted: string): string {
-		return formatted.replace(/\D/g, '');
-	}
-
-	// Format digits as (XXX) XXX-XXXX for display
-	function formatPhone(digits: string): string {
-		if (digits.length === 0) return '';
-		if (digits.length <= 3) return `(${digits}`;
-		if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-		return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-	}
-
-	// Convert display format to E.164 for Twilio
-	function toE164(formatted: string): string {
-		const digits = rawDigits(formatted);
-		return `+1${digits}`;
-	}
 
 	function handlePhoneInput(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -113,7 +95,8 @@
 			}
 			const params = new URLSearchParams(window.location.search);
 			const returnTo = params.get('returnTo');
-			window.location.href = returnTo && returnTo.startsWith('/') ? returnTo : '/';
+			window.location.href =
+				returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -151,6 +134,17 @@
 	function handleCodeInput(index: number, e: Event) {
 		const input = e.target as HTMLInputElement;
 		const value = input.value.replace(/\D/g, '');
+
+		if (value.length > 1) {
+			// Multi-digit paste via input event (common on Android IME)
+			for (let i = 0; i < 6; i++) {
+				codeDigits[i] = value[i] || '';
+			}
+			code = codeDigits.join('');
+			const nextEmpty = codeDigits.findIndex((d) => d === '');
+			codeInputs[nextEmpty === -1 ? 5 : nextEmpty]?.focus();
+			return;
+		}
 
 		if (value.length > 0) {
 			codeDigits[index] = value[0];
@@ -192,6 +186,12 @@
 
 <svelte:head>
 	<title>scrolly — Sign In</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Space+Mono:wght@400;700&display=swap"
+		rel="stylesheet"
+	/>
 </svelte:head>
 
 <div class="join-page" class:mounted>
@@ -269,7 +269,7 @@
 						handleVerifyLogin();
 					}}
 				>
-					<div class="code-inputs" onpaste={handleCodePaste}>
+					<div class="code-inputs">
 						{#each codeDigits as digit, i (i)}
 							<input
 								type="text"
@@ -278,6 +278,7 @@
 								value={digit}
 								oninput={(e) => handleCodeInput(i, e)}
 								onkeydown={(e) => handleCodeKeydown(i, e)}
+								onpaste={handleCodePaste}
 								disabled={loading}
 								class="code-box"
 								class:filled={digit !== ''}
@@ -337,6 +338,7 @@
 		justify-content: center;
 		min-height: 100dvh;
 		padding: var(--space-xl);
+		padding-bottom: calc(var(--space-xl) + 72px);
 		background: var(--bg-primary);
 		overflow: hidden;
 	}
