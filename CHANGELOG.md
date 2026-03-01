@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.6.0...scrolly-v1.6.1) (2026-03-01)
+
+
+### Documentation
+
+* update api, architecture, and notifications for v1.6.0 ([#31](https://github.com/312-dev/scrolly/issues/31)) ([90952fb](https://github.com/312-dev/scrolly/commit/90952fbb4983d678e773d75208f5f28c1bbefb76))
+
 ## [1.6.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.5.0...scrolly-v1.6.0) (2026-03-01)
 
 
