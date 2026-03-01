@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ALL_PLATFORMS } from '$lib/url-validation';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 
 	const {
 		currentMode,
@@ -150,16 +151,7 @@
 						aria-label="Toggle {p.label}"
 					>
 						{#if platforms.includes(p.key)}
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="3"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
+							<CheckIcon size={16} weight="bold" />
 						{/if}
 					</button>
 				</label>
@@ -178,16 +170,7 @@
 						aria-label="Toggle {p.label}"
 					>
 						{#if platforms.includes(p.key)}
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="3"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
+							<CheckIcon size={16} weight="bold" />
 						{/if}
 					</button>
 				</label>
@@ -326,9 +309,7 @@
 		border-color: var(--accent-primary);
 	}
 
-	.check.checked svg {
-		width: 14px;
-		height: 14px;
+	.check.checked :global(svg) {
 		color: var(--bg-primary);
 	}
 

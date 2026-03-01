@@ -10,6 +10,8 @@
 	} from '$lib/push';
 	import { type AccentColorKey } from '$lib/colors';
 	import { globalMuted } from '$lib/stores/mute';
+	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 	import {
 		applyTheme,
 		saveThemePreference,
@@ -179,21 +181,7 @@
 						</div>
 					{/if}
 					<span class="avatar-edit-badge">
-						<svg
-							width="14"
-							height="14"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path
-								d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-							/>
-							<circle cx="12" cy="13" r="4" />
-						</svg>
+						<CameraIcon size={14} />
 					</span>
 				</button>
 				{#if avatarPath}
@@ -209,19 +197,7 @@
 			{#if showShareCta}
 				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 				<a href="/share/setup" class="share-cta">
-					<svg
-						class="share-cta-icon"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-						<polyline points="16 6 12 2 8 6" />
-						<line x1="12" y1="2" x2="12" y2="15" />
-					</svg>
+					<ExportIcon size={18} class="share-cta-icon" />
 					<div class="share-cta-content">
 						<span class="share-cta-title">Share from other apps</span>
 						<span class="share-cta-desc">Add clips directly from supported platforms</span>
@@ -641,9 +617,7 @@
 		transform: scale(0.98);
 	}
 
-	.share-cta-icon {
-		width: 28px;
-		height: 28px;
+	.share-cta :global(.share-cta-icon) {
 		flex-shrink: 0;
 		color: var(--accent-primary);
 	}

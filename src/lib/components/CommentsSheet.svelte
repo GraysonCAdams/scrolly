@@ -5,6 +5,7 @@
 	import CommentInput from './CommentInput.svelte';
 	import GifPicker from './GifPicker.svelte';
 	import BaseSheet from './BaseSheet.svelte';
+	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 	import {
 		type Comment,
 		fetchComments,
@@ -190,18 +191,7 @@
 									class:heart-pop={justHeartedIds.has(comment.id)}
 									onclick={() => toggleHeart(comment)}
 								>
-									<svg
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill={comment.hearted ? 'currentColor' : 'none'}
-										stroke="currentColor"
-										stroke-width="2"
-									>
-										<path
-											d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-										/>
-									</svg>
+									<HeartIcon size={14} weight={comment.hearted ? 'fill' : 'regular'} />
 									{#if comment.heartCount > 0}<span class="heart-count">{comment.heartCount}</span
 										>{/if}
 								</button>
@@ -239,18 +229,7 @@
 														class:heart-pop={justHeartedIds.has(reply.id)}
 														onclick={() => toggleHeart(reply)}
 													>
-														<svg
-															width="12"
-															height="12"
-															viewBox="0 0 24 24"
-															fill={reply.hearted ? 'currentColor' : 'none'}
-															stroke="currentColor"
-															stroke-width="2"
-														>
-															<path
-																d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-															/>
-														</svg>
+														<HeartIcon size={12} weight={reply.hearted ? 'fill' : 'regular'} />
 														{#if reply.heartCount > 0}<span class="heart-count"
 																>{reply.heartCount}</span
 															>{/if}

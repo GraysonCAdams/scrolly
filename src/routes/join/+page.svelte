@@ -3,6 +3,7 @@
 	import { env } from '$env/dynamic/public';
 	import iconUrl from '$lib/assets/icon.svg?url';
 	import InlineError from '$lib/components/InlineError.svelte';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 
 	let view = $state<'login' | 'verify'>('login');
 	let phoneDisplay = $state('');
@@ -252,15 +253,7 @@
 							Sending...
 						{:else}
 							Send Code
-							<svg viewBox="0 0 20 20" fill="none" class="btn-icon">
-								<path
-									d="M4 10H16M16 10L11 5M16 10L11 15"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							</svg>
+							<ArrowRightIcon size={18} />
 						{/if}
 					</button>
 				</form>
@@ -563,11 +556,6 @@
 	.btn-primary:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
-	}
-
-	.btn-icon {
-		width: 18px;
-		height: 18px;
 	}
 
 	.btn-ghost {
