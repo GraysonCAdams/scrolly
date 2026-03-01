@@ -565,25 +565,25 @@ describe('POST /api/clips/[id]/comments/[commentId]/heart', () => {
 	});
 
 	it('tracks hearts from multiple users independently', async () => {
-		// Create a comment
+		// Member creates a comment (so both host and member can heart it)
 		const postEvent = createMockEvent({
 			method: 'POST',
 			path: `/api/clips/${data.readyClip.id}/comments`,
 			params: { id: data.readyClip.id },
 			body: { text: 'comment for multi-heart test' },
-			user: data.host,
+			user: data.member,
 			group: data.group
 		});
 		const postRes = await commentsMod.POST(postEvent as any);
 		const postBody = await postRes.json();
 		const commentId = postBody.comment.id;
 
-		// Member hearts
+		// Host hearts (not the author)
 		const heartEvent1 = createMockEvent({
 			method: 'POST',
 			path: `/api/clips/${data.readyClip.id}/comments/${commentId}/heart`,
 			params: { id: data.readyClip.id, commentId },
-			user: data.member,
+			user: data.host,
 			group: data.group
 		});
 		const heartRes1 = await heartMod.POST(heartEvent1 as any);
@@ -591,7 +591,7 @@ describe('POST /api/clips/[id]/comments/[commentId]/heart', () => {
 		expect(heartBody1.hearted).toBe(true);
 		expect(heartBody1.heartCount).toBe(1);
 
-		// Host also hearts
+		// Host un-hearts — count drops to 0
 		const heartEvent2 = createMockEvent({
 			method: 'POST',
 			path: `/api/clips/${data.readyClip.id}/comments/${commentId}/heart`,
@@ -601,21 +601,34 @@ describe('POST /api/clips/[id]/comments/[commentId]/heart', () => {
 		});
 		const heartRes2 = await heartMod.POST(heartEvent2 as any);
 		const heartBody2 = await heartRes2.json();
-		expect(heartBody2.hearted).toBe(true);
-		expect(heartBody2.heartCount).toBe(2);
+		expect(heartBody2.hearted).toBe(false);
+		expect(heartBody2.heartCount).toBe(0);
+	});
 
-		// Member un-hearts — count drops to 1
-		const heartEvent3 = createMockEvent({
+	it('prevents self-hearting own comment', async () => {
+		// Host creates a comment
+		const postEvent = createMockEvent({
+			method: 'POST',
+			path: `/api/clips/${data.readyClip.id}/comments`,
+			params: { id: data.readyClip.id },
+			body: { text: 'my own comment' },
+			user: data.host,
+			group: data.group
+		});
+		const postRes = await commentsMod.POST(postEvent as any);
+		const postBody = await postRes.json();
+		const commentId = postBody.comment.id;
+
+		// Host tries to heart own comment — should be rejected
+		const heartEvent = createMockEvent({
 			method: 'POST',
 			path: `/api/clips/${data.readyClip.id}/comments/${commentId}/heart`,
 			params: { id: data.readyClip.id, commentId },
-			user: data.member,
+			user: data.host,
 			group: data.group
 		});
-		const heartRes3 = await heartMod.POST(heartEvent3 as any);
-		const heartBody3 = await heartRes3.json();
-		expect(heartBody3.hearted).toBe(false);
-		expect(heartBody3.heartCount).toBe(1);
+		const heartRes = await heartMod.POST(heartEvent as any);
+		expect(heartRes.status).toBe(403);
 	});
 
 	it('shows hearted status in GET comments response', async () => {
