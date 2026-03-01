@@ -9,6 +9,7 @@ import {
 	cleanupClipFiles,
 	totalFileSize
 } from '$lib/server/download-utils';
+import { notifyNewClip } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('video');
@@ -94,6 +95,11 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 				fileSizeBytes: fileSizeBytes || null
 			})
 			.where(eq(clips.id, clipId));
+
+		// Notify group now that the clip is actually ready
+		await notifyNewClip(clipId).catch((err) =>
+			log.error({ err, clipId }, 'push notification failed')
+		);
 	} catch (err) {
 		await handleDownloadError(clipId, err, maxFileSizeBytes);
 	}
