@@ -1,13 +1,3 @@
-export interface MultiTapEvent {
-	tapCount: number;
-	x: number;
-	y: number;
-	clientX: number;
-	clientY: number;
-}
-
-type MultiTapCallback = (event: MultiTapEvent) => void;
-
 const TAP_WINDOW = 300; // ms between taps
 const SPATIAL_TOLERANCE = 30; // px
 
@@ -30,6 +20,8 @@ export interface TapHoldHandlers {
 	onDoubleTap?: (e: TapHoldEvent) => void;
 	onHoldStart?: (e: TapHoldEvent) => void;
 	holdDelay?: number;
+	/** Checked at pointerdown time — if true, the entire gesture is ignored. */
+	shouldIgnore?: (e: TapHoldEvent) => boolean;
 }
 
 const HOLD_DELAY = 350; // ms
@@ -56,6 +48,7 @@ export function onTapHold(element: HTMLElement, handlers: TapHoldHandlers): () =
 	let downX = 0;
 	let downY = 0;
 	let isDown = false;
+	let ignoring = false;
 
 	function cancelHold() {
 		if (holdTimer) {
@@ -69,6 +62,12 @@ export function onTapHold(element: HTMLElement, handlers: TapHoldHandlers): () =
 		holdFired = false;
 		downX = e.clientX;
 		downY = e.clientY;
+
+		if (handlers.shouldIgnore?.({ clientX: downX, clientY: downY })) {
+			ignoring = true;
+			return;
+		}
+		ignoring = false;
 
 		cancelHold();
 		holdTimer = setTimeout(() => {
@@ -95,6 +94,11 @@ export function onTapHold(element: HTMLElement, handlers: TapHoldHandlers): () =
 	function handlePointerUp(e: PointerEvent) {
 		isDown = false;
 		cancelHold();
+
+		if (ignoring) {
+			ignoring = false;
+			return;
+		}
 
 		if (holdFired) {
 			holdFired = false;
@@ -152,50 +156,5 @@ export function onTapHold(element: HTMLElement, handlers: TapHoldHandlers): () =
 		element.removeEventListener('pointercancel', handlePointerCancel);
 		cancelHold();
 		if (tapTimer) clearTimeout(tapTimer);
-	};
-}
-
-export function onMultiTap(element: HTMLElement, callback: MultiTapCallback): () => void {
-	let tapCount = 0;
-	let lastTapTime = 0;
-	let lastX = 0;
-	let lastY = 0;
-	let timer: ReturnType<typeof setTimeout> | null = null;
-
-	function handlePointerUp(e: PointerEvent) {
-		const now = Date.now();
-		const dx = Math.abs(e.clientX - lastX);
-		const dy = Math.abs(e.clientY - lastY);
-
-		if (now - lastTapTime < TAP_WINDOW && dx < SPATIAL_TOLERANCE && dy < SPATIAL_TOLERANCE) {
-			tapCount++;
-		} else {
-			tapCount = 1;
-		}
-
-		lastTapTime = now;
-		lastX = e.clientX;
-		lastY = e.clientY;
-
-		if (timer) clearTimeout(timer);
-
-		// Wait to see if more taps are coming
-		timer = setTimeout(() => {
-			callback({
-				tapCount: Math.min(tapCount, 3),
-				x: lastX,
-				y: lastY,
-				clientX: lastX,
-				clientY: lastY
-			});
-			tapCount = 0;
-		}, TAP_WINDOW);
-	}
-
-	element.addEventListener('pointerup', handlePointerUp);
-
-	return () => {
-		element.removeEventListener('pointerup', handlePointerUp);
-		if (timer) clearTimeout(timer);
 	};
 }

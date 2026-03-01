@@ -18,10 +18,15 @@ export async function fetchClips(
 	filter: FeedFilter,
 	pageSize: number
 ): Promise<{ clips: FeedClip[]; hasMore: boolean } | null> {
-	const params = buildClipParams(filter, 0, pageSize);
-	const res = await fetch(`/api/clips?${params}`);
-	if (res.ok) return res.json();
-	return null;
+	try {
+		const params = buildClipParams(filter, 0, pageSize);
+		const res = await fetch(`/api/clips?${params}`);
+		if (res.ok) return res.json();
+		return null;
+	} catch (err) {
+		console.warn('[feed]', err);
+		return null;
+	}
 }
 
 export async function fetchMoreClips(
@@ -29,22 +34,30 @@ export async function fetchMoreClips(
 	offset: number,
 	pageSize: number
 ): Promise<{ clips: FeedClip[]; hasMore: boolean } | null> {
-	const params = buildClipParams(filter, offset, pageSize);
-	const res = await fetch(`/api/clips?${params}`);
-	if (res.ok) return res.json();
-	return null;
+	try {
+		const params = buildClipParams(filter, offset, pageSize);
+		const res = await fetch(`/api/clips?${params}`);
+		if (res.ok) return res.json();
+		return null;
+	} catch (err) {
+		console.warn('[feed]', err);
+		return null;
+	}
 }
 
 export async function markClipWatched(clipId: string): Promise<void> {
 	await fetch(`/api/clips/${clipId}/watched`, { method: 'POST' });
 }
 
-export async function toggleClipFavorite(
-	clipId: string
-): Promise<{ favorited: boolean } | null> {
-	const res = await fetch(`/api/clips/${clipId}/favorite`, { method: 'POST' });
-	if (res.ok) return res.json();
-	return null;
+export async function toggleClipFavorite(clipId: string): Promise<{ favorited: boolean } | null> {
+	try {
+		const res = await fetch(`/api/clips/${clipId}/favorite`, { method: 'POST' });
+		if (res.ok) return res.json();
+		return null;
+	} catch (err) {
+		console.warn('[feed]', err);
+		return null;
+	}
 }
 
 export async function retryClipDownload(clipId: string): Promise<boolean> {
@@ -56,19 +69,29 @@ export async function sendClipReaction(
 	clipId: string,
 	emoji: string
 ): Promise<{ reactions: Record<string, { count: number; reacted: boolean }> } | null> {
-	const res = await fetch(`/api/clips/${clipId}/reactions`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ emoji })
-	});
-	if (res.ok) return res.json();
-	return null;
+	try {
+		const res = await fetch(`/api/clips/${clipId}/reactions`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ emoji })
+		});
+		if (res.ok) return res.json();
+		return null;
+	} catch (err) {
+		console.warn('[feed]', err);
+		return null;
+	}
 }
 
 export async function fetchSingleClip(clipId: string): Promise<FeedClip | null> {
-	const res = await fetch(`/api/clips/${clipId}`);
-	if (res.ok) return res.json();
-	return null;
+	try {
+		const res = await fetch(`/api/clips/${clipId}`);
+		if (res.ok) return res.json();
+		return null;
+	} catch (err) {
+		console.warn('[feed]', err);
+		return null;
+	}
 }
 
 export async function submitClipUrl(
@@ -85,8 +108,7 @@ export async function submitClipUrl(
 }
 
 export function extractDroppedUrl(dataTransfer: DataTransfer | null): string | null {
-	const data =
-		dataTransfer?.getData('text/uri-list') || dataTransfer?.getData('text/plain') || '';
+	const data = dataTransfer?.getData('text/uri-list') || dataTransfer?.getData('text/plain') || '';
 	const url = data
 		.split('\n')
 		.find((line) => line.trim().startsWith('http'))
@@ -95,6 +117,7 @@ export function extractDroppedUrl(dataTransfer: DataTransfer | null): string | n
 }
 
 export function extractShareTargetUrl(): string | null {
+	if (globalThis.window === undefined) return null;
 	const params = new URLSearchParams(window.location.search);
 	const sharedUrl = params.get('shared_url');
 	const sharedText = params.get('shared_text');

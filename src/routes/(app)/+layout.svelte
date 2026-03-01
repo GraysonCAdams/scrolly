@@ -3,18 +3,19 @@
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
+	import { activitySheetOpen } from '$lib/stores/activitySheet';
 	import { homeTapSignal } from '$lib/stores/homeTap';
-	import { unreadCount, startPolling } from '$lib/stores/notifications';
+	import { unreadCount, startPolling, stopPolling } from '$lib/stores/notifications';
 	import { globalMuted } from '$lib/stores/mute';
 	import { initAudioContext } from '$lib/audio/normalizer';
+	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
 	const { children }: { children: Snippet } = $props();
 
 	const isFeed = $derived(page.url.pathname === '/');
-	const isActivity = $derived(page.url.pathname === '/activity');
 	const isSettings = $derived(page.url.pathname === '/settings');
 
 	const pageTitle = $derived.by(() => {
-		if (isActivity) return 'Activity';
 		if (isSettings) return 'Settings';
 		return '';
 	});
@@ -46,6 +47,7 @@
 		darkMq.addEventListener('change', syncThemeColor);
 
 		return () => {
+			stopPolling();
 			themeObserver.disconnect();
 			darkMq.removeEventListener('change', syncThemeColor);
 		};
@@ -53,16 +55,10 @@
 
 	function syncThemeColor() {
 		const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
-		if (isFeed) {
-			// Immersive feed: always black to blend with video content
-			metas.forEach((m) => m.setAttribute('content', '#000000'));
-		} else {
-			// Match app background based on effective theme
-			const manual = document.documentElement.dataset.theme;
-			const isDark =
-				manual === 'dark' || (!manual && window.matchMedia('(prefers-color-scheme: dark)').matches);
-			metas.forEach((m) => m.setAttribute('content', isDark ? '#000000' : '#FFFFFF'));
-		}
+		const bgPrimary = getComputedStyle(document.documentElement)
+			.getPropertyValue('--bg-primary')
+			.trim();
+		metas.forEach((m) => m.setAttribute('content', bgPrimary));
 	}
 
 	// Re-sync when navigating between feed and other pages
@@ -77,7 +73,11 @@
 <div class="app-shell">
 	{#if isFeed}
 		<!-- Feed: notification bell floats top-right -->
-		<a href="/activity" class="feed-notif-btn">
+		<button
+			class="feed-notif-btn"
+			class:ui-hidden={$feedUiHidden}
+			onclick={() => activitySheetOpen.set(true)}
+		>
 			<svg
 				viewBox="0 0 24 24"
 				fill="none"
@@ -92,13 +92,13 @@
 			{#if $unreadCount > 0}
 				<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 			{/if}
-		</a>
+		</button>
 	{:else}
-		<!-- Non-feed pages: top bar with title and bell -->
+		<!-- Non-feed pages: top bar with title -->
 		<nav class="top-bar">
 			<span class="top-title">{pageTitle}</span>
-			{#if !isActivity}
-				<a href="/activity" class="top-bar-action">
+			{#if !isSettings}
+				<button class="top-bar-action" onclick={() => activitySheetOpen.set(true)}>
 					<svg
 						viewBox="0 0 24 24"
 						fill="none"
@@ -113,14 +113,14 @@
 					{#if $unreadCount > 0}
 						<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 					{/if}
-				</a>
+				</button>
 			{/if}
 		</nav>
 	{/if}
 	<main class:immersive={isFeed}>
 		{@render children()}
 	</main>
-	<nav class="bottom-tabs" class:overlay-mode={isFeed}>
+	<nav class="bottom-tabs" class:overlay-mode={isFeed} class:ui-hidden={isFeed && $feedUiHidden}>
 		{#if isFeed}
 			<button class="tab active" onclick={() => homeTapSignal.update((n) => n + 1)}>
 				<span class="icon-wrap">
@@ -237,6 +237,10 @@
 	</nav>
 </div>
 
+{#if $activitySheetOpen}
+	<ActivitySheet ondismiss={() => activitySheetOpen.set(false)} />
+{/if}
+
 <style>
 	.app-shell {
 		min-height: 100dvh;
@@ -256,9 +260,17 @@
 		width: 40px;
 		height: 40px;
 		border-radius: var(--radius-full);
-		color: #fff;
-		text-decoration: none;
-		filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+		color: var(--reel-text);
+		background: none;
+		border: none;
+		cursor: pointer;
+		filter: drop-shadow(0 1px 3px var(--reel-text-shadow));
+		transition: opacity 0.3s ease;
+	}
+
+	.feed-notif-btn.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.feed-notif-btn svg {
@@ -274,7 +286,7 @@
 		height: 16px;
 		padding: 0 4px;
 		background: var(--accent-magenta);
-		color: #fff;
+		color: var(--constant-white);
 		font-size: 0.625rem;
 		font-weight: 700;
 		border-radius: var(--radius-full);
@@ -324,7 +336,9 @@
 		width: 36px;
 		height: 36px;
 		color: var(--text-secondary);
-		text-decoration: none;
+		background: none;
+		border: none;
+		cursor: pointer;
 	}
 
 	.top-bar-action svg {
@@ -351,16 +365,26 @@
 		right: 0;
 		display: flex;
 		align-items: center;
-		background: var(--bg-elevated);
-		border-top: 1px solid var(--border);
+		background: color-mix(in srgb, var(--bg-elevated) 30%, transparent);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
 		padding: var(--space-sm) 0;
 		padding-bottom: max(var(--space-sm), env(safe-area-inset-bottom));
 		z-index: 10;
+		transition: opacity 0.3s ease;
+	}
+
+	.bottom-tabs.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.bottom-tabs.overlay-mode {
-		background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+		background: linear-gradient(transparent, var(--reel-gradient-heavy));
 		border-top: none;
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
 		z-index: 50;
 	}
 
@@ -390,7 +414,7 @@
 	}
 
 	.overlay-mode .tab.active {
-		color: #fff;
+		color: var(--reel-text);
 	}
 
 	.tab svg {

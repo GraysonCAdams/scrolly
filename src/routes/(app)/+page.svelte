@@ -5,9 +5,10 @@
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import SkeletonReel from '$lib/components/SkeletonReel.svelte';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
-	import { addToast, clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
+	import { addToast, toast, clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
 	import { homeTapSignal } from '$lib/stores/homeTap';
-	import { onMount } from 'svelte';
+	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import type { FeedClip } from '$lib/types';
 	import type { FeedFilter } from '$lib/feed';
@@ -48,8 +49,20 @@
 	let isDragging = $state(false);
 	let dragCounter = 0;
 
+	// Horizontal swipe state
+	const FILTERS: FeedFilter[] = ['unwatched', 'watched', 'favorites'];
+	let swipeX = $state(0);
+	let swipeAnimating = $state(false);
+	let isHorizontalSwiping = $state(false);
+	let feedWrapper: HTMLDivElement | null = $state(null);
+	const filterIndex = $derived(FILTERS.indexOf(filter));
+	const swipeProgress = $derived(
+		swipeX !== 0 && typeof window !== 'undefined' ? -swipeX / window.innerWidth : 0
+	);
+
 	const currentUserId = $derived($page.data.user?.id ?? '');
 	const autoScroll = $derived($page.data.user?.autoScroll ?? false);
+	const gifEnabled = $derived(!!$page.data.gifEnabled);
 
 	async function loadInitialClips() {
 		loading = true;
@@ -60,16 +73,20 @@
 			clips = data.clips;
 			hasMore = data.hasMore;
 			currentOffset = data.clips.length;
+		} else {
+			toast.error('Failed to load clips');
 		}
 		loading = false;
 	}
 
 	async function loadMore() {
-		if (loadingMore || !hasMore) return;
+		if (loadingMore || !hasMore || loading) return;
 		loadingMore = true;
 		const data = await fetchMoreClips(filter, currentOffset, PAGE_SIZE);
 		if (data) {
-			clips = [...clips, ...data.clips];
+			const existingIds = new Set(clips.map((c) => c.id));
+			const newClips = data.clips.filter((c) => !existingIds.has(c.id));
+			clips = [...clips, ...newClips];
 			hasMore = data.hasMore;
 			currentOffset += data.clips.length;
 		}
@@ -87,17 +104,29 @@
 
 	async function toggleFavorite(clipId: string) {
 		const data = await toggleClipFavorite(clipId);
-		if (data) clips = clips.map((c) => (c.id === clipId ? { ...c, favorited: data.favorited } : c));
+		if (data) {
+			clips = clips.map((c) => (c.id === clipId ? { ...c, favorited: data.favorited } : c));
+		} else {
+			toast.error('Failed to update favorite');
+		}
 	}
 
 	async function retryDownload(clipId: string) {
 		const ok = await retryClipDownload(clipId);
-		if (ok) clips = clips.map((c) => (c.id === clipId ? { ...c, status: 'downloading' } : c));
+		if (ok) {
+			clips = clips.map((c) => (c.id === clipId ? { ...c, status: 'downloading' } : c));
+		} else {
+			toast.error('Failed to retry download');
+		}
 	}
 
 	async function handleReaction(clipId: string, emoji: string) {
 		const data = await sendClipReaction(clipId, emoji);
-		if (data) clips = clips.map((c) => (c.id === clipId ? { ...c, reactions: data.reactions } : c));
+		if (data) {
+			clips = clips.map((c) => (c.id === clipId ? { ...c, reactions: data.reactions } : c));
+		} else {
+			toast.error('Failed to send reaction');
+		}
 	}
 
 	function scrollToIndex(index: number) {
@@ -107,13 +136,37 @@
 	}
 
 	function setFilter(f: FeedFilter) {
-		if (f === filter) return;
-		filter = f;
-		activeIndex = 0;
-		currentOffset = 0;
-		hasMore = true;
-		if (scrollContainer) scrollContainer.scrollTop = 0;
-		loadInitialClips();
+		if (f === filter || swipeAnimating) return;
+		const newIndex = FILTERS.indexOf(f);
+		if (newIndex === -1) return;
+		const goingNext = newIndex > filterIndex;
+		completeSwipe(goingNext, newIndex);
+	}
+
+	function completeSwipe(goingNext: boolean, newIndex: number) {
+		const vw = window.innerWidth;
+		swipeAnimating = true;
+		swipeX = goingNext ? -vw : vw;
+
+		setTimeout(() => {
+			swipeAnimating = false;
+			swipeX = goingNext ? vw * 0.35 : -vw * 0.35;
+
+			filter = FILTERS[newIndex];
+			activeIndex = 0;
+			currentOffset = 0;
+			hasMore = true;
+			if (scrollContainer) scrollContainer.scrollTop = 0;
+			loadInitialClips();
+
+			requestAnimationFrame(() => {
+				swipeAnimating = true;
+				swipeX = 0;
+				setTimeout(() => {
+					swipeAnimating = false;
+				}, 300);
+			});
+		}, 250);
 	}
 
 	$effect(() => {
@@ -128,7 +181,7 @@
 		}
 
 		function handleTouchMove(e: TouchEvent) {
-			if (!isPullingActive || isRefreshing) return;
+			if (!isPullingActive || isRefreshing || isHorizontalSwiping) return;
 			if (sc.scrollTop > 0) {
 				isPullingActive = false;
 				pullDistance = 0;
@@ -159,6 +212,87 @@
 		};
 	});
 
+	// Horizontal swipe gesture detection
+	$effect(() => {
+		if (!feedWrapper) return;
+		const el = feedWrapper;
+		let startX = 0;
+		let startY = 0;
+		let decided = false;
+		let isHorizontal = false;
+
+		function onTouchStart(e: TouchEvent) {
+			if (swipeAnimating) return;
+			startX = e.touches[0].clientX;
+			startY = e.touches[0].clientY;
+			decided = false;
+			isHorizontal = false;
+			isHorizontalSwiping = false;
+		}
+
+		function onTouchMove(e: TouchEvent) {
+			if (swipeAnimating) return;
+			const dx = e.touches[0].clientX - startX;
+			const dy = e.touches[0].clientY - startY;
+
+			if (!decided) {
+				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+				decided = true;
+				isHorizontal = Math.abs(dx) > Math.abs(dy);
+				if (!isHorizontal) return;
+				isHorizontalSwiping = true;
+			}
+
+			if (!isHorizontal) return;
+			e.preventDefault();
+
+			const atFirst = filterIndex === 0 && dx > 0;
+			const atLast = filterIndex === FILTERS.length - 1 && dx < 0;
+			swipeX = atFirst || atLast ? dx * 0.15 : dx;
+		}
+
+		function onTouchEnd() {
+			if (!isHorizontal || swipeX === 0) {
+				decided = false;
+				isHorizontal = false;
+				isHorizontalSwiping = false;
+				return;
+			}
+
+			decided = false;
+			isHorizontal = false;
+			isHorizontalSwiping = false;
+
+			const vw = window.innerWidth;
+			const threshold = vw * 0.2;
+
+			if (Math.abs(swipeX) > threshold) {
+				const goingNext = swipeX < 0;
+				const newIndex = filterIndex + (goingNext ? 1 : -1);
+				if (newIndex >= 0 && newIndex < FILTERS.length) {
+					completeSwipe(goingNext, newIndex);
+					return;
+				}
+			}
+
+			// Snap back
+			swipeAnimating = true;
+			swipeX = 0;
+			setTimeout(() => {
+				swipeAnimating = false;
+			}, 250);
+		}
+
+		el.addEventListener('touchstart', onTouchStart, { passive: true });
+		el.addEventListener('touchmove', onTouchMove, { passive: false });
+		el.addEventListener('touchend', onTouchEnd, { passive: true });
+		return () => {
+			el.removeEventListener('touchstart', onTouchStart);
+			el.removeEventListener('touchmove', onTouchMove);
+			el.removeEventListener('touchend', onTouchEnd);
+		};
+	});
+
 	async function refresh() {
 		isRefreshing = true;
 		const data = await fetchClips(filter, PAGE_SIZE);
@@ -168,6 +302,8 @@
 			currentOffset = data.clips.length;
 			activeIndex = 0;
 			if (scrollContainer) scrollContainer.scrollTop = 0;
+		} else {
+			toast.error('Failed to refresh feed');
 		}
 		isRefreshing = false;
 		pullDistance = 0;
@@ -199,6 +335,8 @@
 			clips.length > 0 &&
 			hasMore &&
 			!loadingMore &&
+			!loading &&
+			!isRefreshing &&
 			activeIndex >= clips.length - LOAD_MORE_THRESHOLD
 		)
 			loadMore();
@@ -241,6 +379,9 @@
 							: c
 					);
 				}
+			} else {
+				// New clip not yet in feed — reload to include it
+				await loadInitialClips();
 			}
 		})();
 		clipReadySignal.set(null);
@@ -251,7 +392,7 @@
 		if (!targetClipId) return;
 		viewClipSignal.set(null);
 		(async () => {
-			filter = 'all';
+			filter = 'unwatched';
 			currentOffset = 0;
 			hasMore = true;
 			const data = await fetchClips('all', PAGE_SIZE);
@@ -364,6 +505,10 @@
 		}
 		loadInitialClips();
 	});
+
+	onDestroy(() => {
+		feedUiHidden.set(false);
+	});
 </script>
 
 <svelte:head>
@@ -398,106 +543,123 @@
 		</div>
 	{/if}
 
-	<FilterBar {filter} onfilter={setFilter} />
+	<FilterBar
+		{filter}
+		onfilter={setFilter}
+		{swipeProgress}
+		swiping={isHorizontalSwiping}
+		hidden={$feedUiHidden}
+	/>
 
-	{#if loading}
-		<SkeletonReel />
-	{:else if clips.length === 0}
-		<div class="reel-empty">
-			<svg
-				class="empty-icon"
-				viewBox="0 0 48 48"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<rect x="6" y="10" width="36" height="28" rx="4" />
-				<polygon points="20,18 20,34 33,26" fill="currentColor" stroke="none" opacity="0.25" />
-				<polygon points="20,18 20,34 33,26" />
-				<line x1="14" y1="4" x2="14" y2="10" />
-				<line x1="34" y1="4" x2="34" y2="10" />
-			</svg>
-			<p class="empty-title">All caught up</p>
-			<p class="empty-sub">Drop a clip to kick things off</p>
-			<button class="empty-cta" onclick={() => addVideoModalOpen.set(true)}> Add something </button>
-		</div>
-	{:else}
-		{#if pullDistance > 0 || isRefreshing}
-			<div
-				class="pull-indicator"
-				style="transform: translateY({pullDistance - 48}px); opacity: {isRefreshing
-					? 1
-					: Math.min(pullDistance / PULL_THRESHOLD, 1)}"
-			>
-				{#if isRefreshing}
-					<span class="pull-spinner"></span>
-				{:else}
-					<svg
-						class="pull-arrow"
-						class:ready={pullDistance >= PULL_THRESHOLD}
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polyline points="7 13 12 18 17 13" />
-						<line x1="12" y1="18" x2="12" y2="6" />
-					</svg>
-				{/if}
-			</div>
-		{/if}
-		<div class="reel-scroll" bind:this={scrollContainer}>
-			{#each clips as clip, i (clip.id)}
-				<div class="reel-slot" data-index={i}>
-					{#if Math.abs(i - activeIndex) <= renderWindow}
-						<ReelItem
-							{clip}
-							{currentUserId}
-							active={i === activeIndex}
-							index={i}
-							{autoScroll}
-							canEditCaption={clip.addedBy === currentUserId}
-							seenByOthers={clip.seenByOthers}
-							onwatched={markWatched}
-							onfavorited={toggleFavorite}
-							onreaction={handleReaction}
-							onretry={retryDownload}
-							onended={() => scrollToIndex(i + 1)}
-							oncaptionedit={handleCaptionEdit}
-							ondelete={handleDelete}
-						/>
-					{:else}
-						<div class="reel-placeholder">
-							{#if clip.thumbnailPath}
-								<img
-									src="/api/thumbnails/{clip.thumbnailPath.split('/').pop()}"
-									alt=""
-									class="placeholder-thumb"
-									loading="lazy"
-								/>
-							{:else if clip.albumArt}
-								<img
-									src={clip.albumArt}
-									alt=""
-									class="placeholder-thumb placeholder-thumb-cover"
-									loading="lazy"
-								/>
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{/each}
-			{#if loadingMore}
-				<div class="reel-slot loading-more-slot">
-					<div class="reel-placeholder"><span class="spinner"></span></div>
-				</div>
+	{#if pullDistance > 0 || isRefreshing}
+		<div
+			class="pull-indicator"
+			style="transform: translateY({pullDistance - 48}px); opacity: {isRefreshing
+				? 1
+				: Math.min(pullDistance / PULL_THRESHOLD, 1)}"
+		>
+			{#if isRefreshing}
+				<span class="pull-spinner"></span>
+			{:else}
+				<svg
+					class="pull-arrow"
+					class:ready={pullDistance >= PULL_THRESHOLD}
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<polyline points="7 13 12 18 17 13" />
+					<line x1="12" y1="18" x2="12" y2="6" />
+				</svg>
 			{/if}
 		</div>
 	{/if}
+
+	<div
+		class="feed-slide"
+		class:animating={swipeAnimating}
+		style:transform={swipeX !== 0 ? `translateX(${swipeX}px)` : undefined}
+		bind:this={feedWrapper}
+	>
+		{#if loading}
+			<SkeletonReel />
+		{:else if clips.length === 0}
+			<div class="reel-empty">
+				<svg
+					class="empty-icon"
+					viewBox="0 0 48 48"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<rect x="6" y="10" width="36" height="28" rx="4" />
+					<polygon points="20,18 20,34 33,26" fill="currentColor" stroke="none" opacity="0.25" />
+					<polygon points="20,18 20,34 33,26" />
+					<line x1="14" y1="4" x2="14" y2="10" />
+					<line x1="34" y1="4" x2="34" y2="10" />
+				</svg>
+				<p class="empty-title">All caught up</p>
+				<p class="empty-sub">Drop a clip to kick things off</p>
+				<button class="empty-cta" onclick={() => addVideoModalOpen.set(true)}>
+					Add something
+				</button>
+			</div>
+		{:else}
+			<div class="reel-scroll" bind:this={scrollContainer}>
+				{#each clips as clip, i (clip.id)}
+					<div class="reel-slot" data-index={i}>
+						{#if Math.abs(i - activeIndex) <= renderWindow}
+							<ReelItem
+								{clip}
+								{currentUserId}
+								active={i === activeIndex}
+								index={i}
+								{autoScroll}
+								{gifEnabled}
+								canEditCaption={clip.addedBy === currentUserId}
+								seenByOthers={clip.seenByOthers}
+								onwatched={markWatched}
+								onfavorited={toggleFavorite}
+								onreaction={handleReaction}
+								onretry={retryDownload}
+								onended={() => scrollToIndex(i + 1)}
+								oncaptionedit={handleCaptionEdit}
+								ondelete={handleDelete}
+							/>
+						{:else}
+							<div class="reel-placeholder">
+								{#if clip.thumbnailPath}
+									<img
+										src="/api/thumbnails/{clip.thumbnailPath.split('/').pop()}"
+										alt=""
+										class="placeholder-thumb"
+										loading="lazy"
+									/>
+								{:else if clip.albumArt}
+									<img
+										src={clip.albumArt}
+										alt=""
+										class="placeholder-thumb placeholder-thumb-cover"
+										loading="lazy"
+									/>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/each}
+				{#if loadingMore}
+					<div class="reel-slot loading-more-slot">
+						<div class="reel-placeholder"><span class="spinner"></span></div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</div>
 </div>
 
 {#if $addVideoModalOpen}
@@ -537,7 +699,7 @@
 		height: 22px;
 		border: 2.5px solid rgba(255, 255, 255, 0.2);
 		border-top-color: var(--accent-primary);
-		border-radius: 50%;
+		border-radius: var(--radius-full);
 		animation: spin 0.8s linear infinite;
 	}
 	.reel-scroll {
@@ -617,7 +779,7 @@
 	.empty-cta {
 		padding: 10px 24px;
 		background: var(--accent-primary);
-		color: #000;
+		color: var(--bg-primary);
 		border: none;
 		border-radius: var(--radius-full);
 		font-size: 0.875rem;
@@ -632,9 +794,9 @@
 		display: inline-block;
 		width: 32px;
 		height: 32px;
-		border: 2.5px solid rgba(255, 255, 255, 0.2);
-		border-top-color: #fff;
-		border-radius: 50%;
+		border: 2.5px solid var(--reel-spinner-track);
+		border-top-color: var(--reel-text);
+		border-radius: var(--radius-full);
 		animation: spin 0.8s linear infinite;
 	}
 	@keyframes spin {
@@ -642,9 +804,16 @@
 			transform: rotate(360deg);
 		}
 	}
+	.feed-slide {
+		height: 100%;
+	}
+	.feed-slide.animating {
+		transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+	}
 	.drop-target {
 		height: 100dvh;
 		position: relative;
+		overflow: hidden;
 	}
 	.drop-overlay {
 		position: fixed;
