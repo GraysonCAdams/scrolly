@@ -27,7 +27,7 @@
 	let _saving = $state(false);
 	let saved = $state(false);
 	let deleting = $state(false);
-	let inputEl: HTMLInputElement | null = $state(null);
+	let inputEl: HTMLTextAreaElement | null = $state(null);
 
 	$effect(() => {
 		if (editing) {
@@ -84,10 +84,7 @@
 		confirmingDelete = false;
 	}
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			saveEdit();
-		} else if (e.key === 'Escape') {
+		if (e.key === 'Escape') {
 			cancelEdit();
 		}
 	}
@@ -100,14 +97,14 @@
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
 	>
-		<input
+		<textarea
 			bind:this={inputEl}
-			type="text"
 			bind:value={editValue}
 			onkeydown={handleKeydown}
 			maxlength={200}
+			rows={3}
 			placeholder="Add a caption..."
-		/>
+		></textarea>
 		<div class="edit-actions">
 			<button class="edit-action save" onclick={saveEdit}>Save</button>
 			<button class="edit-action cancel" onclick={cancelEdit}>Cancel</button>
@@ -251,7 +248,7 @@
 	.caption-edit {
 		margin-bottom: var(--space-sm);
 	}
-	.caption-edit input {
+	.caption-edit textarea {
 		width: 100%;
 		padding: 8px 12px;
 		background: var(--reel-input-bg);
@@ -262,12 +259,14 @@
 		color: var(--reel-text);
 		font-size: 0.875rem;
 		font-family: var(--font-body);
+		line-height: 1.4;
 		outline: none;
+		resize: none;
 	}
-	.caption-edit input:focus {
+	.caption-edit textarea:focus {
 		border-color: var(--accent-primary);
 	}
-	.caption-edit input::placeholder {
+	.caption-edit textarea::placeholder {
 		color: var(--reel-text-placeholder);
 	}
 	.edit-actions {
