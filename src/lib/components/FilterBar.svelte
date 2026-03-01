@@ -6,13 +6,17 @@
 		onfilter,
 		swipeProgress = 0,
 		swiping = false,
-		hidden = false
+		hidden = false,
+		unwatchedCount = 0,
+		pullOffset = 0
 	}: {
 		filter: FeedFilter;
 		onfilter: (f: FeedFilter) => void;
 		swipeProgress?: number;
 		swiping?: boolean;
 		hidden?: boolean;
+		unwatchedCount?: number;
+		pullOffset?: number;
 	} = $props();
 
 	const filters: FeedFilter[] = ['unwatched', 'watched', 'favorites'];
@@ -57,7 +61,12 @@
 	});
 </script>
 
-<div class="filter-bar" class:ui-hidden={hidden}>
+<div
+	class="filter-bar"
+	class:ui-hidden={hidden}
+	class:pull-snapping={pullOffset === 0}
+	style:transform={pullOffset > 0 ? `translateY(${pullOffset}px)` : undefined}
+>
 	<div class="filter-tabs" role="tablist" bind:this={containerEl}>
 		{#each filters as f, i (f)}
 			<button
@@ -66,7 +75,12 @@
 				class:active={filter === f}
 				onclick={() => onfilter(f)}
 			>
-				<span class="tab-label" bind:this={labelEls[i]}>{labels[i]}</span>
+				<span class="tab-label" bind:this={labelEls[i]}>
+					{labels[i]}
+					{#if f === 'unwatched' && unwatchedCount > 0}
+						<span class="badge">{unwatchedCount > 99 ? '99+' : unwatchedCount}</span>
+					{/if}
+				</span>
 			</button>
 		{/each}
 		<div class="tab-indicator" class:instant={swiping} style={indicatorStyle}></div>
@@ -97,6 +111,12 @@
 		opacity: 0;
 	}
 
+	.filter-bar.pull-snapping {
+		transition:
+			opacity 0.3s ease,
+			transform 0.25s ease;
+	}
+
 	.filter-tabs {
 		position: relative;
 		display: flex;
@@ -120,6 +140,24 @@
 
 	.filter-tabs button.active {
 		color: var(--reel-text);
+	}
+
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 5px;
+		margin-left: 4px;
+		background: var(--accent-magenta);
+		color: #fff;
+		font-family: var(--font-body);
+		font-size: 0.6875rem;
+		font-weight: 700;
+		line-height: 1;
+		border-radius: var(--radius-full);
+		vertical-align: middle;
 	}
 
 	.tab-indicator {

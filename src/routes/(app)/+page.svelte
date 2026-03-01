@@ -16,6 +16,7 @@
 		openCommentsSignal
 	} from '$lib/stores/toasts';
 	import { homeTapSignal } from '$lib/stores/homeTap';
+	import { unwatchedCount, fetchUnwatchedCount } from '$lib/stores/notifications';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
@@ -51,9 +52,22 @@
 
 	let pullDistance = $state(0);
 	let isRefreshing = $state(false);
+	let pullSnapping = $state(false);
 	let touchStartY = 0;
 	let isPullingActive = false;
 	const PULL_THRESHOLD = 80;
+
+	function endPull(triggerRefresh: boolean) {
+		if (triggerRefresh) {
+			refresh();
+		} else {
+			pullSnapping = true;
+			pullDistance = 0;
+			setTimeout(() => {
+				pullSnapping = false;
+			}, 250);
+		}
+	}
 
 	let isDragging = $state(false);
 	let dragCounter = 0;
@@ -69,6 +83,11 @@
 		swipeX !== 0 && typeof window !== 'undefined' ? -swipeX / window.innerWidth : 0
 	);
 
+	function computePullY(dist: number, refreshing: boolean): number {
+		if (dist > 0) return dist;
+		return refreshing ? 48 : 0;
+	}
+	const pullY = $derived(computePullY(pullDistance, isRefreshing));
 	const currentUserId = $derived(page.data.user?.id ?? '');
 	const autoScroll = $derived(page.data.user?.autoScroll ?? false);
 	const gifEnabled = $derived(!!page.data.gifEnabled);
@@ -103,12 +122,14 @@
 	}
 
 	async function markWatched(clipId: string) {
+		const wasUnwatched = clips.find((c) => c.id === clipId && !c.watched);
 		await markClipWatched(clipId);
 		clips = clips.map((c) =>
 			c.id === clipId
 				? { ...c, watched: true, viewCount: c.watched ? c.viewCount : c.viewCount + 1 }
 				: c
 		);
+		if (wasUnwatched) fetchUnwatchedCount();
 	}
 
 	async function toggleFavorite(clipId: string) {
@@ -178,12 +199,15 @@
 		}, 250);
 	}
 
+	// Pull-to-refresh: attach to feedWrapper so it works on empty state too.
+	// Uses scrollContainer for scroll position when it exists, otherwise treats as top.
 	$effect(() => {
-		if (!scrollContainer) return;
-		const sc = scrollContainer;
+		if (!feedWrapper) return;
+		const el = feedWrapper;
+		const getScrollTop = () => scrollContainer?.scrollTop ?? 0;
 
 		function handleTouchStart(e: TouchEvent) {
-			if (sc.scrollTop <= 0 && !isRefreshing) {
+			if (getScrollTop() <= 0 && !isRefreshing) {
 				touchStartY = e.touches[0].clientY;
 				isPullingActive = true;
 			}
@@ -191,7 +215,7 @@
 
 		function handleTouchMove(e: TouchEvent) {
 			if (!isPullingActive || isRefreshing || isHorizontalSwiping) return;
-			if (sc.scrollTop > 0) {
+			if (getScrollTop() > 0) {
 				isPullingActive = false;
 				pullDistance = 0;
 				return;
@@ -206,18 +230,52 @@
 		}
 
 		function handleTouchEnd() {
-			if (pullDistance >= PULL_THRESHOLD && !isRefreshing) refresh();
-			else pullDistance = 0;
+			if (pullDistance > 0) endPull(pullDistance >= PULL_THRESHOLD && !isRefreshing);
 			isPullingActive = false;
 		}
 
-		sc.addEventListener('touchstart', handleTouchStart, { passive: true });
-		sc.addEventListener('touchmove', handleTouchMove, { passive: false });
-		sc.addEventListener('touchend', handleTouchEnd, { passive: true });
+		// Wheel-based pull-to-refresh for desktop (trackpad / mouse wheel)
+		let wheelAccum = 0;
+		let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+
+		function handleWheel(e: WheelEvent) {
+			if (isRefreshing) return;
+			if (getScrollTop() > 0) {
+				wheelAccum = 0;
+				pullDistance = 0;
+				return;
+			}
+
+			if (e.deltaY < 0) {
+				// Scrolling up — accumulate pull distance
+				wheelAccum += Math.abs(e.deltaY);
+				pullDistance = Math.min(wheelAccum * 0.3, 120);
+				if (pullDistance > 10) e.preventDefault();
+			} else if (e.deltaY > 0 && wheelAccum > 0) {
+				// Scrolling back down — allow cancelling
+				wheelAccum = Math.max(0, wheelAccum - Math.abs(e.deltaY));
+				pullDistance = Math.min(wheelAccum * 0.3, 120);
+				if (pullDistance > 0) e.preventDefault();
+			}
+
+			// Trigger or cancel after user stops scrolling
+			if (wheelTimer) clearTimeout(wheelTimer);
+			wheelTimer = setTimeout(() => {
+				if (pullDistance > 0) endPull(pullDistance >= PULL_THRESHOLD && !isRefreshing);
+				wheelAccum = 0;
+			}, 150);
+		}
+
+		el.addEventListener('touchstart', handleTouchStart, { passive: true });
+		el.addEventListener('touchmove', handleTouchMove, { passive: false });
+		el.addEventListener('touchend', handleTouchEnd, { passive: true });
+		el.addEventListener('wheel', handleWheel, { passive: false });
 		return () => {
-			sc.removeEventListener('touchstart', handleTouchStart);
-			sc.removeEventListener('touchmove', handleTouchMove);
-			sc.removeEventListener('touchend', handleTouchEnd);
+			el.removeEventListener('touchstart', handleTouchStart);
+			el.removeEventListener('touchmove', handleTouchMove);
+			el.removeEventListener('touchend', handleTouchEnd);
+			el.removeEventListener('wheel', handleWheel);
+			if (wheelTimer) clearTimeout(wheelTimer);
 		};
 	});
 
@@ -313,6 +371,7 @@
 
 	async function refresh() {
 		isRefreshing = true;
+		const previousIds = new Set(clips.map((c) => c.id));
 		const data = await fetchClips(filter, PAGE_SIZE);
 		if (data) {
 			clips = data.clips;
@@ -320,11 +379,22 @@
 			currentOffset = data.clips.length;
 			activeIndex = 0;
 			if (scrollContainer) scrollContainer.scrollTop = 0;
+			const hasNew = data.clips.some((c) => !previousIds.has(c.id));
+			if (!hasNew && data.clips.length > 0) {
+				toast.info('All caught up');
+			} else if (data.clips.length === 0) {
+				toast.info('Nothing new');
+			}
 		} else {
 			toast.error('Failed to refresh feed');
 		}
 		isRefreshing = false;
+		pullSnapping = true;
 		pullDistance = 0;
+		setTimeout(() => {
+			pullSnapping = false;
+		}, 250);
+		fetchUnwatchedCount();
 	}
 
 	$effect(() => {
@@ -572,19 +642,21 @@
 		{swipeProgress}
 		swiping={isHorizontalSwiping}
 		hidden={$feedUiHidden}
+		unwatchedCount={$unwatchedCount}
+		pullOffset={pullY}
 	/>
 
 	{#if pullDistance > 0 || isRefreshing}
 		<div
 			class="pull-indicator"
-			style="transform: translateY({pullDistance - 48}px); opacity: {isRefreshing
+			style="opacity: {isRefreshing || pullDistance >= PULL_THRESHOLD
 				? 1
 				: Math.min(pullDistance / PULL_THRESHOLD, 1)}"
 		>
-			{#if isRefreshing}
+			{#if isRefreshing || pullDistance >= PULL_THRESHOLD}
 				<span class="pull-spinner"></span>
 			{:else}
-				<span class="pull-arrow" class:ready={pullDistance >= PULL_THRESHOLD}>
+				<span class="pull-arrow">
 					<ArrowDownIcon size={24} weight="bold" />
 				</span>
 			{/if}
@@ -594,7 +666,13 @@
 	<div
 		class="feed-slide"
 		class:animating={swipeAnimating}
-		style:transform={swipeX !== 0 ? `translateX(${swipeX}px)` : undefined}
+		class:pull-snapping={pullSnapping}
+		style:transform={(() => {
+			const parts: string[] = [];
+			if (swipeX !== 0) parts.push(`translateX(${swipeX}px)`);
+			if (pullY > 0 || pullSnapping) parts.push(`translateY(${pullY}px)`);
+			return parts.length > 0 ? parts.join(' ') : undefined;
+		})()}
 		bind:this={feedWrapper}
 	>
 		{#if loading}
@@ -671,10 +749,11 @@
 		top: 0;
 		left: 0;
 		right: 0;
-		z-index: 25;
+		z-index: 19;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		padding-top: max(var(--space-sm), env(safe-area-inset-top));
 		height: 48px;
 		pointer-events: none;
 		transition: opacity 0.15s ease;
@@ -682,14 +761,6 @@
 	.pull-arrow {
 		display: inline-flex;
 		color: var(--reel-text-dim);
-		transform: rotate(180deg);
-		transition:
-			transform 0.2s ease,
-			color 0.2s ease;
-	}
-	.pull-arrow.ready {
-		transform: rotate(0deg);
-		color: var(--accent-primary);
 	}
 	.pull-spinner {
 		display: inline-block;
@@ -805,6 +876,9 @@
 	}
 	.feed-slide.animating {
 		transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+	}
+	.feed-slide.pull-snapping {
+		transition: transform 0.25s ease;
 	}
 	.drop-target {
 		height: 100dvh;

@@ -112,7 +112,7 @@
 		left: 0;
 		right: 0;
 		z-index: 6;
-		height: 24px;
+		height: 48px;
 		display: flex;
 		align-items: center;
 		cursor: pointer;
