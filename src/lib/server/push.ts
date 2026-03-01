@@ -95,7 +95,7 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 export async function sendGroupNotification(
 	groupId: string,
 	payload: NotificationPayload,
-	preferenceKey: 'newAdds' | 'reactions' | 'comments' | 'dailyReminder',
+	preferenceKey: 'newAdds' | 'reactions' | 'comments' | 'mentions' | 'dailyReminder',
 	excludeUserId?: string
 ): Promise<void> {
 	const groupUsers = await db.query.users.findMany({

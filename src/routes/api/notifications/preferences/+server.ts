@@ -11,13 +11,20 @@ export const GET: RequestHandler = withAuth(async (_event, { user }) => {
 	});
 
 	if (!prefs) {
-		return json({ newAdds: true, reactions: true, comments: true, dailyReminder: false });
+		return json({
+			newAdds: true,
+			reactions: true,
+			comments: true,
+			mentions: true,
+			dailyReminder: false
+		});
 	}
 
 	return json({
 		newAdds: prefs.newAdds,
 		reactions: prefs.reactions,
 		comments: prefs.comments,
+		mentions: prefs.mentions,
 		dailyReminder: prefs.dailyReminder
 	});
 });
@@ -26,7 +33,7 @@ export const PATCH: RequestHandler = withAuth(async ({ request }, { user }) => {
 	const body = await parseBody<Record<string, unknown>>(request);
 	if (isResponse(body)) return body;
 
-	const allowed = ['newAdds', 'reactions', 'comments', 'dailyReminder'] as const;
+	const allowed = ['newAdds', 'reactions', 'comments', 'mentions', 'dailyReminder'] as const;
 	const updates: Record<string, boolean> = {};
 
 	for (const key of allowed) {
@@ -52,6 +59,7 @@ export const PATCH: RequestHandler = withAuth(async ({ request }, { user }) => {
 		newAdds: updated!.newAdds,
 		reactions: updated!.reactions,
 		comments: updated!.comments,
+		mentions: updated!.mentions,
 		dailyReminder: updated!.dailyReminder
 	});
 });

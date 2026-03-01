@@ -11,6 +11,7 @@ import {
 	mapUsersByIds,
 	notifyClipOwner
 } from '$lib/server/api-utils';
+import { extractMentions, notifyMentions } from '$lib/server/mentions';
 
 export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => {
 	const clipId = params.id;
@@ -87,13 +88,13 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 	return json({ comments: formatted });
 });
 
-/** Determine the notification recipient and dispatch. */
+/** Determine the notification recipient and dispatch. Returns recipient ID or null. */
 async function dispatchCommentNotification(
 	clipId: string,
 	parentId: string | null,
 	actor: { id: string; username: string },
 	preview: string
-) {
+): Promise<string | null> {
 	if (parentId) {
 		const parentComment = await db.query.comments.findFirst({
 			where: eq(comments.id, parentId)
@@ -111,6 +112,7 @@ async function dispatchCommentNotification(
 				pushTag: `reply-${clipId}`,
 				commentPreview: preview
 			});
+			return parentComment.userId;
 		}
 	} else {
 		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
@@ -127,8 +129,10 @@ async function dispatchCommentNotification(
 				pushTag: `comment-${clipId}`,
 				commentPreview: preview
 			});
+			return clip.addedBy;
 		}
 	}
+	return null;
 }
 
 function isValidGiphyUrl(url: string): boolean {
@@ -188,7 +192,27 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 	});
 
 	const preview = hasText ? trimmed.slice(0, 80) : '[GIF]';
-	await dispatchCommentNotification(clipId, body.parentId || null, user, preview);
+	const commentRecipientId = await dispatchCommentNotification(
+		clipId,
+		body.parentId || null,
+		user,
+		preview
+	);
+
+	// Dispatch @mention notifications (exclude user who already got comment/reply notification)
+	const mentionedUsernames = extractMentions(trimmed);
+	if (mentionedUsernames.length > 0) {
+		const excludeUserIds = commentRecipientId ? [commentRecipientId] : [];
+		notifyMentions({
+			mentionedUsernames,
+			actorId: user.id,
+			actorUsername: user.username,
+			clipId,
+			groupId: user.groupId,
+			commentPreview: preview,
+			excludeUserIds
+		}).catch(() => {});
+	}
 
 	return json(
 		{
