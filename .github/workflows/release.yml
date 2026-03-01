@@ -50,6 +50,7 @@ jobs:
           gh pr merge "$PR_NUMBER" --squash --auto
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
 
   # Run CodeQL on the release PR branch to satisfy the code scanning ruleset.
   # GITHUB_TOKEN-created PRs don't trigger other workflows, so we run CodeQL
@@ -73,6 +74,7 @@ jobs:
           echo "skip=false" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
 
       - name: Checkout release PR branch
         if: steps.find-pr.outputs.skip != 'true'
