@@ -5,7 +5,7 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('download');
 
-interface DownloadResult {
+export interface DownloadResult {
 	status: 'ready' | 'failed';
 	videoPath: string | null;
 	thumbnailPath: string | null;
