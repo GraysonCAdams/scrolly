@@ -33,6 +33,8 @@
 		ondismiss: () => void;
 	} = $props();
 
+	const memberUsernames = $derived(members.map((m) => m.username));
+
 	let comments = $state<Comment[]>([]);
 	let loading = $state(true);
 	let submitting = $state(false);
@@ -182,7 +184,9 @@
 								{/if}
 							</div>
 							{#if comment.text}
-								<p class="comment-text"><MentionText text={comment.text} /></p>
+								<p class="comment-text">
+									<MentionText text={comment.text} usernames={memberUsernames} />
+								</p>
 							{/if}
 							{#if comment.gifUrl}
 								<img class="comment-gif" src={comment.gifUrl} alt="GIF" loading="lazy" />
@@ -221,7 +225,9 @@
 													{/if}
 												</div>
 												{#if reply.text}
-													<p class="reply-text"><MentionText text={reply.text} /></p>
+													<p class="reply-text">
+														<MentionText text={reply.text} usernames={memberUsernames} />
+													</p>
 												{/if}
 												{#if reply.gifUrl}
 													<img class="reply-gif" src={reply.gifUrl} alt="GIF" loading="lazy" />
