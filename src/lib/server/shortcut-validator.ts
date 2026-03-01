@@ -11,8 +11,6 @@ const log = createLogger('shortcut-validator');
 
 const ICLOUD_API = 'https://www.icloud.com/shortcuts/api/records';
 
-// ── Types ──────────────────────────────────────────────────────────────
-
 export interface ValidationWarning {
 	code: string;
 	message: string;
@@ -43,8 +41,6 @@ interface DownloadAnalysis {
 	bodyVariableRefs: string[];
 }
 
-// ── Keyword lists for classifying import questions ─────────────────────
-
 const PHONE_KEYWORDS = ['phone', 'number', 'phone number'];
 const URL_KEYWORDS = ['url', 'instance', 'server', 'address', 'domain'];
 const TOKEN_KEYWORDS = ['token', 'key', 'secret', 'group token'];
@@ -53,8 +49,6 @@ function matchesKeywords(text: string, keywords: string[]): boolean {
 	const lower = text.toLowerCase();
 	return keywords.some((kw) => lower.includes(kw));
 }
-
-// ── Helpers ─────────────────────────────────────────────────────────────
 
 function extractShortcutId(icloudUrl: string): string | null {
 	const m = icloudUrl.match(/\/shortcuts\/([a-f0-9]{32})\/?$/i);
@@ -200,55 +194,36 @@ function isLocalhostOrigin(origin: string): boolean {
 	}
 }
 
-// ── Fetch + parse shortcut from iCloud ─────────────────────────────────
-
-async function fetchShortcutPlist(
-	icloudUrl: string
-): Promise<
+type FetchResult =
 	| { name: string | null; actions: ShortcutAction[]; importQuestions: ImportQuestion[] }
-	| { error: ValidationResult }
-> {
+	| { error: ValidationResult };
+
+function fail(name: string | null, code: string, message: string): { error: ValidationResult } {
+	return { error: { name, warnings: [{ code, message }] } };
+}
+
+async function fetchShortcutPlist(icloudUrl: string): Promise<FetchResult> {
 	const shortcutId = extractShortcutId(icloudUrl);
-	if (!shortcutId) {
-		return {
-			error: {
-				name: null,
-				warnings: [{ code: 'invalid_url', message: 'Not a valid iCloud Shortcuts link.' }]
-			}
-		};
-	}
+	if (!shortcutId) return fail(null, 'invalid_url', 'Not a valid iCloud Shortcuts link.');
 
 	let metadata: Record<string, unknown>;
 	try {
 		const res = await fetch(`${ICLOUD_API}/${shortcutId}`);
 		if (!res.ok) {
-			return {
-				error: {
-					name: null,
-					warnings: [
-						{
-							code: 'fetch_failed',
-							message:
-								'Could not fetch this shortcut from iCloud. The link may be invalid or expired.'
-						}
-					]
-				}
-			};
+			return fail(
+				null,
+				'fetch_failed',
+				'Could not fetch this shortcut from iCloud. The link may be invalid or expired.'
+			);
 		}
 		metadata = await res.json();
 	} catch (err) {
 		log.error({ err }, 'Failed to fetch shortcut metadata');
-		return {
-			error: {
-				name: null,
-				warnings: [
-					{
-						code: 'fetch_failed',
-						message: 'Could not reach iCloud to validate the shortcut. Try again later.'
-					}
-				]
-			}
-		};
+		return fail(
+			null,
+			'fetch_failed',
+			'Could not reach iCloud to validate the shortcut. Try again later.'
+		);
 	}
 
 	const fields = metadata.fields as Record<string, Record<string, unknown>> | undefined;
@@ -256,32 +231,17 @@ async function fetchShortcutPlist(
 	const downloadURL = (fields?.shortcut?.value as Record<string, unknown> | undefined)
 		?.downloadURL as string | undefined;
 
-	if (!downloadURL) {
-		return {
-			error: {
-				name,
-				warnings: [
-					{
-						code: 'fetch_failed',
-						message: 'The shortcut exists on iCloud but has no downloadable file.'
-					}
-				]
-			}
-		};
-	}
+	if (!downloadURL)
+		return fail(
+			name,
+			'fetch_failed',
+			'The shortcut exists on iCloud but has no downloadable file.'
+		);
 
 	try {
 		const plistRes = await fetch(downloadURL);
-		if (!plistRes.ok) {
-			return {
-				error: {
-					name,
-					warnings: [
-						{ code: 'fetch_failed', message: 'Could not download the shortcut file from iCloud.' }
-					]
-				}
-			};
-		}
+		if (!plistRes.ok)
+			return fail(name, 'fetch_failed', 'Could not download the shortcut file from iCloud.');
 		const buffer = Buffer.from(await plistRes.arrayBuffer());
 		const [parsed] = bplist.parseBuffer(buffer);
 		const plist = parsed as Record<string, unknown>;
@@ -292,16 +252,9 @@ async function fetchShortcutPlist(
 		};
 	} catch (err) {
 		log.error({ err }, 'Failed to parse shortcut plist');
-		return {
-			error: {
-				name,
-				warnings: [{ code: 'parse_failed', message: 'Could not read the shortcut file.' }]
-			}
-		};
+		return fail(name, 'parse_failed', 'Could not read the shortcut file.');
 	}
 }
-
-// ── Validation checks (each returns warnings) ─────────────────────────
 
 function checkUrl(resolvedUrl: string, expectedAppUrl: string): ValidationWarning[] {
 	const warnings: ValidationWarning[] = [];
@@ -346,12 +299,12 @@ function checkToken(resolvedUrl: string, expectedToken: string): ValidationWarni
 	if (!expectedToken) return [];
 	const warnings: ValidationWarning[] = [];
 
-	if (resolvedUrl.includes(`token=${expectedToken}`)) return [];
-
 	const tokenMatch = resolvedUrl.match(/token=([^&\s]+)/);
 	const found = tokenMatch?.[1];
 
-	if (found && !found.includes('{') && found !== expectedToken) {
+	if (found === expectedToken) return [];
+
+	if (found && !found.includes('{')) {
 		warnings.push({
 			code: 'wrong_token',
 			message: "<b>Token mismatch.</b> The group token in this shortcut doesn't match yours."
@@ -360,11 +313,6 @@ function checkToken(resolvedUrl: string, expectedToken: string): ValidationWarni
 		warnings.push({
 			code: 'wrong_token',
 			message: "<b>Token not configured.</b> The shortcut needs your group's token to authenticate."
-		});
-	} else {
-		warnings.push({
-			code: 'wrong_token',
-			message: "<b>No token found.</b> The shortcut doesn't send a group token."
 		});
 	}
 	return warnings;
@@ -485,8 +433,6 @@ function checkImportQuestions(importQuestions: ImportQuestion[]): ValidationWarn
 	}
 	return warnings;
 }
-
-// ── Main validator ──────────────────────────────────────────────────────
 
 export async function validateShortcut(
 	icloudUrl: string,

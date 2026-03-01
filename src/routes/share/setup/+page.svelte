@@ -373,6 +373,10 @@
 							<span>{@html warning.message}</span>
 						</label>
 					{/each}
+					<p class="checklist-tip">
+						After making changes, close the shortcut editor and use
+						<strong>Share → Copy iCloud Link</strong> again to get an updated link.
+					</p>
 				</div>
 
 				<div class="validation-actions">
@@ -677,6 +681,16 @@
 		font-size: 0.8125rem;
 		color: var(--text-muted);
 		margin: 0;
+	}
+	.checklist-tip {
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+		margin: 0;
+		font-style: italic;
+	}
+	.checklist-tip strong {
+		color: var(--text-secondary);
+		font-style: normal;
 	}
 	.validation-warning-check {
 		display: flex;
