@@ -61,7 +61,7 @@ export default withMermaid(
 
 			footer: {
 				message: 'Released under the MIT License.',
-				copyright: 'Copyright © 2026 312-dev'
+				copyright: 'Copyright © 2026 312.dev LLC'
 			}
 		},
 
