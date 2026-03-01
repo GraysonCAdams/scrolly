@@ -332,7 +332,7 @@
 		<InlineError message={error} />
 	</div>
 
-	<p class="footer-note">if you know, you know.</p>
+	<p class="footer-note">a private place to share videos with your people.</p>
 </div>
 
 <style>
